@@ -2,6 +2,17 @@
 
 TypeScript CLI for AI-assisted development with multi-backend support and deep reasoning.
 
+## Motivation
+
+I wanted a subagent that does heavy thinking. Something that can take as long as it needs to—you use it sparingly, but when you do, it goes deep. Similar to Ampcode's Oracle, where I can delegate to Codex for the hard stuff.
+
+I also wanted to replicate what Grok Heavy, GPT Pro, and Gemini Deepthink do: multiple rollouts, verification sequences, the works. So I built my own, based on a couple of papers:
+
+- [Self-Discover](https://arxiv.org/abs/2402.03620) for structured reasoning
+- [Chain-of-Verification](https://arxiv.org/abs/2309.11495) for fact-checking outputs
+
+Multiple solvers run in parallel, a judge synthesizes the best answer, and a verifier kicks in when there's disagreement. That's basically it—a homegrown Deepthink I can invoke from the terminal.
+
 ## Quick Start
 
 ```bash
