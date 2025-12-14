@@ -70,21 +70,24 @@ veda deep -f src/api/auth.ts -f src/models/user.ts "What's the best approach?"
 
 ### Basic Usage
 
+**Always use `--trace` to save the full pipeline execution for review:**
+
 ```bash
 # Simple deep thinking (3 solvers, verification enabled)
-veda -S $VEDA_SESSION deep "What's the best way to handle authentication in this app?"
+veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml "What's the best way to handle authentication in this app?"
 
 # More solvers for complex questions
-veda -S $VEDA_SESSION deep -k 5 "Design a caching layer for this API"
+veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml -k 5 "Design a caching layer for this API"
 
 # Skip verification for faster results
-veda -S $VEDA_SESSION deep --no-verify "Compare REST vs GraphQL for this use case"
+veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml --no-verify "Compare REST vs GraphQL for this use case"
 ```
 
 ### Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
+| `--trace file` | Save full trace to YAML file (recommended: always use) | none |
 | `-k N` | Number of parallel solvers | 3 |
 | `--categories` | Reasoning categories to use (comma-separated) | random sampling |
 | `--modules` | Exact module IDs to use (overrides k and categories) | none |
@@ -163,8 +166,11 @@ veda -S $VEDA_SESSION sel clear
 veda -S $VEDA_SESSION sel add "src/api/" "src/models/" "src/config/"
 veda -S $VEDA_SESSION sel ls
 
-# 3. Ask a complex design question
-veda -S $VEDA_SESSION deep "Given this codebase, what's the best strategy for adding real-time notifications? Consider: scalability, complexity, and integration with existing code."
+# 3. Ask a complex design question (always trace to /tmp)
+veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml "Given this codebase, what's the best strategy for adding real-time notifications? Consider: scalability, complexity, and integration with existing code."
+
+# 4. Review trace if needed
+cat /tmp/deep-trace.yaml
 ```
 
 ---
@@ -236,9 +242,9 @@ Returns:
 Key commands:
 - `veda -S $VEDA_SESSION sel add` to build context
 - `veda -S $VEDA_SESSION sel ls` to check token count
-- `veda -S $VEDA_SESSION deep "question"` for deep thinking
-- `veda -S $VEDA_SESSION deep -k 5 "question"` for more solvers
-- `veda -S $VEDA_SESSION deep --no-verify "question"` for faster results
-- `veda -S $VEDA_SESSION deep --json "question"` for structured output
+- `veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml "question"` for deep thinking
+- `veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml -k 5 "question"` for more solvers
+- `veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml --no-verify "question"` for faster results
+- `cat /tmp/deep-trace.yaml` to review full pipeline execution
 
-**Note:** Deep mode is stateless - no `resume` support. Each run is independent.
+**Note:** Deep mode is stateless - no `resume` support. Each run is independent. Always use `--trace` for reviewability.
