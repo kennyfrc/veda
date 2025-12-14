@@ -92,6 +92,7 @@ describe('createVerification', () => {
       const verification = createVerification({
         type: 'reasoning',
         solver,
+        independent: true,  // Each check gets its own solver call
       });
       
       const results = await verification.answerChecks([
@@ -114,6 +115,7 @@ describe('createVerification', () => {
       const verification = createVerification({
         type: 'reasoning',
         solver,
+        independent: true,  // Each check gets its own solver call
       });
       
       const results = await verification.answerChecks([

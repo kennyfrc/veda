@@ -154,7 +154,9 @@ describe('persona', () => {
         defaults
       );
       
-      expect(config.systemPrompt).toBe('Custom prompt');
+      // System prompt is wrapped with sandbox notice
+      expect(config.systemPrompt).toContain('Custom prompt');
+      expect(config.systemPrompt).toContain('Sandbox Notice');
       expect(config.systemPromptPath).toBeUndefined();
     });
 
