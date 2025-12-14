@@ -2,7 +2,9 @@
  * Judge prompts for selecting the best solution.
  */
 
-export const JUDGE_SYSTEM_PROMPT = `You are an expert judge evaluating multiple candidate solutions. Your task is to select the best one based on objective criteria.
+import { SANDBOX_NOTICE } from '../../agent/sandbox';
+
+export const JUDGE_SYSTEM_PROMPT = `${SANDBOX_NOTICE}You are an expert judge evaluating multiple candidate solutions. Your task is to select the best one based on objective criteria.
 
 ## Evaluation Criteria (in priority order)
 1. **Correctness**: Does it solve the problem correctly?

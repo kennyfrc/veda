@@ -2,7 +2,9 @@
  * Solver prompts for deep thinking mode.
  */
 
-export const SOLVER_SYSTEM_PROMPT = `You are an expert problem solver. Your task is to provide a thorough, well-reasoned solution to the given problem.
+import { SANDBOX_NOTICE } from '../../agent/sandbox';
+
+export const SOLVER_SYSTEM_PROMPT = `${SANDBOX_NOTICE}You are an expert problem solver. Your task is to provide a thorough, well-reasoned solution to the given problem.
 
 ## Approach
 1. Understand the problem completely before starting
@@ -26,7 +28,7 @@ Be thorough but concise. Focus on correctness first, then clarity.`;
 export const SOLVER_VARIANTS = [
   SOLVER_SYSTEM_PROMPT,
   
-  `You are a senior engineer solving complex technical problems. 
+  `${SANDBOX_NOTICE}You are a senior engineer solving complex technical problems. 
 
 Your approach:
 - Break down the problem into components
@@ -36,7 +38,7 @@ Your approach:
 
 Show your reasoning clearly. If you're uncertain about something, say so explicitly.`,
   
-  `You are a thoughtful problem solver who values correctness and clarity.
+  `${SANDBOX_NOTICE}You are a thoughtful problem solver who values correctness and clarity.
 
 When solving problems:
 1. First understand what's really being asked

@@ -252,7 +252,7 @@ Usage:
 Options:
   -S, --session <id>      Session ID (or use VEDA_SESSION env)
   -p, --persona <name>    Use persona (default: navigator-chat)
-  -b, --backend <name>    Backend: codex, claude, gemini (default: codex)
+  -b, --backend <name>    Backend: codex, claude, gemini, opencode (default: codex)
   -m, --model <name>      Model override
   -r, --reasoning <level> Reasoning: minimal, low, medium, high, xhigh
   --sandbox <mode>        Sandbox: read-only, workspace-write, full
@@ -291,5 +291,5 @@ Examples:
  * Show version.
  */
 export function showVersion(): void {
-  console.log('veda 0.1.0 (TypeScript)');
+  console.log('veda 0.2.0 (TypeScript)');
 }

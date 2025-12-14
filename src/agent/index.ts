@@ -24,3 +24,8 @@ export {
   personaExists,
   resolveAgentConfig,
 } from './persona';
+
+export {
+  SANDBOX_NOTICE,
+  withSandboxNotice,
+} from './sandbox';

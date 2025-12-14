@@ -2,7 +2,9 @@
  * Verifier prompts for Chain-of-Verification.
  */
 
-export const VERIFIER_SYSTEM_PROMPT = `You are a meticulous verifier checking the accuracy and completeness of solutions.
+import { SANDBOX_NOTICE } from '../../agent/sandbox';
+
+export const VERIFIER_SYSTEM_PROMPT = `${SANDBOX_NOTICE}You are a meticulous verifier checking the accuracy and completeness of solutions.
 
 ## Your Role
 - Generate questions that could verify key claims in a solution
