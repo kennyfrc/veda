@@ -8,10 +8,11 @@ I wanted a subagent that does heavy thinking. Something that can take as long as
 
 Stuff like GPT High was not enough for me. I needed something closer to GPT Pro, Gemini Deepthink, Grok Heavy, or Kimi K2 Heavy—where you do multiple rollouts and converge on the right answer.
 
-So I built my own, based on two papers:
+So I built my own, based on a few papers:
 
-- [Self-Discover](https://arxiv.org/abs/2402.03620) — structured reasoning
-- [Chain-of-Verification](https://arxiv.org/abs/2309.11495) — fact-checking outputs
+- [Self-Consistency](https://arxiv.org/abs/2203.11171) — sample diverse reasoning paths, aggregate the best
+- [Universal Self-Consistency](https://arxiv.org/abs/2311.17311) — use an LLM as judge to select among candidates
+- [Chain-of-Verification](https://arxiv.org/abs/2309.11495) — fact-check outputs before finalizing
 
 Solvers run in parallel, each using a different problem-solving strategy. A judge picks the best answer, and a verifier kicks in when they disagree. That's basically it—a homegrown Deepthink I can invoke from the terminal.
 

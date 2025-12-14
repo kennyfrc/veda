@@ -1,14 +1,19 @@
 /**
  * DeepThink Pipeline - Full deep reasoning mode.
  * 
+ * Based on:
+ * - Self-Consistency (Wang et al., 2022) - sample diverse reasoning paths, aggregate
+ *   https://arxiv.org/abs/2203.11171
+ * - Universal Self-Consistency (Chen et al., 2023) - LLM as judge to select best
+ *   https://arxiv.org/abs/2311.17311
+ * - Chain-of-Verification (Dhuliawala et al., 2023) - fact-check before finalizing
+ *   https://arxiv.org/abs/2309.11495
+ * 
  * Uses:
- * - SELF-DISCOVER reasoning modules for cognitive diversity
+ * - Reasoning modules for cognitive diversity (different problem-solving strategies)
  * - Prompt variants for stylistic diversity
  * - Judge aggregation to select best answer
  * - Optional Chain-of-Verification to check and revise
- * 
- * Based on: "SELF-DISCOVER: Large Language Models Self-Compose Reasoning Structures"
- * (Zhou et al., 2024) - https://arxiv.org/abs/2402.03620
  */
 
 import { getDefaults } from '../agent';
@@ -164,7 +169,7 @@ export async function* runDeepThink(
   yield { type: 'stage_start', stage: 'solve' };
   stages.push('solve');
   
-  // Select reasoning modules (SELF-DISCOVER)
+  // Select reasoning modules for diverse problem-solving strategies
   const modules = selectModules({
     k,
     categories: options.categories,
@@ -345,7 +350,7 @@ export async function* runDeepThink(
 }
 
 /**
- * Create diverse solvers using SELF-DISCOVER reasoning modules.
+ * Create diverse solvers using reasoning modules for cognitive diversity.
  * 
  * Diversity comes from:
  * 1. Different reasoning modules (cognitive heuristics)

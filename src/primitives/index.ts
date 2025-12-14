@@ -67,7 +67,7 @@ export {
   type CreatePipelineOptions,
 } from './pipeline';
 
-// SELF-DISCOVER reasoning modules
+// Reasoning modules for solver diversity
 export {
   selectModules,
   REASONING_MODULES,

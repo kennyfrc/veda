@@ -55,7 +55,7 @@ Be direct and specific in your response.`,
  * 
  * Combines:
  * - Base variant (different problem-solving styles)
- * - Reasoning module (SELF-DISCOVER cognitive heuristic)
+ * - Reasoning module (cognitive heuristic for diverse reasoning paths)
  */
 export interface BuildSolverPromptOptions {
   /** Index into SOLVER_VARIANTS */

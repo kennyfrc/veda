@@ -7,7 +7,7 @@ import {
   MODULE_BY_ID,
 } from '../../src/primitives/self-discover';
 
-describe('SELF-DISCOVER Reasoning Modules', () => {
+describe('Reasoning Modules', () => {
   describe('catalog', () => {
     test('has 32 modules (8 categories × 4)', () => {
       expect(REASONING_MODULES.length).toBe(32);

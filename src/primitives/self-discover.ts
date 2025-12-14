@@ -1,8 +1,11 @@
 /**
- * SELF-DISCOVER Reasoning Modules
+ * Reasoning Modules for Solver Diversity
  * 
- * Based on: "SELF-DISCOVER: Large Language Models Self-Compose Reasoning Structures"
- * (Zhou et al., 2024) - https://arxiv.org/abs/2402.03620
+ * Used to create diverse reasoning paths for Self-Consistency:
+ * - "Self-Consistency Improves Chain of Thought Reasoning" (Wang et al., 2022)
+ *   https://arxiv.org/abs/2203.11171
+ * 
+ * Each solver gets a different cognitive strategy to encourage diverse solutions.
  * 
  * 8 MECE categories × 4 orthogonal modules = 32 total
  */
