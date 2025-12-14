@@ -4,14 +4,16 @@ TypeScript CLI for AI-assisted development with multi-backend support and deep r
 
 ## Motivation
 
-I wanted a subagent that does heavy thinking. Something that can take as long as it needs to—you use it sparingly, but when you do, it goes deep. Similar to Ampcode's Oracle, where I can delegate to Codex for the hard stuff.
+I wanted a subagent that does heavy thinking. Something that can take as long as it needs to—you use it sparingly. Good examples are architectural planning or debugging hard problems.
 
-I also wanted to replicate what Grok Heavy, GPT Pro, and Gemini Deepthink do: multiple rollouts, verification sequences, the works. So I built my own, based on a couple of papers:
+Stuff like GPT High was not enough for me. I needed something closer to GPT Pro, Gemini Deepthink, Grok Heavy, or Kimi K2 Heavy—where you do multiple rollouts and converge on the right answer.
 
-- [Self-Discover](https://arxiv.org/abs/2402.03620) for structured reasoning
-- [Chain-of-Verification](https://arxiv.org/abs/2309.11495) for fact-checking outputs
+So I built my own, based on two papers:
 
-Multiple solvers run in parallel, a judge synthesizes the best answer, and a verifier kicks in when there's disagreement. That's basically it—a homegrown Deepthink I can invoke from the terminal.
+- [Self-Discover](https://arxiv.org/abs/2402.03620) — structured reasoning
+- [Chain-of-Verification](https://arxiv.org/abs/2309.11495) — fact-checking outputs
+
+Solvers run in parallel, each using a different problem-solving strategy. A judge picks the best answer, and a verifier kicks in when they disagree. That's basically it—a homegrown Deepthink I can invoke from the terminal.
 
 ## Quick Start
 
