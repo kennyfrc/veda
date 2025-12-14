@@ -8,7 +8,7 @@ I wanted a subagent that does heavy thinking. Something that can take as long as
 
 Stuff like GPT High was not enough for me. I needed something closer to GPT Pro, Gemini Deepthink, Grok Heavy, or Kimi K2 Heavy—where you do multiple rollouts and converge on the right answer.
 
-So I built my own, based on a few papers:
+So I built my own, inspired by a few papers:
 
 - [Self-Consistency](https://arxiv.org/abs/2203.11171) — sample diverse reasoning paths, aggregate the best
 - [Universal Self-Consistency](https://arxiv.org/abs/2311.17311) — use an LLM as judge to select among candidates
