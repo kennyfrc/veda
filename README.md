@@ -1,153 +1,187 @@
 # veda-ts
 
-TypeScript implementation of veda - AI CLI wrapper with multi-backend support and deep reasoning.
+TypeScript CLI for AI-assisted development with multi-backend support and deep reasoning.
 
-## Features
-
-- **Multi-backend support**: Switch between codex, claude, and gemini CLI agents
-- **Deep thinking mode**: Parallel hypothesis generation with verification
-- **Session isolation**: Per-session file selection and conversation history
-- **File slices**: Select specific line ranges from files
-- **Personas**: Configurable system prompts for different use cases
-
-## Installation
-
-### From source
+## Quick Start
 
 ```bash
-cd veda-ts
-bun install
-bun run build
+# Install
+bun install && bun run build
 cp dist/veda ~/.local/bin/
-```
 
-### Development
-
-```bash
-bun run dev -- --help        # Run directly
-bun test                      # Run tests
-bun run typecheck            # Type check
-```
-
-## Usage
-
-### Basic prompt
-
-```bash
-# Simple query
+# Basic usage
 veda "What is the CAP theorem?"
-
-# With persona
 veda -p navigator-plan "Design a caching layer"
+veda -b claude "Explain this code"
 
-# With different backend
-veda --backend claude "Explain this code"
+# Deep thinking (parallel solvers + verification)
+veda deep "Best architecture for real-time sync?"
 ```
 
-### Selection management
+## How-To Guides
+
+### Manage File Selection
 
 ```bash
-# Set session ID
 export VEDA_SESSION=my-session
 
-# Add files to selection
-veda sel add "src/*.ts"
-
-# Add file slices (specific line ranges)
-veda sel add main.ts:10-50
-
-# List selection with token counts
-veda sel ls
-
-# Clear selection
-veda sel clear
+veda sel add "src/*.ts"           # Add files (quote globs)
+veda sel add main.ts:10-50        # Add line range (1-indexed)
+veda sel ls                       # List with token counts
+veda sel rm main.ts               # Remove file and all its slices
+veda sel clear                    # Clear all
 ```
 
-### Resume conversation
+### Use Different Backends
 
 ```bash
-# Start a conversation
+veda -b codex "..."    # OpenAI Codex (default)
+veda -b claude "..."   # Anthropic Claude
+veda -b gemini "..."   # Google Gemini
+```
+
+### Resume Conversations
+
+```bash
 veda -S agent-1 "Design a distributed lock"
-
-# Continue the same conversation
 veda -S agent-1 resume "What about fairness?"
+veda -S agent-1 resume -- "--explain flags"  # Prompt with dashes
 ```
 
-### Deep thinking mode
+### Use Deep Thinking Mode
 
 ```bash
-# Full deep thinking (parallel solve + judge + verify)
-veda deep "Design a CRDT for collaborative editing"
-
-# With options
-veda deep --k 5 --no-verify "Complex architectural decision"
+veda deep "Complex design question"           # 3 solvers, verification on
+veda deep -k 5 "Critical architecture"        # 5 solvers
+veda deep --no-verify "Quick comparison"      # Skip verification
+veda deep --json "..." | jq '.candidates'     # JSON output
 ```
 
-## Architecture
-
-```
-veda-ts/
-├── src/
-│   ├── agent/         # Agent config and personas
-│   ├── backend/       # CLI backend adapters (codex, claude, gemini)
-│   ├── commands/      # CLI command handlers
-│   ├── context/       # File selection management
-│   ├── conversation/  # Thread/session persistence
-│   ├── pipelines/     # Deep thinking orchestration
-│   ├── primitives/    # Core orchestration primitives
-│   └── util/          # Path and lock utilities
-├── tests/             # Test files
-└── dist/              # Compiled binary
-```
-
-### Core Primitives
-
-The library is built on a set of composable primitives:
-
-- **Solver**: A configured LLM endpoint with a role
-- **Step**: Single LLM call with typed input/output
-- **Ensemble**: Parallel solvers with aggregation
-- **Aggregator**: Strategy for combining outputs (MajorityVote, Judge, Merge)
-- **Verification**: Chain-of-Verification for checking outputs
-- **Pipeline**: Compose stages with data flow
-
-## Configuration
-
-Config file: `~/.config/veda/config`
+### Use Personas
 
 ```bash
-# Default model
+veda -p navigator-plan "..."   # Planning (high reasoning)
+veda -p navigator-chat "..."   # Discussion (medium reasoning)
+veda -p reviewer "..."         # Code review (high reasoning)
+veda personas                  # List available
+```
+
+## Key Concepts
+
+### Primitives
+
+The core building blocks for AI orchestration:
+
+| Primitive | Purpose | Example |
+|-----------|---------|---------|
+| **Solver** | Configured LLM endpoint with role | `createSolver({ backend, systemPrompt })` |
+| **Step** | Single LLM call with typed I/O | `createStep({ solver, formatPrompt, parseOutput })` |
+| **Ensemble** | Parallel solvers with aggregation | `createEnsemble({ solvers, aggregator })` |
+| **Aggregator** | Combine multiple outputs | `MajorityVote`, `createJudgeAggregator(solver)` |
+| **Verification** | Chain-of-Verification | `createVerification({ type, solver })` |
+
+### Deep Thinking Pipeline
+
+```
+┌─────────────┐
+│   Prompt    │
+└──────┬──────┘
+       ▼
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Solver 1   │    │  Solver 2   │    │  Solver 3   │  (parallel, diverse backends)
+└──────┬──────┘    └──────┬──────┘    └──────┬──────┘
+       └──────────────────┼──────────────────┘
+                          ▼
+                 ┌─────────────────┐
+                 │      Judge      │  (select/synthesize best)
+                 └────────┬────────┘
+                          ▼
+                 ┌─────────────────┐
+                 │    Verifier     │  (if disagreement detected)
+                 └────────┬────────┘
+                          ▼
+                 ┌─────────────────┐
+                 │     Answer      │
+                 └─────────────────┘
+```
+
+**Verification triggers when:**
+- Solvers disagree (low agreement rate)
+- Judge picks minority answer
+- Low margin between top answers
+
+### Backends
+
+Each backend normalizes to a common `Message` stream:
+
+```typescript
+interface Message {
+  type: 'init' | 'text' | 'reasoning' | 'tool_use' | 'tool_result' | 'error' | 'done';
+  content?: string;
+  sessionId?: string;
+  usage?: { inputTokens: number; outputTokens: number };
+}
+```
+
+### Sessions
+
+Sessions isolate state between concurrent agents:
+- File selection: `~/.config/veda/sessions/<id>/selection`
+- Thread info: `~/.config/veda/sessions/<id>/thread.json`
+
+## Reference
+
+### CLI Options
+
+```
+veda [options] <prompt>
+veda sel <add|rm|ls|clear|tokens> [args]
+veda resume [prompt]
+veda deep [options] <prompt>
+
+Options:
+  -S, --session <id>     Session ID (or VEDA_SESSION env)
+  -p, --persona <name>   navigator-plan|navigator-chat|reviewer
+  -b, --backend <name>   codex|claude|gemini
+  -m, --model <model>    Model override
+  -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
+  -k <n>                 Solver count for deep mode (default: 3)
+  --no-verify            Skip verification in deep mode
+  --no-sel               Ignore selection
+  --json                 JSON output
+  -o, --output <file>    Save to file
+```
+
+### Project Structure
+
+```
+src/
+├── primitives/    # Solver, Step, Ensemble, Aggregator, Verification
+├── backend/       # codex.ts, claude.ts, gemini.ts
+├── pipelines/     # deep-think.ts (orchestration)
+├── context/       # Selection and slice management
+├── conversation/  # Thread persistence
+├── agent/         # Config and persona loading
+├── commands/      # CLI handlers
+└── cli.ts         # Argument parsing
+```
+
+### Configuration
+
+`~/.config/veda/config`:
+```bash
 MODEL="gpt-5.2"
-
-# Default reasoning level
 REASONING="medium"
-
-# Default persona
 PERSONA="navigator-chat"
-
-# Default backend
 BACKEND="codex"
 ```
 
-## Personas
-
-Personas are stored in `~/.config/veda/personas/<name>/AGENTS.md`.
-
-Built-in personas:
-- `navigator-plan`: High-level planning (xhigh reasoning)
-- `navigator-chat`: General assistance (medium reasoning)
-- `reviewer`: Code review (medium reasoning)
-
-Create new ones by adding directories with AGENTS.md files.
-
-## Session Isolation
-
-Use `-S <session>` or `VEDA_SESSION` env var to isolate selections between concurrent agents:
+## Development
 
 ```bash
-# Different agents can have different selections
-VEDA_SESSION=agent-1 veda sel add "src/*.ts"
-VEDA_SESSION=agent-2 veda sel add "tests/*.ts"
+bun test              # Run 147 tests
+bun run build         # Compile to dist/veda
+bun run dev -- args   # Run without compiling
 ```
 
 ## License
