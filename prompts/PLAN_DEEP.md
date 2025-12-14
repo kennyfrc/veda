@@ -75,12 +75,9 @@ veda -S $VEDA_SESSION deep --no-verify "Compare REST vs GraphQL for this use cas
 
 ### How It Works
 
-1. **Parallel Solving**: N solvers generate independent answers using different backends (codex, claude, gemini) for model diversity
-2. **Judge Aggregation**: A judge LLM evaluates all candidates and selects/synthesizes the best answer
-3. **Smart Verification Gate**: Verification triggers when:
-   - Solvers disagree (low agreement rate)
-   - Judge picked a minority answer
-   - Low margin between top answers
+1. **Parallel Solving**: N solvers generate independent answers using prompt diversity
+2. **Judge Aggregation**: A judge LLM evaluates all candidates and selects/synthesizes the best answer with a confidence level (low/medium/high)
+3. **Verification Gate**: Verification triggers when judge confidence < 70% (i.e., low or medium confidence)
 4. **Chain-of-Verification**: If triggered, generates verification questions, answers them independently, and revises the answer if contradictions are found
 
 ---
@@ -98,10 +95,9 @@ veda -S $VEDA_SESSION sel ls
 
 # 3. Ask a complex design question
 veda -S $VEDA_SESSION deep "Given this codebase, what's the best strategy for adding real-time notifications? Consider: scalability, complexity, and integration with existing code."
-
-# 4. Follow up with regular veda if needed
-veda -S $VEDA_SESSION -p navigator-chat "Can you elaborate on the WebSocket approach?"
 ```
+
+**Note:** Deep mode does not support `resume` - each run is stateless. If you need follow-up discussion, use `veda -p navigator-plan` for a fresh planning conversation.
 
 ---
 
@@ -163,7 +159,7 @@ Returns:
 
 4. **Check the candidates**: The output shows all candidate answers - review them if the final answer seems off
 
-5. **Verification adds value on disagreement**: If solvers agree unanimously, verification is skipped (it wouldn't add value)
+5. **Verification adds value on uncertainty**: If the judge is confident (high), verification is skipped
 
 ---
 
