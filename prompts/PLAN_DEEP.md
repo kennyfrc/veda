@@ -16,22 +16,52 @@ For simple factual queries or quick questions, use regular `veda` instead.
 
 ## Deep Mode is Stateless
 
-**Important:** Deep mode is completely stateless. It does not use sessions and does not support `resume`. Each `veda deep` call is independent.
+**Important:** Deep mode does not support `resume`. Each `veda deep` call is independent - there's no conversation to continue.
 
 If you need follow-up discussion after getting a deep answer, start a fresh conversation with `veda -p navigator-plan`.
 
 ---
 
-## Setting Context
+## Session Isolation (for Selection)
 
-Provide context via the `-f` flag (ad-hoc files) since deep mode doesn't use session-based selection:
+Use `-S $VEDA_SESSION` to isolate your file selection from other concurrent agents:
 
 ```bash
-# Provide files directly
-veda deep -f src/api/auth.ts -f src/models/user.ts "What's the best way to handle authentication?"
+export VEDA_SESSION="${VEDA_SESSION:-agent-$$}"
+```
 
-# Or use shell expansion
-veda deep -f src/feature/*.ts "Design a caching layer for this"
+---
+
+## Setting Context
+
+Build context with `veda sel add` before running deep mode. The context is passed to all solvers.
+
+**Budget:** Keep context under ~80k tokens. Deep mode runs multiple solvers, so large context multiplies cost.
+
+```bash
+# Clear and build selection
+veda -S $VEDA_SESSION sel clear
+veda -S $VEDA_SESSION sel add "src/feature/" "src/shared/"
+
+# Check token count
+veda -S $VEDA_SESSION sel ls
+```
+
+### File Slices
+
+Use slices to focus on specific code sections:
+
+```bash
+veda -S $VEDA_SESSION sel add main.c:10-50       # Lines 10-50
+veda -S $VEDA_SESSION sel add "src/*.ts:1-100"   # First 100 lines of each
+```
+
+### Ad-hoc Files
+
+Or provide files directly without affecting selection:
+
+```bash
+veda deep -f src/api/auth.ts -f src/models/user.ts "What's the best approach?"
 ```
 
 ---
@@ -42,16 +72,13 @@ veda deep -f src/feature/*.ts "Design a caching layer for this"
 
 ```bash
 # Simple deep thinking (3 solvers, verification enabled)
-veda deep "What's the best way to handle authentication in this app?"
+veda -S $VEDA_SESSION deep "What's the best way to handle authentication in this app?"
 
 # More solvers for complex questions
-veda deep -k 5 "Design a caching layer for this API"
+veda -S $VEDA_SESSION deep -k 5 "Design a caching layer for this API"
 
 # Skip verification for faster results
-veda deep --no-verify "Compare REST vs GraphQL for this use case"
-
-# With context files
-veda deep -f src/api/*.ts "Given this code, what's the best approach?"
+veda -S $VEDA_SESSION deep --no-verify "Compare REST vs GraphQL for this use case"
 ```
 
 ### Options
@@ -60,7 +87,7 @@ veda deep -f src/api/*.ts "Given this code, what's the best approach?"
 |------|-------------|---------|
 | `-k N` | Number of parallel solvers | 3 |
 | `--no-verify` | Skip Chain-of-Verification | verification enabled |
-| `-f file` | Add context file(s) | none |
+| `-f file` | Add ad-hoc context file(s) | none |
 | `--json` | Output structured JSON result | text output |
 | `-o file` | Save response to file | stdout |
 
@@ -76,12 +103,16 @@ veda deep -f src/api/*.ts "Given this code, what's the best approach?"
 ## Example Workflow
 
 ```bash
-# Ask a complex design question with context
-veda deep -f src/api/*.ts -f src/models/*.ts \
-  "Given this codebase, what's the best strategy for adding real-time notifications? Consider: scalability, complexity, and integration with existing code."
+# 1. Set session
+export VEDA_SESSION="${VEDA_SESSION:-agent-$$}"
 
-# Save output for reference
-veda deep -o design-decision.md "Should we use microservices or monolith for this project?"
+# 2. Build context
+veda -S $VEDA_SESSION sel clear
+veda -S $VEDA_SESSION sel add "src/api/" "src/models/" "src/config/"
+veda -S $VEDA_SESSION sel ls
+
+# 3. Ask a complex design question
+veda -S $VEDA_SESSION deep "Given this codebase, what's the best strategy for adding real-time notifications? Consider: scalability, complexity, and integration with existing code."
 ```
 
 ---
@@ -117,7 +148,7 @@ Deep mode shows progress as it runs:
 Use `--json` for structured output:
 
 ```bash
-veda deep --json "..." | jq '.answer'
+veda -S $VEDA_SESSION deep --json "..." | jq '.answer'
 ```
 
 Returns:
@@ -138,7 +169,7 @@ Returns:
 
 1. **Be specific**: "Design a caching layer" → "Design a caching layer for user session data with 100k DAU, prioritizing read performance"
 
-2. **Provide context**: Use `-f` to include relevant code files so solvers understand your codebase
+2. **Provide context**: Select relevant code files so solvers understand your codebase
 
 3. **Use more solvers for critical decisions**: `-k 5` gives more diverse perspectives
 
@@ -151,11 +182,11 @@ Returns:
 ## Reminders
 
 Key commands:
-- `veda deep "question"` for deep thinking
-- `veda deep -k 5 "question"` for more solvers
-- `veda deep --no-verify "question"` for faster results
-- `veda deep -f file.ts "question"` to include context
-- `veda deep --json "question"` for structured output
-- `veda deep -o output.md "question"` to save response
+- `veda -S $VEDA_SESSION sel add` to build context
+- `veda -S $VEDA_SESSION sel ls` to check token count
+- `veda -S $VEDA_SESSION deep "question"` for deep thinking
+- `veda -S $VEDA_SESSION deep -k 5 "question"` for more solvers
+- `veda -S $VEDA_SESSION deep --no-verify "question"` for faster results
+- `veda -S $VEDA_SESSION deep --json "question"` for structured output
 
-**Note:** Deep mode is stateless - no sessions, no resume. Each run is independent.
+**Note:** Deep mode is stateless - no `resume` support. Each run is independent.
