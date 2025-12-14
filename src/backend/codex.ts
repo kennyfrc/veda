@@ -96,7 +96,7 @@ export class CodexBackend implements Backend {
   }
 
   async *resume(options: ResumeOptions): AsyncIterable<Message> {
-    const { sessionId, prompt, config, cwd } = options;
+    const { sessionId, prompt, cwd } = options;
     
     // Note: --json must come before 'resume' subcommand
     const args: string[] = ['exec', '--json', 'resume', sessionId];

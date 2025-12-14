@@ -9,7 +9,9 @@
  */
 
 import type { Backend, Message, UsageStats } from '../backend';
-import type { AgentConfig } from '../agent';
+
+// Re-export Message for consumers that need it
+export type { Message };
 
 // ============================================================================
 // Solver - A configured LLM endpoint with a role

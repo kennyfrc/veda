@@ -4,7 +4,7 @@
  * Uses a simple lockfile approach with timeout and stale lock detection.
  */
 
-import { join, dirname } from 'path';
+import { dirname } from 'path';
 import { mkdir } from 'fs/promises';
 
 const LOCK_TIMEOUT_MS = 5000; // 5 seconds

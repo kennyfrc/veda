@@ -14,7 +14,7 @@ import type {
 } from './types';
 import { combineUsage } from './step';
 
-export interface CreatePipelineOptions<I, O> {
+export interface CreatePipelineOptions {
   /** Pipeline name */
   name: string;
   /** Pipeline stages */
@@ -24,7 +24,7 @@ export interface CreatePipelineOptions<I, O> {
 /**
  * Create a pipeline instance.
  */
-export function createPipeline<I, O>(options: CreatePipelineOptions<I, O>): Pipeline<I, O> {
+export function createPipeline<I, O>(options: CreatePipelineOptions): Pipeline<I, O> {
   const { name, stages } = options;
   
   return {
@@ -41,7 +41,7 @@ export function createPipeline<I, O>(options: CreatePipelineOptions<I, O>): Pipe
       let currentOutput: unknown = input;
       
       for (const stage of stages) {
-        const result = yield* executeStage(stage, currentOutput, context);
+        const result = yield* executeStage(stage, currentOutput, context) as AsyncGenerator<PipelineEvent<O>, StageResult>;
         
         if (result.error) {
           yield {

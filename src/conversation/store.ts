@@ -3,7 +3,6 @@
  */
 
 import { mkdir } from 'fs/promises';
-import { dirname } from 'path';
 import {
   getThreadPath,
   getLegacyThreadPath,
@@ -18,19 +17,15 @@ export interface ConversationStoreOptions {
 }
 
 export class ConversationStore {
-  private readonly sessionId: string;
   private readonly threadPath: string;
   private readonly legacyPath: string;
   private readonly sessionDir: string;
-  private readonly baseDir?: string;
 
   constructor(options: ConversationStoreOptions) {
     if (!isValidSessionId(options.sessionId)) {
       throw new Error(`Invalid session ID: ${options.sessionId}`);
     }
     
-    this.sessionId = options.sessionId;
-    this.baseDir = options.baseDir;
     this.threadPath = getThreadPath(options.sessionId, options.baseDir);
     this.legacyPath = getLegacyThreadPath(options.sessionId, options.baseDir);
     this.sessionDir = getSessionDir(options.sessionId, options.baseDir);

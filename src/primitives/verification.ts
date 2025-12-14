@@ -151,7 +151,7 @@ Format as:
 }
 
 function getAnswerCheckPrompt(
-  type: 'factual' | 'code' | 'reasoning',
+  _type: 'factual' | 'code' | 'reasoning',
   check: Check
 ): string {
   return `Answer this verification question:
@@ -168,7 +168,7 @@ Format as:
 }
 
 function getBatchedAnswerChecksPrompt(
-  type: 'factual' | 'code' | 'reasoning',
+  _type: 'factual' | 'code' | 'reasoning',
   checks: Check[]
 ): string {
   const checksXml = checks
@@ -201,7 +201,7 @@ Important: Include exactly one <result> for each <check> id. Evaluate each check
 }
 
 function getRevisionPrompt(
-  type: 'factual' | 'code' | 'reasoning',
+  _type: 'factual' | 'code' | 'reasoning',
   draft: string,
   contradictions: CheckResult[]
 ): string {

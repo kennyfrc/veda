@@ -44,19 +44,15 @@ export interface TokenInfo {
 }
 
 export class ContextStore {
-  private readonly sessionId: string;
   private readonly selectionPath: string;
   private readonly sessionDir: string;
   private readonly cwd: string;
-  private readonly baseDir?: string;
 
   constructor(options: ContextStoreOptions) {
     if (!isValidSessionId(options.sessionId)) {
       throw new Error(`Invalid session ID: ${options.sessionId}`);
     }
     
-    this.sessionId = options.sessionId;
-    this.baseDir = options.baseDir;
     this.selectionPath = getSelectionPath(options.sessionId, options.baseDir);
     this.sessionDir = getSessionDir(options.sessionId, options.baseDir);
     this.cwd = options.cwd ?? process.cwd();

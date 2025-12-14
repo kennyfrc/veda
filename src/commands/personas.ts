@@ -6,9 +6,9 @@ import { listPersonas } from '../agent';
 import type { CliOptions } from '../cli';
 
 export async function handlePersonas(
-  subcommand: string | undefined,
-  args: string[],
-  options: CliOptions
+  _subcommand: string | undefined,
+  _args: string[],
+  _options: CliOptions
 ): Promise<void> {
   // For now, just list personas
   const personas = await listPersonas();

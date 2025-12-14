@@ -77,7 +77,7 @@ Rate issues by priority:
 - End with a verdict: "Patch is correct" or "Patch needs revision"
 `;
 
-export async function handleInit(options: CliOptions): Promise<void> {
+export async function handleInit(_options: CliOptions): Promise<void> {
   const vedaHome = getVedaHome();
   const personasDir = getPersonasDir();
   const configPath = getConfigPath();
