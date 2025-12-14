@@ -7,4 +7,4 @@ export { parseSlice, formatSlice, slicesOverlap, extractSlice, type FileSlice } 
 export { parseSelection, serializeSelection, resolvePattern, fileExists, type SelectionEntry } from './selection';
 export { readSliceText, type ReadSliceResult, type ReadSliceOptions } from './readSlice';
 export { serializeFileContextBlock, serializeAllFileContextBlocks, type SerializeOptions } from './serialize';
-export { countScripts, estimateTokensByScript, type ScriptCharCounts, type TokenEstimate } from './tokenEstimate';
+export { countScripts, estimateTokensByScript, estimateTokensWithBuffer, DEFAULT_SAFETY_BUFFER, type ScriptCharCounts, type TokenEstimate } from './tokenEstimate';

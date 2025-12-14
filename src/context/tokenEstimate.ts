@@ -2,21 +2,30 @@
  * Token estimation with Unicode script detection.
  * 
  * Uses language-specific characters-per-token ratios based on research:
- * - Latin (English, Spanish, etc.): ~4.5 chars/token
- * - Cyrillic (Russian, Ukrainian): ~4.0 chars/token
- * - CJK (Chinese, Japanese, Korean): ~1.4 chars/token
- * - Devanagari (Hindi, Sanskrit): ~3.5 chars/token
- * - Other (digits, punctuation, symbols): ~4.0 chars/token
+ * - Latin (English, Spanish, etc.): ~4.0 chars/token (OpenAI/Anthropic consensus)
+ * - Cyrillic (Russian, Ukrainian): ~3.5 chars/token (higher token premium than Latin)
+ * - CJK (Chinese, Japanese, Korean): ~0.6 chars/token (most chars = 2-3 tokens in BPE)
+ * - Devanagari (Hindi, Sanskrit): ~3.0 chars/token (UTF-8 multi-byte overhead)
+ * - Other (digits, punctuation, symbols): ~3.5 chars/token (special chars often 1-3 tokens)
+ * 
+ * Sources:
+ * - OpenAI: "1 token ≈ 4 characters" for English
+ * - Anthropic: "A token approximately represents 3.5 English characters"
+ * - Jina AI: "0.6 to 0.75 tokens per Chinese character"
+ * - arXiv 2305.15425: "Language Model Tokenizers Introduce Unfairness Between Languages"
  */
 
-// Characters per token ratios by script
+// Characters per token ratios by script (conservative estimates)
 const RATIOS = {
-  latin: 4.5,
-  cyrillic: 4.0,
-  devanagari: 3.5,
-  cjk: 1.4,
-  other: 4.0,
+  latin: 4.0,       // ~4 chars/token - industry consensus for English
+  cyrillic: 3.5,    // ~3.5 chars/token - slightly higher token premium
+  devanagari: 3.0,  // ~3 chars/token - multi-byte UTF-8 overhead
+  cjk: 0.6,         // ~0.6 chars/token - most CJK chars = 2-3 BPE tokens
+  other: 3.5,       // ~3.5 chars/token - punctuation/symbols often multi-token
 } as const;
+
+/** Default safety buffer (15%) to avoid hitting token limits */
+export const DEFAULT_SAFETY_BUFFER = 0.15;
 
 // Unicode script patterns (native ES2018+ property escapes)
 const PATTERNS = {
@@ -118,4 +127,27 @@ export function estimateTokensByScript(text: string): TokenEstimate {
     tokens: Math.ceil(estimate),
     counts,
   };
+}
+
+/**
+ * Estimate token count with safety buffer to avoid hitting limits.
+ * 
+ * @param text - Text to estimate tokens for
+ * @param buffer - Safety buffer as decimal (default: 0.15 = 15%)
+ * @returns Token estimate with buffer applied
+ * 
+ * @example
+ * // Get conservative estimate with 15% buffer
+ * const safe = estimateTokensWithBuffer("Hello world");
+ * 
+ * @example
+ * // Custom 20% buffer for extra safety
+ * const safer = estimateTokensWithBuffer("Hello world", 0.20);
+ */
+export function estimateTokensWithBuffer(
+  text: string,
+  buffer: number = DEFAULT_SAFETY_BUFFER
+): number {
+  const base = estimateTokensByScript(text).tokens;
+  return Math.ceil(base * (1 + buffer));
 }
