@@ -64,7 +64,7 @@ describe('persona', () => {
       
       expect(plan.defaultReasoning).toBe('high');
       expect(chat.defaultReasoning).toBe('medium');
-      expect(reviewer.defaultReasoning).toBe('high');
+      expect(reviewer.defaultReasoning).toBe('medium');
     });
   });
 

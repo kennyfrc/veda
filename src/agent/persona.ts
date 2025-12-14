@@ -28,7 +28,7 @@ export interface Persona {
 const PERSONA_REASONING: Record<string, ReasoningLevel> = {
   'navigator-plan': 'high',
   'navigator-chat': 'medium',
-  'reviewer': 'high',
+  'reviewer': 'medium',
 };
 
 /**
