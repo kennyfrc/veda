@@ -43,7 +43,7 @@ export interface DeepThinkOptions {
   solverReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
   /** Reasoning level for judge (default: 'medium') */
   judgeReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
-  /** Reasoning level for verifier (default: 'high') */
+  /** Reasoning level for verifier (default: 'xhigh') */
   verifyReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
   /** Specific categories to sample modules from */
   categories?: string[];
@@ -143,7 +143,7 @@ export async function* runDeepThink(
     context,
     solverReasoning = 'medium',
     judgeReasoning = 'medium',
-    verifyReasoning = 'high',
+    verifyReasoning = 'xhigh',
   } = options;
   
   // Get default backend
