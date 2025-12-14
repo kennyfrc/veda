@@ -181,7 +181,7 @@ function parseJudgeResult(outputs: string[], messages: Message[]): AggregatedOut
   const bestIdx = bestMatch ? parseInt(bestMatch[1], 10) - 1 : 0;
   const confLevel = confMatch?.[1]?.toLowerCase() ?? 'medium';
   
-  const confidence = confLevel === 'high' ? 0.9 : confLevel === 'medium' ? 0.7 : 0.5;
+  const confidence = confLevel === 'high' ? 0.9 : confLevel === 'medium' ? 0.5 : 0.3;
   
   // Ensure index is in bounds
   const selected = outputs[Math.min(Math.max(0, bestIdx), outputs.length - 1)];
