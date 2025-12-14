@@ -86,13 +86,56 @@ veda personas                  # List available
 
 The core building blocks for AI orchestration:
 
-| Primitive | Purpose | Example |
-|-----------|---------|---------|
-| **Solver** | Configured LLM endpoint with role | `createSolver({ backend, systemPrompt })` |
-| **Step** | Single LLM call with typed I/O | `createStep({ solver, formatPrompt, parseOutput })` |
-| **Ensemble** | Parallel solvers with aggregation | `createEnsemble({ solvers, aggregator })` |
-| **Aggregator** | Combine multiple outputs | `MajorityVote`, `createJudgeAggregator(solver)` |
-| **Verification** | Chain-of-Verification | `createVerification({ type, solver })` |
+**Solver** — Configured LLM endpoint with role
+```typescript
+interface Solver {
+  id: string;
+  backend: Backend;
+  systemPrompt: string;
+  run(prompt: string): AsyncIterable<Message>;
+}
+// Usage: const solver = createSolver({ backend, systemPrompt, config });
+```
+
+**Step** — Single LLM call with typed I/O
+```typescript
+interface Step<I, O> {
+  solver: Solver;
+  formatPrompt(input: I): string;
+  parseOutput(messages: Message[]): O;
+  run(input: I): Promise<StepResult<O>>;
+}
+// Usage: const step = createStep({ solver, formatPrompt, parseOutput });
+```
+
+**Ensemble** — Parallel solvers with aggregation
+```typescript
+interface Ensemble<I, O> {
+  solvers: Solver[];
+  aggregator: Aggregator<O>;
+  run(input: I): Promise<EnsembleResult<O>>;
+}
+// Usage: const ensemble = createEnsemble({ solvers, aggregator });
+```
+
+**Aggregator** — Combine multiple outputs
+```typescript
+interface Aggregator<O> {
+  aggregate(outputs: O[]): AggregatedOutput<O>;
+}
+// Built-in: MajorityVote, Longest, FirstSuccess, createJudgeAggregator(solver)
+```
+
+**Verification** — Chain-of-Verification for fact-checking
+```typescript
+interface Verification {
+  type: 'factual' | 'code' | 'reasoning';
+  generateChecks(draft: string): Promise<Check[]>;
+  answerChecks(checks: Check[]): Promise<CheckResult[]>;
+  revise(draft: string, results: CheckResult[]): Promise<RevisionResult>;
+}
+// Usage: const v = createVerification({ type: 'reasoning', solver });
+```
 
 ### Deep Thinking Pipeline
 
