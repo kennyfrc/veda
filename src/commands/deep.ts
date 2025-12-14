@@ -39,6 +39,7 @@ export async function handleDeep(
     context,
     categories: options.categories,
     modules: options.modules,
+    cwd: process.cwd(),
   })) {
     handleEvent(event, options);
     

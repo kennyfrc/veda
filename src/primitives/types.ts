@@ -42,6 +42,8 @@ export interface SolverConfig {
   reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
   /** Sandbox mode */
   sandbox?: 'read-only' | 'workspace-write' | 'full';
+  /** Working directory - important for read-only sandbox to access project files */
+  cwd?: string;
 }
 
 // ============================================================================

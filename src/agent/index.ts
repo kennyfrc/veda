@@ -27,5 +27,7 @@ export {
 
 export {
   SANDBOX_NOTICE,
+  SANDBOX_NOTICE_READONLY,
   withSandboxNotice,
+  withReadOnlySandboxNotice,
 } from './sandbox';

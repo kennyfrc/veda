@@ -16,7 +16,7 @@
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
 import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
 import { toCodexSandbox } from '../agent';
-import { mkdir, writeFile, rm } from 'fs/promises';
+import { mkdir, writeFile, rm, stat, rename } from 'fs/promises';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 
@@ -41,11 +41,27 @@ export class CodexBackend implements Backend {
     const sandboxMode = toCodexSandbox(config.sandbox ?? 'read-only');
     args.push('--sandbox', sandboxMode);
     
-    // Handle system prompt via temp directory
-    let tempDir: string | undefined;
+    // Handle system prompt - codex requires AGENTS.md in the working directory
+    // We need to ensure the agent can access project files when cwd is provided
+    let cleanup: (() => Promise<void>) | undefined;
+    let workingDir: string | undefined;
+    
     if (config.systemPrompt) {
-      tempDir = await this.createTempPromptDir(config.systemPrompt);
-      args.push('--cd', tempDir);
+      if (cwd) {
+        // Write AGENTS.md to the project directory so agent can access project files
+        // This is important for read-only sandbox mode where agent needs to inspect code
+        const result = await this.writeSystemPromptToDir(cwd, config.systemPrompt);
+        cleanup = result.cleanup;
+        workingDir = cwd;
+      } else {
+        // No cwd specified, use temp directory (original behavior)
+        const tempDir = await this.createTempPromptDir(config.systemPrompt);
+        cleanup = async () => {
+          await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+        };
+        workingDir = tempDir;
+      }
+      args.push('--cd', workingDir);
       args.push('--skip-git-repo-check');
     } else if (config.systemPromptPath) {
       args.push('--cd', dirname(config.systemPromptPath));
@@ -64,7 +80,7 @@ export class CodexBackend implements Backend {
       const { stdout, process } = spawnCli({
         command: this.command,
         args,
-        cwd,
+        cwd: workingDir ?? cwd,
         stdin: input,
       });
 
@@ -72,9 +88,9 @@ export class CodexBackend implements Backend {
       
       await process.exited;
     } finally {
-      // Cleanup temp directory
-      if (tempDir) {
-        await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+      // Cleanup system prompt file/directory
+      if (cleanup) {
+        await cleanup();
       }
     }
   }
@@ -112,6 +128,65 @@ export class CodexBackend implements Backend {
     await mkdir(tempDir, { recursive: true });
     await writeFile(join(tempDir, this.systemPromptFile!), systemPrompt);
     return tempDir;
+  }
+
+  /**
+   * Write system prompt to a directory, backing up any existing AGENTS.md.
+   * Returns a cleanup function that restores the original state.
+   * 
+   * If write fails after backup, the original file is restored before throwing.
+   */
+  private async writeSystemPromptToDir(
+    dir: string,
+    systemPrompt: string
+  ): Promise<{ cleanup: () => Promise<void> }> {
+    const agentsPath = join(dir, this.systemPromptFile!);
+    const backupPath = join(dir, `.AGENTS.md.veda-backup-${Date.now()}`);
+    
+    // Check if AGENTS.md already exists and back it up
+    let hadExisting = false;
+    try {
+      await stat(agentsPath);
+      hadExisting = true;
+    } catch (err) {
+      // Only treat ENOENT as "file doesn't exist"; rethrow other errors
+      if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') throw err;
+    }
+    
+    // If file exists, back it up (fail if rename fails to avoid overwriting without backup)
+    if (hadExisting) {
+      await rename(agentsPath, backupPath);
+    }
+    
+    // Write our system prompt - restore backup on failure
+    try {
+      await writeFile(agentsPath, systemPrompt);
+    } catch (writeError) {
+      // Restore backup if we had one, then rethrow
+      if (hadExisting) {
+        // Remove any partial/failed file first (required on Windows where rename fails if dest exists)
+        await rm(agentsPath, { force: true }).catch(() => {});
+        await rename(backupPath, agentsPath).catch(() => {});
+      }
+      throw writeError;
+    }
+    
+    // Return cleanup function
+    const cleanup = async () => {
+      try {
+        // Remove our file
+        await rm(agentsPath, { force: true });
+        
+        // Restore backup if there was one
+        if (hadExisting) {
+          await rename(backupPath, agentsPath);
+        }
+      } catch {
+        // Best effort cleanup
+      }
+    };
+    
+    return { cleanup };
   }
 
   /**

@@ -44,6 +44,7 @@ export function createSolver(options: CreateSolverOptions): Solver {
           sandbox: options.config?.sandbox ?? 'read-only',
           systemPrompt: options.systemPrompt,
         },
+        cwd: options.config?.cwd,
       });
     },
   };

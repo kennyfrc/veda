@@ -1,14 +1,40 @@
 /**
- * Sandbox notice for tool-restricted mode.
+ * Sandbox notices for different tool access levels.
  * 
- * All veda backends run in a sandboxed environment where agents should not
- * attempt to use tools. This notice is prepended to all system prompts to
- * ensure the model understands its constraints.
+ * Veda backends can run in different sandbox modes. The notice prepended to
+ * system prompts should match the actual runtime capabilities to avoid
+ * prompt/capability mismatch.
  */
 
+/**
+ * No tools sandbox notice - completely restricted.
+ * Use when the agent should not attempt any tool calls.
+ */
 export const SANDBOX_NOTICE = `## Sandbox Notice
 
 You are an AI assistant running in a sandboxed environment with **no access to tools, file system, or external commands**. You cannot execute code, read files, run shell commands, or make any tool calls. Respond immediately based solely on the context provided in this conversation.
+
+---
+
+`;
+
+/**
+ * Read-only sandbox notice - allows repository inspection.
+ * Use when the agent can read files and search but cannot modify anything.
+ */
+export const SANDBOX_NOTICE_READONLY = `## Sandbox Notice
+
+You are an AI assistant with **read-only access** to the local repository. You may:
+- Read files and inspect their contents
+- Search the codebase (e.g., grep, find)
+- List directories and check file existence
+
+You **cannot**:
+- Modify, create, or delete any files
+- Execute code or run arbitrary commands
+- Make network requests
+
+When answering questions about the codebase, **use your read-only tools to gather evidence**. Cite the files and content you inspected. If you cannot access the information needed, say so explicitly.
 
 ---
 
@@ -24,4 +50,16 @@ export function withSandboxNotice(systemPrompt: string): string {
     return systemPrompt;
   }
   return SANDBOX_NOTICE + systemPrompt;
+}
+
+/**
+ * Prepend read-only sandbox notice to a system prompt.
+ * Ensures the model knows it can read but not write.
+ */
+export function withReadOnlySandboxNotice(systemPrompt: string): string {
+  // Don't double-add if already present
+  if (systemPrompt.includes('## Sandbox Notice')) {
+    return systemPrompt;
+  }
+  return SANDBOX_NOTICE_READONLY + systemPrompt;
 }

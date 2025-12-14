@@ -49,6 +49,8 @@ export interface DeepThinkOptions {
   categories?: string[];
   /** Exact module IDs to use (overrides k and categories) */
   modules?: string[];
+  /** Working directory for verifier to access project files (default: process.cwd()) */
+  cwd?: string;
 }
 
 export interface DeepThinkResult {
@@ -262,7 +264,11 @@ export async function* runDeepThink(
       id: 'verifier',
       backend: backendName,
       systemPrompt: VERIFIER_SYSTEM_PROMPT,
-      config: { reasoning: verifyReasoning },
+      config: { 
+        reasoning: verifyReasoning,
+        // Pass cwd so verifier can access project files in read-only mode
+        cwd: options.cwd ?? process.cwd(),
+      },
     });
     
     const verification = createVerification({
