@@ -48,7 +48,7 @@ export interface UsageStats {
 export interface RunOptions {
   /** User prompt */
   prompt: string;
-  /** Context string (from llm_ctx) */
+  /** Context string (file selection) */
   context?: string;
   /** Agent configuration */
   config: AgentConfig;

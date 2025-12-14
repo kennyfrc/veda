@@ -4,11 +4,10 @@
  * Provides atomic operations for adding/removing files with locking.
  */
 
-import { dirname } from 'path';
 import { mkdir } from 'fs/promises';
 import { getSelectionPath, getSessionDir, isValidSessionId } from '../util/paths';
 import { withLock } from '../util/lock';
-import { parseSlice, formatSlice, type FileSlice } from './slice';
+import { parseSlice, formatSlice } from './slice';
 import {
   readSelectionFile,
   writeSelectionFile,
@@ -16,6 +15,9 @@ import {
   fileExists,
   type SelectionEntry,
 } from './selection';
+import { readSliceText } from './readSlice';
+import { serializeAllFileContextBlocks } from './serialize';
+import { estimateTokensByScript } from './tokenEstimate';
 
 export interface ContextStoreOptions {
   sessionId: string;
@@ -195,72 +197,46 @@ export class ContextStore {
 
   /**
    * Get token count estimate for all selected files.
-   * Uses rough estimate of ~4 chars per token.
+   * Uses Unicode script detection for language-aware estimation.
    */
   async tokens(): Promise<number> {
     const entries = await this.list();
-    let totalChars = 0;
+    let totalTokens = 0;
     
     for (const entry of entries) {
-      try {
-        const file = Bun.file(entry.absolutePath);
-        if (await file.exists()) {
-          const content = await file.text();
-          
-          if (entry.slice.hasSlice) {
-            const lines = content.split('\n');
-            const start = (entry.slice.start ?? 1) - 1;
-            const end = entry.slice.end ?? lines.length;
-            const slicedContent = lines.slice(start, end).join('\n');
-            totalChars += slicedContent.length;
-          } else {
-            totalChars += content.length;
-          }
-        }
-      } catch {
-        // Skip files that can't be read
+      const result = await readSliceText({
+        cwd: this.cwd,
+        slice: entry.slice,
+      });
+      
+      if (result) {
+        totalTokens += estimateTokensByScript(result.content).tokens;
       }
     }
     
-    // Rough token estimate: ~4 chars per token
-    return Math.ceil(totalChars / 4);
+    return totalTokens;
   }
 
   /**
    * Get detailed token info per file.
+   * Uses Unicode script detection for language-aware estimation.
    */
   async tokenDetails(): Promise<TokenInfo[]> {
     const entries = await this.list();
     const details: TokenInfo[] = [];
     
     for (const entry of entries) {
-      try {
-        const file = Bun.file(entry.absolutePath);
-        if (await file.exists()) {
-          const content = await file.text();
-          let chars: number;
-          let lines: number;
-          
-          if (entry.slice.hasSlice) {
-            const allLines = content.split('\n');
-            const start = (entry.slice.start ?? 1) - 1;
-            const end = entry.slice.end ?? allLines.length;
-            const slicedLines = allLines.slice(start, end);
-            chars = slicedLines.join('\n').length;
-            lines = slicedLines.length;
-          } else {
-            chars = content.length;
-            lines = content.split('\n').length;
-          }
-          
-          details.push({
-            path: formatSlice(entry.slice),
-            tokens: Math.ceil(chars / 4),
-            lines,
-          });
-        }
-      } catch {
-        // Skip files that can't be read
+      const result = await readSliceText({
+        cwd: this.cwd,
+        slice: entry.slice,
+      });
+      
+      if (result) {
+        details.push({
+          path: formatSlice(entry.slice),
+          tokens: estimateTokensByScript(result.content).tokens,
+          lines: result.lineCount,
+        });
       }
     }
     
@@ -268,8 +244,8 @@ export class ContextStore {
   }
 
   /**
-   * Serialize selection to llm_ctx format.
-   * Returns the context string ready to pass to llm_ctx.
+   * Serialize selection to file context format.
+   * Best-effort: skips unreadable files, returns empty string if nothing readable.
    */
   async serialize(): Promise<string> {
     const entries = await this.list();
@@ -278,26 +254,20 @@ export class ContextStore {
       return '';
     }
     
-    // Build file arguments for llm_ctx
-    // Format: -f path[:start-end] for each entry
-    const args = entries.map(e => formatSlice(e.slice));
-    
-    // Shell out to llm_ctx
-    const proc = Bun.spawn(['llm_ctx', '-f', ...args, '-o', '-'], {
-      cwd: this.cwd,
-      stdout: 'pipe',
-      stderr: 'pipe',
-    });
-    
-    const stdout = await new Response(proc.stdout).text();
-    const exitCode = await proc.exited;
-    
-    if (exitCode !== 0) {
-      const stderr = await new Response(proc.stderr).text();
-      throw new Error(`llm_ctx failed: ${stderr}`);
+    // Read all files (best-effort, skip unreadable)
+    const results = [];
+    for (const entry of entries) {
+      const result = await readSliceText({
+        cwd: this.cwd,
+        slice: entry.slice,
+      });
+      
+      if (result) {
+        results.push(result);
+      }
     }
     
-    return stdout;
+    return serializeAllFileContextBlocks(results);
   }
 
   /**

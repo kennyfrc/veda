@@ -76,7 +76,7 @@ export interface StepContext {
   originalTask: string;
   /** Results from prior steps in the workflow */
   priorSteps: Array<{ name: string; output: unknown }>;
-  /** Additional context (e.g., from llm_ctx) */
+  /** Additional context (e.g., file selection) */
   additionalContext?: string;
 }
 

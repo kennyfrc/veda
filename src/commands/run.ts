@@ -2,11 +2,13 @@
  * Main prompt execution command.
  */
 
-import { ContextStore } from '../context';
+import { ContextStore, readSliceText, serializeAllFileContextBlocks } from '../context';
+import { parseSlice } from '../context/slice';
 import { getBackend, extractText, getSessionId, getUsage, collectMessages } from '../backend';
 import { getDefaults, resolveAgentConfig } from '../agent';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
+import { resolve } from 'path';
 
 export async function handleRun(
   prompt: string,
@@ -43,12 +45,8 @@ export async function handleRun(
     const entries = await contextStore.list();
     
     if (entries.length > 0) {
-      try {
-        context = await contextStore.serialize();
-      } catch (error) {
-        // llm_ctx might not be available, build context manually
-        context = await buildContextManually(contextStore);
-      }
+      // serialize() is best-effort and non-throwing
+      context = await contextStore.serialize();
     }
   }
   
@@ -96,53 +94,26 @@ export async function handleRun(
 }
 
 /**
- * Build context manually by reading files.
- */
-async function buildContextManually(store: ContextStore): Promise<string> {
-  const entries = await store.list();
-  const parts: string[] = [];
-  
-  for (const entry of entries) {
-    try {
-      const file = Bun.file(entry.absolutePath);
-      if (await file.exists()) {
-        let content = await file.text();
-        
-        // Apply slice if present
-        if (entry.slice.hasSlice) {
-          const lines = content.split('\n');
-          const start = (entry.slice.start ?? 1) - 1;
-          const end = entry.slice.end ?? lines.length;
-          content = lines.slice(start, end).join('\n');
-        }
-        
-        parts.push(`## ${entry.original}\n\`\`\`\n${content}\n\`\`\``);
-      }
-    } catch {
-      // Skip files that can't be read
-    }
-  }
-  
-  return parts.join('\n\n');
-}
-
-/**
  * Build context from ad-hoc files.
+ * Uses the same format as ContextStore.serialize().
  */
 async function buildAdhocContext(files: string[]): Promise<string> {
-  const parts: string[] = [];
+  const cwd = process.cwd();
+  const results = [];
   
   for (const path of files) {
-    try {
-      const file = Bun.file(path);
-      if (await file.exists()) {
-        const content = await file.text();
-        parts.push(`## ${path}\n\`\`\`\n${content}\n\`\`\``);
-      }
-    } catch {
-      // Skip files that can't be read
+    const slice = parseSlice(path);
+    const absolutePath = resolve(cwd, slice.path);
+    
+    const result = await readSliceText({
+      cwd,
+      slice: { ...slice, path: absolutePath },
+    });
+    
+    if (result) {
+      results.push(result);
     }
   }
   
-  return parts.join('\n\n');
+  return serializeAllFileContextBlocks(results);
 }
