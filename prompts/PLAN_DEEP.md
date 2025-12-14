@@ -86,10 +86,62 @@ veda -S $VEDA_SESSION deep --no-verify "Compare REST vs GraphQL for this use cas
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-k N` | Number of parallel solvers | 3 |
+| `--categories` | Reasoning categories to use (comma-separated) | random sampling |
+| `--modules` | Exact module IDs to use (overrides k and categories) | none |
 | `--no-verify` | Skip Chain-of-Verification | verification enabled |
 | `-f file` | Add ad-hoc context file(s) | none |
 | `--json` | Output structured JSON result | text output |
 | `-o file` | Save response to file | stdout |
+
+---
+
+## Reasoning Categories
+
+Deep mode uses **SELF-DISCOVER reasoning modules** to create cognitive diversity across solvers. Each solver gets a different reasoning approach.
+
+**8 categories, 4 modules each (32 total):**
+
+| Category | Best For | Modules |
+|----------|----------|---------|
+| `analytical` | Breaking down problems, finding root causes | critical_thinking, assumption_analysis, causal_analysis, core_issue |
+| `creative` | Novel solutions, unconventional approaches | creative_thinking, novel_solution, radical_rethinking, alternative_perspectives |
+| `systematic` | Structured problem-solving, step-by-step | problem_decomposition, step_by_step, simplification, systems_thinking |
+| `strategic` | Planning, iterating on solutions | iterative_solving, typical_solutions, solution_modification, planning |
+| `evaluative` | Risk assessment, tradeoff analysis | risk_assessment, obstacle_identification, tradeoff_analysis, long_term_implications |
+| `contextual` | Understanding constraints, stakeholders | stakeholder_analysis, resource_analysis, constraints, behavioral_factors |
+| `empirical` | Evidence-based validation, testing | experimental_design, historical_analysis, data_analysis, progress_measurement |
+| `reflective` | Meta-cognition, success criteria | reflective_thinking, success_metrics, decision_making, collaborative_thinking |
+
+### Choosing Categories
+
+Match categories to your question type:
+
+```bash
+# Architecture decision → analytical + evaluative
+veda deep --categories analytical,evaluative "Should we use microservices?"
+
+# Creative brainstorming → creative + strategic
+veda deep --categories creative,strategic "What are novel approaches to caching?"
+
+# Risk analysis → evaluative + contextual
+veda deep --categories evaluative,contextual "What could go wrong with this migration?"
+
+# Implementation planning → systematic + strategic
+veda deep --categories systematic,strategic "How should we implement this feature?"
+
+# Default (no --categories) → random sampling across all categories
+veda deep "General question"
+```
+
+### Using Exact Modules
+
+For fine-grained control, specify exact module IDs:
+
+```bash
+veda deep --modules critical_thinking,step_by_step,risk_assessment "Analyze this design"
+```
+
+**Note:** When using `--modules`, each module must be from a different category (max 8 modules, one per category).
 
 ### How It Works
 
