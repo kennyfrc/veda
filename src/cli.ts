@@ -35,6 +35,8 @@ export interface CliOptions {
   modules?: string[];
   /** Pass through JSON output */
   json?: boolean;
+  /** Trace output file (YAML) for deep mode */
+  trace?: string;
   /** Show help */
   help?: boolean;
   /** Show version */
@@ -61,6 +63,7 @@ const FLAGS_WITH_VALUES = new Set([
   '-k', '--k',
   '--categories',
   '--modules',
+  '--trace',
 ]);
 
 /**
@@ -128,6 +131,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
           break;
         case '--modules':
           options.modules = value.split(',').map(s => s.trim());
+          break;
+        case '--trace':
+          options.trace = value;
           break;
       }
       i += 2;
@@ -276,6 +282,7 @@ Options:
   --categories <list>     Reasoning categories (comma-separated)
   --modules <list>        Exact reasoning modules (comma-separated)
   --no-verify             Skip verification in deep mode
+  --trace <file>          Save trace to YAML file (deep mode)
   --json                  Output raw JSON
   --help, -h              Show help
   --version, -v           Show version

@@ -59,6 +59,59 @@ export interface DeepThinkResult {
   usage: UsageStats;
   /** Stages completed */
   stages: string[];
+  /** Trace data for --trace output */
+  trace?: DeepThinkTrace;
+}
+
+export interface DeepThinkTrace {
+  /** Prompt sent to solvers */
+  prompt: string;
+  /** Context string (if any) */
+  context?: string;
+  /** Options used */
+  options: {
+    k: number;
+    verify: boolean;
+    categories?: string[];
+    modules?: string[];
+  };
+  /** Solver candidates with module info */
+  solve: {
+    candidates: Array<{
+      id: string;
+      module: {
+        id: string;
+        category: string;
+        name: string;
+      };
+      response: string;
+      usage?: UsageStats;
+    }>;
+  };
+  /** Judge aggregation */
+  judge: {
+    selectedIndex: number;
+    confidence: number;
+    reasoning?: string;
+  };
+  /** Verification (if run) */
+  verify?: {
+    checks: Array<{
+      id: string;
+      question: string;
+      targetClaim?: string;
+    }>;
+    results: Array<{
+      checkId: string;
+      answer: string;
+      verdict: 'supports' | 'contradicts' | 'uncertain';
+      confidence: number;
+    }>;
+    revision?: {
+      changes: string[];
+      revised: string;
+    };
+  };
 }
 
 export interface DeepThinkEvent {
@@ -92,6 +145,20 @@ export async function* runDeepThink(
   
   const usages: UsageStats[] = [];
   const stages: string[] = [];
+  
+  // Initialize trace data
+  const trace: DeepThinkTrace = {
+    prompt,
+    context,
+    options: {
+      k,
+      verify,
+      categories: options.categories,
+      modules: options.modules,
+    },
+    solve: { candidates: [] },
+    judge: { selectedIndex: 0, confidence: 0 },
+  };
   
   // Stage 1: Parallel solving with cognitive diversity
   yield { type: 'stage_start', stage: 'solve' };
@@ -130,6 +197,27 @@ export async function* runDeepThink(
   });
   
   usages.push(ensembleResult.usage);
+  
+  // Populate trace with solver candidates and modules
+  for (let i = 0; i < ensembleResult.candidates.length; i++) {
+    const module = modules[i];
+    trace.solve.candidates.push({
+      id: `solver-${i}-${module.category}`,
+      module: {
+        id: module.id,
+        category: module.category,
+        name: module.name,
+      },
+      response: ensembleResult.candidates[i],
+    });
+  }
+  
+  // Find which candidate was selected
+  const selectedIndex = ensembleResult.candidates.findIndex(
+    c => c === ensembleResult.selected
+  );
+  trace.judge.selectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  trace.judge.confidence = ensembleResult.confidence;
   
   // Emit candidate events
   for (let i = 0; i < ensembleResult.candidates.length; i++) {
@@ -183,9 +271,27 @@ export async function* runDeepThink(
       priorSteps: [{ name: 'solve', output: finalAnswer }],
     });
     
+    // Initialize verification trace
+    trace.verify = {
+      checks: checks.map(c => ({
+        id: c.id,
+        question: c.question,
+        targetClaim: c.targetClaim,
+      })),
+      results: [],
+    };
+    
     if (checks.length > 0) {
       // Answer checks
       const results = await verification.answerChecks(checks);
+      
+      // Populate trace with check results
+      trace.verify.results = results.map(r => ({
+        checkId: r.checkId,
+        answer: r.answer,
+        verdict: r.contradictsDraft ? 'contradicts' : (r.confidence >= 0.7 ? 'supports' : 'uncertain'),
+        confidence: r.confidence,
+      }));
       
       // Check for contradictions
       const contradictions = results.filter(r => r.contradictsDraft);
@@ -197,6 +303,12 @@ export async function* runDeepThink(
         if (!revision.unchanged) {
           finalAnswer = revision.revised;
           wasRevised = true;
+          
+          // Add revision to trace
+          trace.verify.revision = {
+            changes: revision.changes,
+            revised: revision.revised,
+          };
           
           yield {
             type: 'verified',
@@ -223,6 +335,7 @@ export async function* runDeepThink(
     wasRevised,
     usage: totalUsage,
     stages,
+    trace,
   };
   
   yield {

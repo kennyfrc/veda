@@ -12,7 +12,9 @@
     "build:prod": "bun build --compile --minify --outfile dist/veda src/index.ts",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "yaml": "^2.8.2"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.7.0"

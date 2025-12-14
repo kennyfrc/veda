@@ -3,8 +3,9 @@
  */
 
 import { ContextStore } from '../context';
-import { runDeepThink, type DeepThinkEvent } from '../pipelines';
+import { runDeepThink, type DeepThinkEvent, type DeepThinkResult } from '../pipelines';
 import type { CliOptions } from '../cli';
+import { stringify as yamlStringify } from 'yaml';
 
 export async function handleDeep(
   prompt: string,
@@ -29,6 +30,8 @@ export async function handleDeep(
   
   console.error('[deep] Starting deep thinking mode...\n');
   
+  let finalResult: DeepThinkResult | undefined;
+  
   // Run the pipeline
   for await (const event of runDeepThink(prompt, {
     k: options.k,
@@ -38,6 +41,16 @@ export async function handleDeep(
     modules: options.modules,
   })) {
     handleEvent(event, options);
+    
+    // Capture final result for trace
+    if (event.type === 'complete' && event.result) {
+      finalResult = event.result;
+    }
+  }
+  
+  // Write trace if requested
+  if (options.trace && finalResult?.trace) {
+    await writeTrace(options.trace, finalResult);
   }
 }
 
@@ -134,4 +147,68 @@ async function buildAdhocContext(files: string[]): Promise<string> {
   }
   
   return parts.join('\n\n');
+}
+
+/**
+ * Write trace to YAML file.
+ */
+async function writeTrace(path: string, result: DeepThinkResult): Promise<void> {
+  if (!result.trace) return;
+  
+  const trace = result.trace;
+  
+  // Build YAML-friendly trace document
+  const doc = {
+    trace_version: 1,
+    run: {
+      timestamp: new Date().toISOString(),
+      confidence: result.confidence,
+      was_revised: result.wasRevised,
+      stages: result.stages,
+    },
+    prompt: trace.prompt,
+    ...(trace.context && { context: trace.context }),
+    options: trace.options,
+    solve: {
+      candidates: trace.solve.candidates.map(c => ({
+        id: c.id,
+        module: c.module,
+        response: c.response,
+      })),
+    },
+    judge: {
+      selected_index: trace.judge.selectedIndex,
+      confidence: trace.judge.confidence,
+      ...(trace.judge.reasoning && { reasoning: trace.judge.reasoning }),
+    },
+    ...(trace.verify && {
+      verify: {
+        checks: trace.verify.checks,
+        results: trace.verify.results,
+        ...(trace.verify.revision && { revision: trace.verify.revision }),
+      },
+    }),
+    final: {
+      answer: result.answer,
+    },
+    usage: {
+      input_tokens: result.usage.inputTokens,
+      output_tokens: result.usage.outputTokens,
+      total_tokens: result.usage.inputTokens + result.usage.outputTokens,
+    },
+  };
+  
+  try {
+    const yaml = yamlStringify(doc, {
+      lineWidth: 120,
+      defaultKeyType: 'PLAIN',
+      blockQuote: 'literal',
+      // Use block style for long strings, flow for short
+      collectionStyle: 'block',
+    });
+    await Bun.write(path, yaml);
+    console.error(`[trace] Saved to ${path}`);
+  } catch (error) {
+    console.error(`[trace] Warning: failed to write trace to ${path}: ${error instanceof Error ? error.message : error}`);
+  }
 }
