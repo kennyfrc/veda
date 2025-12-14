@@ -7,7 +7,8 @@
  * - Optional Chain-of-Verification to check and revise
  */
 
-import { getBackend, getAvailableBackends, extractText, collectMessages } from '../backend';
+import { getBackend, extractText, collectMessages } from '../backend';
+import { getDefaults } from '../agent';
 import type { UsageStats } from '../backend';
 import {
   createSolver,
@@ -21,8 +22,8 @@ import {
 import { SOLVER_SYSTEM_PROMPT, SOLVER_VARIANTS, JUDGE_SYSTEM_PROMPT, VERIFIER_SYSTEM_PROMPT } from './prompts';
 
 export interface DeepThinkOptions {
-  /** Backends to use (defaults to all available) */
-  backends?: string[];
+  /** Backend to use (defaults to configured default) */
+  backend?: string;
   /** Number of solvers/candidates (default: 3) */
   k?: number;
   /** Enable verification (default: true) */
@@ -77,15 +78,9 @@ export async function* runDeepThink(
     verifyReasoning = 'high',
   } = options;
   
-  // Get available backends
-  let backendNames = options.backends;
-  if (!backendNames || backendNames.length === 0) {
-    backendNames = await getAvailableBackends();
-  }
-  
-  if (backendNames.length === 0) {
-    throw new Error('No backends available. Install codex, claude, or gemini.');
-  }
+  // Get default backend
+  const defaults = await getDefaults();
+  const backendName = options.backend ?? defaults.backend;
   
   const usages: UsageStats[] = [];
   const stages: string[] = [];
@@ -94,13 +89,13 @@ export async function* runDeepThink(
   yield { type: 'stage_start', stage: 'solve' };
   stages.push('solve');
   
-  // Create solver pool using available backends
-  const solvers = createDiverseSolvers(backendNames, k, solverReasoning);
+  // Create solver pool using default backend with prompt variants
+  const solvers = createDiverseSolvers(backendName, k, solverReasoning);
   
   // Create judge
   const judgeSolver = createSolver({
     id: 'judge',
-    backend: backendNames[0],
+    backend: backendName,
     systemPrompt: JUDGE_SYSTEM_PROMPT,
     config: { reasoning: judgeReasoning },
   });
@@ -165,7 +160,7 @@ export async function* runDeepThink(
     
     const verifierSolver = createSolver({
       id: 'verifier',
-      backend: backendNames[0],
+      backend: backendName,
       systemPrompt: VERIFIER_SYSTEM_PROMPT,
       config: { reasoning: verifyReasoning },
     });
@@ -375,22 +370,22 @@ function areSimilar(a: string, b: string): boolean {
 }
 
 /**
- * Create diverse solvers using available backends.
+ * Create diverse solvers using a single backend with prompt variants.
+ * Diversity comes from different system prompt phrasings, not different models.
  */
 function createDiverseSolvers(
-  backendNames: string[], 
+  backendName: string, 
   k: number,
   reasoning: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' = 'medium'
 ): Solver[] {
   const solvers: Solver[] = [];
   
   for (let i = 0; i < k; i++) {
-    const backendIdx = i % backendNames.length;
     const variantIdx = i % SOLVER_VARIANTS.length;
     
     solvers.push(createSolver({
       id: `solver-${i}`,
-      backend: backendNames[backendIdx],
+      backend: backendName,
       systemPrompt: SOLVER_VARIANTS[variantIdx],
       config: { reasoning },
     }));
