@@ -73,7 +73,7 @@ veda deep -f src/api/auth.ts -f src/models/user.ts "What's the best approach?"
 **Always use `--trace` to save the full pipeline execution for review:**
 
 ```bash
-# Simple deep thinking (3 solvers, verification enabled)
+# Simple deep thinking (4 solvers, verification enabled)
 veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml "What's the best way to handle authentication in this app?"
 
 # More solvers for complex questions
@@ -88,7 +88,7 @@ veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml --no-verify "Compare RES
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--trace file` | Save full trace to YAML file (recommended: always use) | none |
-| `-k N` | Number of parallel solvers | 3 |
+| `-k N` | Number of parallel solvers | 4 |
 | `--categories` | Reasoning categories to use (comma-separated) | random sampling |
 | `--modules` | Exact module IDs to use (overrides k and categories) | none |
 | `--no-verify` | Skip Chain-of-Verification | verification enabled |

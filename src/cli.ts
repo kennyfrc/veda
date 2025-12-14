@@ -278,7 +278,7 @@ Options:
   -f, --files <file>      Ad-hoc files (doesn't modify selection)
   --no-sel                Ignore selection for this run
   --deep, -d              Enable deep thinking mode
-  -k <num>                Number of parallel solvers (default: 3, max: 8)
+  -k <num>                Number of parallel solvers (default: 4, max: 8)
   --categories <list>     Reasoning categories (comma-separated)
   --modules <list>        Exact reasoning modules (comma-separated)
   --no-verify             Skip verification in deep mode

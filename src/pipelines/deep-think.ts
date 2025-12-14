@@ -28,7 +28,7 @@ import { buildDeepSolverSystemPrompt, JUDGE_SYSTEM_PROMPT, VERIFIER_SYSTEM_PROMP
 export interface DeepThinkOptions {
   /** Backend to use (defaults to configured default) */
   backend?: string;
-  /** Number of solvers/candidates (default: 3, max: 8) */
+  /** Number of solvers/candidates (default: 4, max: 8) */
   k?: number;
   /** Enable verification (default: true) */
   verify?: boolean;
@@ -131,7 +131,7 @@ export async function* runDeepThink(
   options: DeepThinkOptions = {}
 ): AsyncGenerator<DeepThinkEvent> {
   const { 
-    k = 3, 
+    k = 4, 
     verify = true, 
     context,
     solverReasoning = 'medium',
