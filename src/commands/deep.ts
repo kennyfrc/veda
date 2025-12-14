@@ -34,6 +34,8 @@ export async function handleDeep(
     k: options.k,
     verify: !options.noVerify,
     context,
+    categories: options.categories,
+    modules: options.modules,
   })) {
     handleEvent(event, options);
   }

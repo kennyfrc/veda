@@ -2,29 +2,33 @@
  * DeepThink Pipeline - Full deep reasoning mode.
  * 
  * Uses:
- * - Model diversity (different backends) for self-consistency
+ * - SELF-DISCOVER reasoning modules for cognitive diversity
+ * - Prompt variants for stylistic diversity
  * - Judge aggregation to select best answer
  * - Optional Chain-of-Verification to check and revise
+ * 
+ * Based on: "SELF-DISCOVER: Large Language Models Self-Compose Reasoning Structures"
+ * (Zhou et al., 2024) - https://arxiv.org/abs/2402.03620
  */
 
-import { getBackend, extractText, collectMessages } from '../backend';
 import { getDefaults } from '../agent';
 import type { UsageStats } from '../backend';
 import {
   createSolver,
-  createSolverPool,
   createStringEnsemble,
   createJudgeAggregator,
   createVerification,
   combineUsage,
+  selectModules,
   type Solver,
+  type ReasoningModule,
 } from '../primitives';
-import { SOLVER_SYSTEM_PROMPT, SOLVER_VARIANTS, JUDGE_SYSTEM_PROMPT, VERIFIER_SYSTEM_PROMPT } from './prompts';
+import { buildDeepSolverSystemPrompt, JUDGE_SYSTEM_PROMPT, VERIFIER_SYSTEM_PROMPT } from './prompts';
 
 export interface DeepThinkOptions {
   /** Backend to use (defaults to configured default) */
   backend?: string;
-  /** Number of solvers/candidates (default: 3) */
+  /** Number of solvers/candidates (default: 3, max: 8) */
   k?: number;
   /** Enable verification (default: true) */
   verify?: boolean;
@@ -36,6 +40,10 @@ export interface DeepThinkOptions {
   judgeReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
   /** Reasoning level for verifier (default: 'high') */
   verifyReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  /** Specific categories to sample modules from */
+  categories?: string[];
+  /** Exact module IDs to use (overrides k and categories) */
+  modules?: string[];
 }
 
 export interface DeepThinkResult {
@@ -85,12 +93,19 @@ export async function* runDeepThink(
   const usages: UsageStats[] = [];
   const stages: string[] = [];
   
-  // Stage 1: Parallel solving with model diversity
+  // Stage 1: Parallel solving with cognitive diversity
   yield { type: 'stage_start', stage: 'solve' };
   stages.push('solve');
   
-  // Create solver pool using default backend with prompt variants
-  const solvers = createDiverseSolvers(backendName, k, solverReasoning);
+  // Select reasoning modules (SELF-DISCOVER)
+  const modules = selectModules({
+    k,
+    categories: options.categories,
+    modules: options.modules,
+  });
+  
+  // Create diverse solvers with variant + module combinations
+  const solvers = createDiverseSolvers(backendName, modules, solverReasoning);
   
   // Create judge
   const judgeSolver = createSolver({
@@ -217,28 +232,30 @@ export async function* runDeepThink(
 }
 
 /**
- * Create diverse solvers using a single backend with prompt variants.
- * Diversity comes from different system prompt phrasings, not different models.
+ * Create diverse solvers using SELF-DISCOVER reasoning modules.
+ * 
+ * Diversity comes from:
+ * 1. Different reasoning modules (cognitive heuristics)
+ * 2. Different prompt variants (stylistic differences)
  */
 function createDiverseSolvers(
   backendName: string, 
-  k: number,
+  modules: ReasoningModule[],
   reasoning: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' = 'medium'
 ): Solver[] {
-  const solvers: Solver[] = [];
-  
-  for (let i = 0; i < k; i++) {
-    const variantIdx = i % SOLVER_VARIANTS.length;
+  return modules.map((module, i) => {
+    const systemPrompt = buildDeepSolverSystemPrompt({
+      variantIndex: i,
+      module,
+    });
     
-    solvers.push(createSolver({
-      id: `solver-${i}`,
+    return createSolver({
+      id: `solver-${i}-${module.category}`,
       backend: backendName,
-      systemPrompt: SOLVER_VARIANTS[variantIdx],
+      systemPrompt,
       config: { reasoning },
-    }));
-  }
-  
-  return solvers;
+    });
+  });
 }
 
 /**

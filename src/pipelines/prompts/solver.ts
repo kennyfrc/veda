@@ -3,6 +3,7 @@
  */
 
 import { SANDBOX_NOTICE } from '../../agent/sandbox';
+import type { ReasoningModule } from '../../primitives/self-discover';
 
 export const SOLVER_SYSTEM_PROMPT = `${SANDBOX_NOTICE}You are an expert problem solver. Your task is to provide a thorough, well-reasoned solution to the given problem.
 
@@ -48,3 +49,37 @@ When solving problems:
 
 Be direct and specific in your response.`,
 ];
+
+/**
+ * Build a solver system prompt with variant + reasoning module diversity.
+ * 
+ * Combines:
+ * - Base variant (different problem-solving styles)
+ * - Reasoning module (SELF-DISCOVER cognitive heuristic)
+ */
+export interface BuildSolverPromptOptions {
+  /** Index into SOLVER_VARIANTS */
+  variantIndex: number;
+  /** Optional reasoning module to inject */
+  module?: ReasoningModule;
+}
+
+export function buildDeepSolverSystemPrompt(options: BuildSolverPromptOptions): string {
+  const { variantIndex, module } = options;
+  
+  // Get base variant (cycle if index exceeds array)
+  const variant = SOLVER_VARIANTS[variantIndex % SOLVER_VARIANTS.length];
+  
+  // If no module, return variant as-is
+  if (!module) {
+    return variant;
+  }
+  
+  // Inject reasoning module as a clearly delimited block
+  return `${variant}
+
+## Reasoning Approach
+**${module.name}**: ${module.prompt}
+
+Apply this reasoning approach while solving the problem.`;
+}

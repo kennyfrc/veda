@@ -66,3 +66,15 @@ export {
   createPipeline,
   type CreatePipelineOptions,
 } from './pipeline';
+
+// SELF-DISCOVER reasoning modules
+export {
+  selectModules,
+  REASONING_MODULES,
+  ALL_CATEGORIES,
+  MODULES_BY_CATEGORY,
+  MODULE_BY_ID,
+  type ModuleCategory,
+  type ReasoningModule,
+  type SelectModulesOptions,
+} from './self-discover';

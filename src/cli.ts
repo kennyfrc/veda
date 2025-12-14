@@ -29,6 +29,10 @@ export interface CliOptions {
   k?: number;
   /** Skip verification in deep mode */
   noVerify?: boolean;
+  /** Reasoning module categories for deep mode */
+  categories?: string[];
+  /** Exact reasoning module IDs for deep mode */
+  modules?: string[];
   /** Pass through JSON output */
   json?: boolean;
   /** Show help */
@@ -55,6 +59,8 @@ const FLAGS_WITH_VALUES = new Set([
   '-o', '--output',
   '-f', '--files',
   '-k', '--k',
+  '--categories',
+  '--modules',
 ]);
 
 /**
@@ -116,6 +122,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
         case '-k':
         case '--k':
           options.k = parseInt(value, 10);
+          break;
+        case '--categories':
+          options.categories = value.split(',').map(s => s.trim());
+          break;
+        case '--modules':
+          options.modules = value.split(',').map(s => s.trim());
           break;
       }
       i += 2;
@@ -260,7 +272,9 @@ Options:
   -f, --files <file>      Ad-hoc files (doesn't modify selection)
   --no-sel                Ignore selection for this run
   --deep, -d              Enable deep thinking mode
-  -k <num>                Number of parallel solvers (default: 3)
+  -k <num>                Number of parallel solvers (default: 3, max: 8)
+  --categories <list>     Reasoning categories (comma-separated)
+  --modules <list>        Exact reasoning modules (comma-separated)
   --no-verify             Skip verification in deep mode
   --json                  Output raw JSON
   --help, -h              Show help
