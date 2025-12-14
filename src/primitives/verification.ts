@@ -22,13 +22,15 @@ export interface CreateVerificationOptions {
   type: 'factual' | 'code' | 'reasoning';
   /** Solver for verification steps */
   solver: Solver;
+  /** If true, answer each check in a separate solver call (CoVe-pure mode). Default: false (batched). */
+  independent?: boolean;
 }
 
 /**
  * Create a verification instance.
  */
 export function createVerification(options: CreateVerificationOptions): Verification {
-  const { type, solver } = options;
+  const { type, solver, independent = false } = options;
   
   return {
     type,
@@ -42,17 +44,12 @@ export function createVerification(options: CreateVerificationOptions): Verifica
     },
     
     async answerChecks(checks: Check[]): Promise<CheckResult[]> {
-      // Answer each check independently
-      const results = await Promise.all(
-        checks.map(async (check) => {
-          const prompt = getAnswerCheckPrompt(type, check);
-          const messages = await collectMessages(solver.run(prompt));
-          const text = extractText(messages);
-          return parseCheckResult(check.id, text);
-        })
-      );
-      
-      return results;
+      if (independent) {
+        // CoVe-pure mode: answer each check in separate solver call
+        return answerChecksIndependent(checks, solver, type);
+      }
+      // Default: batched mode - single solver call for all checks
+      return answerChecksBatched(checks, solver, type);
     },
     
     async revise(draft: string, results: CheckResult[]): Promise<RevisionResult> {
@@ -170,6 +167,39 @@ Format as:
 <confidence>high|medium|low</confidence>`;
 }
 
+function getBatchedAnswerChecksPrompt(
+  type: 'factual' | 'code' | 'reasoning',
+  checks: Check[]
+): string {
+  const checksXml = checks
+    .map(c => `<check id="${c.id}">
+<question>${c.question}</question>
+${c.targetClaim ? `<claim>${c.targetClaim}</claim>` : ''}
+</check>`)
+    .join('\n');
+
+  return `Answer each verification question independently. For each check, provide a direct answer and indicate whether it supports or contradicts the original claim.
+
+<checks>
+${checksXml}
+</checks>
+
+Format your response as:
+<results>
+<result id="1">
+<answer>Your direct answer here</answer>
+<verdict>supports|contradicts|uncertain</verdict>
+<confidence>high|medium|low</confidence>
+</result>
+<result id="2">
+...
+</result>
+...
+</results>
+
+Important: Include exactly one <result> for each <check> id. Evaluate each check independently.`;
+}
+
 function getRevisionPrompt(
   type: 'factual' | 'code' | 'reasoning',
   draft: string,
@@ -208,6 +238,43 @@ Any unresolved conflicts (or "none")
 }
 
 // ============================================================================
+// Answer Checks Implementations
+// ============================================================================
+
+/**
+ * Batched mode: single solver call answers all checks.
+ */
+async function answerChecksBatched(
+  checks: Check[],
+  solver: Solver,
+  type: 'factual' | 'code' | 'reasoning'
+): Promise<CheckResult[]> {
+  const prompt = getBatchedAnswerChecksPrompt(type, checks);
+  const messages = await collectMessages(solver.run(prompt));
+  const text = extractText(messages);
+  return parseBatchedCheckResults(text, checks);
+}
+
+/**
+ * Independent mode: each check gets its own solver call (CoVe-pure).
+ */
+async function answerChecksIndependent(
+  checks: Check[],
+  solver: Solver,
+  type: 'factual' | 'code' | 'reasoning'
+): Promise<CheckResult[]> {
+  const results = await Promise.all(
+    checks.map(async (check) => {
+      const prompt = getAnswerCheckPrompt(type, check);
+      const messages = await collectMessages(solver.run(prompt));
+      const text = extractText(messages);
+      return parseCheckResult(check.id, text);
+    })
+  );
+  return results;
+}
+
+// ============================================================================
 // Parsers
 // ============================================================================
 
@@ -241,6 +308,49 @@ function parseCheckResult(checkId: string, text: string): CheckResult {
     contradictsDraft: verdict === 'contradicts',
     confidence: confLevel === 'high' ? 0.9 : confLevel === 'medium' ? 0.7 : 0.5,
   };
+}
+
+/**
+ * Parse batched check results from a single solver response.
+ * Falls back to empty results with warnings if parsing fails.
+ */
+function parseBatchedCheckResults(text: string, checks: Check[]): CheckResult[] {
+  const results: CheckResult[] = [];
+  const resultRegex = /<result id="(\d+)">\s*<answer>([\s\S]*?)<\/answer>\s*<verdict>([\s\S]*?)<\/verdict>\s*(?:<confidence>([\s\S]*?)<\/confidence>)?\s*<\/result>/g;
+  
+  const parsed = new Map<string, CheckResult>();
+  let match;
+  while ((match = resultRegex.exec(text)) !== null) {
+    const id = match[1];
+    const answer = match[2].trim();
+    const verdict = match[3].trim().toLowerCase();
+    const confLevel = match[4]?.trim().toLowerCase() ?? 'medium';
+    
+    parsed.set(id, {
+      checkId: id,
+      answer,
+      contradictsDraft: verdict === 'contradicts',
+      confidence: confLevel === 'high' ? 0.9 : confLevel === 'medium' ? 0.7 : 0.5,
+    });
+  }
+  
+  // Return results in input order, with fallback for missing
+  for (const check of checks) {
+    const result = parsed.get(check.id);
+    if (result) {
+      results.push(result);
+    } else {
+      // Fallback: assume uncertain/supports if check result missing
+      results.push({
+        checkId: check.id,
+        answer: 'Unable to parse result for this check',
+        contradictsDraft: false,
+        confidence: 0.5,
+      });
+    }
+  }
+  
+  return results;
 }
 
 function parseRevisionResult(originalDraft: string, text: string): RevisionResult {
