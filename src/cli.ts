@@ -312,5 +312,5 @@ Examples:
  * Show version.
  */
 export function showVersion(): void {
-  console.log('veda 0.2.2 (TypeScript)');
+  console.log('veda 0.2.3 (TypeScript)');
 }
