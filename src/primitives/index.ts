@@ -12,6 +12,8 @@ export type {
   Check,
   CheckResult,
   RevisionResult,
+  GenerateChecksResult,
+  AnswerChecksResult,
   Pipeline,
   PipelineStage,
   StepStage,

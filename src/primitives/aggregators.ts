@@ -152,9 +152,9 @@ Evaluate these candidates and select the best one based on:
 3. Clarity
 
 Respond with:
-- BEST: <number of the best candidate (1-${outputs.length})>
-- CONFIDENCE: <high|medium|low>
-- REASON: <brief explanation>`;
+<best>number of the best candidate (1-${outputs.length})</best>
+<confidence>high|medium|low</confidence>
+<reason>brief explanation</reason>`;
 }
 
 function parseJudgeResult(
@@ -164,9 +164,9 @@ function parseJudgeResult(
 ): AggregatedOutput<string> {
   const text = extractText(messages);
   
-  // Parse "BEST: N" pattern (N is 1-indexed display position)
-  const bestMatch = text.match(/BEST:\s*(\d+)/i);
-  const confMatch = text.match(/CONFIDENCE:\s*(high|medium|low)/i);
+  // Parse XML format: <best>N</best>, <confidence>...</confidence>
+  const bestMatch = text.match(/<best>\s*(\d+)\s*<\/best>/i);
+  const confMatch = text.match(/<confidence>\s*(high|medium|low)\s*<\/confidence>/i);
   
   const displayIdx = bestMatch ? parseInt(bestMatch[1], 10) - 1 : 0;
   const confLevel = confMatch?.[1]?.toLowerCase() ?? 'medium';

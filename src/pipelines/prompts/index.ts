@@ -1,6 +1,5 @@
 export { 
   SOLVER_SYSTEM_PROMPT, 
-  SOLVER_VARIANTS,
   buildDeepSolverSystemPrompt,
   type BuildSolverPromptOptions,
 } from './solver';

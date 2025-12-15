@@ -113,12 +113,15 @@ async function executeEnsemble(ensemble: Ensemble<unknown, unknown>, input: unkn
 }
 
 async function executeVerification(verification: Verification, draft: string, context: StepContext): Promise<StageResult> {
-  const checks = await verification.generateChecks(draft, context);
-  if (checks.length === 0) return { output: draft };
+  const generateResult = await verification.generateChecks(draft, context);
+  if (generateResult.checks.length === 0) return { output: draft, usage: generateResult.usage };
   
-  const results = await verification.answerChecks(checks);
-  const revision = await verification.revise(draft, results);
-  return { output: revision.revised };
+  const answerResult = await verification.answerChecks(generateResult.checks);
+  const revision = await verification.revise(draft, answerResult.results);
+  return { 
+    output: revision.revised, 
+    usage: combineUsage([generateResult.usage, answerResult.usage, revision.usage]),
+  };
 }
 
 async function* executeBranch(

@@ -7,7 +7,6 @@ export {
 
 export {
   SOLVER_SYSTEM_PROMPT,
-  SOLVER_VARIANTS,
   JUDGE_SYSTEM_PROMPT,
   VERIFIER_SYSTEM_PROMPT,
 } from './prompts';

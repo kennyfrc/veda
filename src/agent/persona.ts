@@ -4,7 +4,6 @@ import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { getPersonasDir, getPersonaDir } from '../util/paths';
 import type { ReasoningLevel, AgentConfig, SandboxMode } from './config';
-import { withSandboxNotice } from './sandbox';
 
 export interface Persona {
   name: string;
@@ -98,7 +97,7 @@ export async function resolveAgentConfig(
     model: options.model ?? defaults.model,
     reasoning: options.reasoning ?? defaultReasoning,
     sandbox: options.sandbox ?? 'read-only',
-    systemPrompt: withSandboxNotice(systemPrompt),
+    systemPrompt,
     systemPromptPath,
   };
 }

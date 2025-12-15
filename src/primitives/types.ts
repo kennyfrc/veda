@@ -69,9 +69,19 @@ export interface AggregatedOutput<O> {
 export interface Verification {
   readonly type: 'factual' | 'code' | 'reasoning';
   readonly solver: Solver;
-  generateChecks(draft: string, context: StepContext): Promise<Check[]>;
-  answerChecks(checks: Check[]): Promise<CheckResult[]>;
+  generateChecks(draft: string, context: StepContext): Promise<GenerateChecksResult>;
+  answerChecks(checks: Check[]): Promise<AnswerChecksResult>;
   revise(draft: string, results: CheckResult[]): Promise<RevisionResult>;
+}
+
+export interface GenerateChecksResult {
+  checks: Check[];
+  usage: UsageStats;
+}
+
+export interface AnswerChecksResult {
+  results: CheckResult[];
+  usage: UsageStats;
 }
 
 export interface Check {
@@ -92,6 +102,7 @@ export interface RevisionResult {
   changes: string[];
   conflicts: string[];
   unchanged: boolean;
+  usage: UsageStats;
 }
 
 export interface Pipeline<I, O> {

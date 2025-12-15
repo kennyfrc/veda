@@ -55,14 +55,16 @@ describe('createVerification', () => {
         priorSteps: [],
       };
       
-      const checks = await verification.generateChecks('test draft', context);
+      const result = await verification.generateChecks('test draft', context);
       
-      expect(checks.length).toBe(2);
-      expect(checks[0].id).toBe('1');
-      expect(checks[0].question).toBe('Is the calculation correct?');
-      expect(checks[0].targetClaim).toBe('2+2=4');
-      expect(checks[1].id).toBe('2');
-      expect(checks[1].targetClaim).toBeUndefined();
+      expect(result.checks.length).toBe(2);
+      expect(result.checks[0].id).toBe('1');
+      expect(result.checks[0].question).toBe('Is the calculation correct?');
+      expect(result.checks[0].targetClaim).toBe('2+2=4');
+      expect(result.checks[1].id).toBe('2');
+      expect(result.checks[1].targetClaim).toBeUndefined();
+      expect(result.usage.inputTokens).toBe(10);
+      expect(result.usage.outputTokens).toBe(5);
     });
 
     test('returns empty array for invalid XML', async () => {
@@ -73,12 +75,12 @@ describe('createVerification', () => {
         solver,
       });
       
-      const checks = await verification.generateChecks('draft', {
+      const result = await verification.generateChecks('draft', {
         originalTask: 'task',
         priorSteps: [],
       });
       
-      expect(checks.length).toBe(0);
+      expect(result.checks.length).toBe(0);
     });
   });
 
@@ -95,16 +97,18 @@ describe('createVerification', () => {
         independent: true,  // Each check gets its own solver call
       });
       
-      const results = await verification.answerChecks([
+      const result = await verification.answerChecks([
         { id: '1', question: 'Q1' },
         { id: '2', question: 'Q2' },
       ]);
       
-      expect(results.length).toBe(2);
-      expect(results[0].contradictsDraft).toBe(false);
-      expect(results[0].confidence).toBe(0.9);
-      expect(results[1].contradictsDraft).toBe(true);
-      expect(results[1].confidence).toBe(0.5);
+      expect(result.results.length).toBe(2);
+      expect(result.results[0].contradictsDraft).toBe(false);
+      expect(result.results[0].confidence).toBe(0.9);
+      expect(result.results[1].contradictsDraft).toBe(true);
+      expect(result.results[1].confidence).toBe(0.5);
+      expect(result.usage.inputTokens).toBe(20); // 2 calls × 10
+      expect(result.usage.outputTokens).toBe(10); // 2 calls × 5
     });
 
     test('handles uncertain verdict', async () => {
@@ -118,12 +122,12 @@ describe('createVerification', () => {
         independent: true,  // Each check gets its own solver call
       });
       
-      const results = await verification.answerChecks([
+      const result = await verification.answerChecks([
         { id: '1', question: 'Q1' },
       ]);
       
-      expect(results[0].contradictsDraft).toBe(false);
-      expect(results[0].confidence).toBe(0.7);
+      expect(result.results[0].contradictsDraft).toBe(false);
+      expect(result.results[0].confidence).toBe(0.7);
     });
   });
 

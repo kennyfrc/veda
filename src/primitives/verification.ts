@@ -1,14 +1,19 @@
 // Chain-of-Verification (CoVe): generate checks, answer independently, revise.
 
-import { collectMessages, extractText } from '../backend';
+import { collectMessages, extractText, getUsage, type UsageStats } from '../backend';
+import { combineUsage } from './step';
 import type {
   Verification,
   Check,
   CheckResult,
   RevisionResult,
+  GenerateChecksResult,
+  AnswerChecksResult,
   Solver,
   StepContext,
 } from './types';
+
+const EMPTY_USAGE: UsageStats = { inputTokens: 0, outputTokens: 0 };
 
 export interface CreateVerificationOptions {
   type: 'factual' | 'code' | 'reasoning';
@@ -23,14 +28,15 @@ export function createVerification(options: CreateVerificationOptions): Verifica
     type,
     solver,
     
-    async generateChecks(draft: string, context: StepContext): Promise<Check[]> {
+    async generateChecks(draft: string, context: StepContext): Promise<GenerateChecksResult> {
       const prompt = getGenerateChecksPrompt(type, draft, context);
       const messages = await collectMessages(solver.run(prompt));
       const text = extractText(messages);
-      return parseChecks(text);
+      const usage = getUsage(messages) ?? EMPTY_USAGE;
+      return { checks: parseChecks(text), usage };
     },
     
-    async answerChecks(checks: Check[]): Promise<CheckResult[]> {
+    async answerChecks(checks: Check[]): Promise<AnswerChecksResult> {
       if (independent) {
         // CoVe-pure mode: answer each check in separate solver call
         return answerChecksIndependent(checks, solver, type);
@@ -49,13 +55,15 @@ export function createVerification(options: CreateVerificationOptions): Verifica
           changes: [],
           conflicts: [],
           unchanged: true,
+          usage: { inputTokens: 0, outputTokens: 0 },
         };
       }
       
       const prompt = getRevisionPrompt(type, draft, contradictions);
       const messages = await collectMessages(solver.run(prompt));
       const text = extractText(messages);
-      return parseRevisionResult(draft, text);
+      const usage = getUsage(messages) ?? EMPTY_USAGE;
+      return parseRevisionResult(draft, text, usage);
     },
   };
 }
@@ -229,27 +237,30 @@ async function answerChecksBatched(
   checks: Check[],
   solver: Solver,
   type: 'factual' | 'code' | 'reasoning'
-): Promise<CheckResult[]> {
+): Promise<AnswerChecksResult> {
   const prompt = getBatchedAnswerChecksPrompt(type, checks);
   const messages = await collectMessages(solver.run(prompt));
   const text = extractText(messages);
-  return parseBatchedCheckResults(text, checks);
+  const usage = getUsage(messages) ?? EMPTY_USAGE;
+  return { results: parseBatchedCheckResults(text, checks), usage };
 }
 
 async function answerChecksIndependent(
   checks: Check[],
   solver: Solver,
   type: 'factual' | 'code' | 'reasoning'
-): Promise<CheckResult[]> {
+): Promise<AnswerChecksResult> {
+  const usages: UsageStats[] = [];
   const results = await Promise.all(
     checks.map(async (check) => {
       const prompt = getAnswerCheckPrompt(type, check);
       const messages = await collectMessages(solver.run(prompt));
       const text = extractText(messages);
+      usages.push(getUsage(messages) ?? EMPTY_USAGE);
       return parseCheckResult(check.id, text);
     })
   );
-  return results;
+  return { results, usage: combineUsage(usages) };
 }
 
 
@@ -327,7 +338,7 @@ function parseBatchedCheckResults(text: string, checks: Check[]): CheckResult[] 
   return results;
 }
 
-function parseRevisionResult(originalDraft: string, text: string): RevisionResult {
+function parseRevisionResult(originalDraft: string, text: string, usage: UsageStats): RevisionResult {
   const revisedMatch = text.match(/<revised>([\s\S]*?)<\/revised>/);
   const changesMatch = text.match(/<changes>([\s\S]*?)<\/changes>/);
   const conflictsMatch = text.match(/<conflicts>([\s\S]*?)<\/conflicts>/);
@@ -352,5 +363,6 @@ function parseRevisionResult(originalDraft: string, text: string): RevisionResul
     changes,
     conflicts,
     unchanged: revised === originalDraft,
+    usage,
   };
 }

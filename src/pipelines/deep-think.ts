@@ -265,14 +265,15 @@ export async function* runDeepThink(
     });
     
     // Generate checks
-    const checks = await verification.generateChecks(finalAnswer, {
+    const generateResult = await verification.generateChecks(finalAnswer, {
       originalTask: prompt,
       priorSteps: [{ name: 'solve', output: finalAnswer }],
     });
+    usages.push(generateResult.usage);
     
     // Initialize verification trace
     trace.verify = {
-      checks: checks.map(c => ({
+      checks: generateResult.checks.map(c => ({
         id: c.id,
         question: c.question,
         targetClaim: c.targetClaim,
@@ -280,12 +281,13 @@ export async function* runDeepThink(
       results: [],
     };
     
-    if (checks.length > 0) {
+    if (generateResult.checks.length > 0) {
       // Answer checks
-      const results = await verification.answerChecks(checks);
+      const answerResult = await verification.answerChecks(generateResult.checks);
+      usages.push(answerResult.usage);
       
       // Populate trace with check results
-      trace.verify.results = results.map(r => ({
+      trace.verify.results = answerResult.results.map(r => ({
         checkId: r.checkId,
         answer: r.answer,
         verdict: r.contradictsDraft ? 'contradicts' : (r.confidence >= 0.7 ? 'supports' : 'uncertain'),
@@ -293,11 +295,12 @@ export async function* runDeepThink(
       }));
       
       // Check for contradictions
-      const contradictions = results.filter(r => r.contradictsDraft);
+      const contradictions = answerResult.results.filter(r => r.contradictsDraft);
       
       if (contradictions.length > 0) {
         // Revise
-        const revision = await verification.revise(finalAnswer, results);
+        const revision = await verification.revise(finalAnswer, answerResult.results);
+        usages.push(revision.usage);
         
         if (!revision.unchanged) {
           finalAnswer = revision.revised;
@@ -350,10 +353,7 @@ function createDiverseSolvers(
   cwd?: string
 ): Solver[] {
   return modules.map((module, i) => {
-    const systemPrompt = buildDeepSolverSystemPrompt({
-      variantIndex: i,
-      module,
-    });
+    const systemPrompt = buildDeepSolverSystemPrompt({ module });
     
     return createSolver({
       id: `solver-${i}-${module.category}`,
