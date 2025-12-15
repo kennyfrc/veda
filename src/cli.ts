@@ -308,5 +308,7 @@ Examples:
  * Show version.
  */
 export function showVersion(): void {
-  console.log('veda 0.2.3 (TypeScript)');
+  // Read version from package.json at compile time
+  const pkg = require('../package.json');
+  console.log(`veda ${pkg.version}`);
 }
