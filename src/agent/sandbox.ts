@@ -41,6 +41,28 @@ When answering questions about the codebase, **use your read-only tools to gathe
 `;
 
 /**
+ * Read-only sandbox notice (context-first) - prefers provided context, tools as fallback.
+ * Use when the agent should primarily work from context but can inspect files if needed.
+ */
+export const SANDBOX_NOTICE_READONLY_CONTEXTFIRST = `## Sandbox Notice
+
+You have **read-only access** to the local repository, but prefer answering from the provided context. You may:
+- Read files and inspect their contents
+- Search the codebase (e.g., grep, find)
+- List directories and check file existence
+
+You **cannot**:
+- Modify, create, or delete any files
+- Execute code or run arbitrary commands
+- Make network requests
+
+**Prefer working from the context provided.** Only use tools to inspect files if the context is insufficient to answer the question.
+
+---
+
+`;
+
+/**
  * Prepend sandbox notice to a system prompt.
  * Ensures the model knows it cannot use tools.
  */
@@ -62,4 +84,16 @@ export function withReadOnlySandboxNotice(systemPrompt: string): string {
     return systemPrompt;
   }
   return SANDBOX_NOTICE_READONLY + systemPrompt;
+}
+
+/**
+ * Prepend read-only (context-first) sandbox notice to a system prompt.
+ * Ensures the model prefers context but can use tools as fallback.
+ */
+export function withReadOnlyContextFirstNotice(systemPrompt: string): string {
+  // Don't double-add if already present
+  if (systemPrompt.includes('## Sandbox Notice')) {
+    return systemPrompt;
+  }
+  return SANDBOX_NOTICE_READONLY_CONTEXTFIRST + systemPrompt;
 }

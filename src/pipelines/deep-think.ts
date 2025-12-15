@@ -179,14 +179,20 @@ export async function* runDeepThink(
   });
   
   // Create diverse solvers with variant + module combinations
-  const solvers = createDiverseSolvers(backendName, modules, solverReasoning);
+  // Solvers get read-only sandbox + cwd so they can inspect files if needed
+  const cwd = options.cwd ?? process.cwd();
+  const solvers = createDiverseSolvers(backendName, modules, solverReasoning, cwd);
   
-  // Create judge
+  // Create judge with read-only sandbox + cwd
   const judgeSolver = createSolver({
     id: 'judge',
     backend: backendName,
     systemPrompt: JUDGE_SYSTEM_PROMPT,
-    config: { reasoning: judgeReasoning },
+    config: { 
+      reasoning: judgeReasoning,
+      sandbox: 'read-only',
+      cwd,
+    },
   });
   
   // Create ensemble
@@ -268,7 +274,7 @@ export async function* runDeepThink(
         reasoning: verifyReasoning,
         // Full sandbox access so verifier can run tests, type checks, linters, etc.
         sandbox: 'full',
-        cwd: options.cwd ?? process.cwd(),
+        cwd,
       },
     });
     
@@ -366,7 +372,8 @@ export async function* runDeepThink(
 function createDiverseSolvers(
   backendName: string, 
   modules: ReasoningModule[],
-  reasoning: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' = 'medium'
+  reasoning: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' = 'medium',
+  cwd?: string
 ): Solver[] {
   return modules.map((module, i) => {
     const systemPrompt = buildDeepSolverSystemPrompt({
@@ -378,7 +385,11 @@ function createDiverseSolvers(
       id: `solver-${i}-${module.category}`,
       backend: backendName,
       systemPrompt,
-      config: { reasoning },
+      config: { 
+        reasoning,
+        sandbox: 'read-only',
+        cwd,
+      },
     });
   });
 }

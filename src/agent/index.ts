@@ -28,6 +28,8 @@ export {
 export {
   SANDBOX_NOTICE,
   SANDBOX_NOTICE_READONLY,
+  SANDBOX_NOTICE_READONLY_CONTEXTFIRST,
   withSandboxNotice,
   withReadOnlySandboxNotice,
+  withReadOnlyContextFirstNotice,
 } from './sandbox';
