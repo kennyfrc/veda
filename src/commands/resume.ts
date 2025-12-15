@@ -1,7 +1,3 @@
-/**
- * Resume command - continue a conversation.
- */
-
 import { getBackend, extractText, getSessionId, getUsage, collectMessages } from '../backend';
 import { getDefaults, resolveAgentConfig } from '../agent';
 import { ConversationStore } from '../conversation';

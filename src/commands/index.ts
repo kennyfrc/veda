@@ -1,7 +1,3 @@
-/**
- * Commands module exports.
- */
-
 export { handleSel } from './sel';
 export { handlePersonas } from './personas';
 export { handleRun } from './run';

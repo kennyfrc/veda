@@ -1,9 +1,3 @@
-/**
- * Selection file I/O operations.
- * 
- * Selection files are line-delimited absolute paths, optionally with slice suffixes.
- */
-
 import { resolve, isAbsolute } from 'path';
 import { parseSlice, formatSlice, type FileSlice } from './slice';
 

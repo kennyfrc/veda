@@ -1,9 +1,3 @@
-/**
- * File locking utilities for atomic selection operations.
- * 
- * Uses a simple lockfile approach with timeout and stale lock detection.
- */
-
 import { dirname } from 'path';
 import { mkdir } from 'fs/promises';
 

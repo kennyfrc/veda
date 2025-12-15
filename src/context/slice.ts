@@ -1,12 +1,4 @@
-/**
- * File slice parsing for line range selection.
- * 
- * Supports formats:
- * - file.ts:10-20   → lines 10-20
- * - file.ts:15-     → line 15 to EOF
- * - file.ts:8       → single line 8
- * - file.ts         → entire file (no slice)
- */
+// File slice: path:10-20, path:15-, path:8, or path (no slice)
 
 export interface FileSlice {
   /** Base file path without slice suffix */

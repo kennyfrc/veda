@@ -1,7 +1,3 @@
-/**
- * Pipeline prompts exports.
- */
-
 export { 
   SOLVER_SYSTEM_PROMPT, 
   SOLVER_VARIANTS,

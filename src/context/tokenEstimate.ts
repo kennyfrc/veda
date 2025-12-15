@@ -1,21 +1,5 @@
-/**
- * Token estimation with Unicode script detection.
- * 
- * Uses language-specific characters-per-token ratios based on research:
- * - Latin (English, Spanish, etc.): ~4.0 chars/token (OpenAI/Anthropic consensus)
- * - Cyrillic (Russian, Ukrainian): ~3.5 chars/token (higher token premium than Latin)
- * - CJK (Chinese, Japanese, Korean): ~0.6 chars/token (most chars = 2-3 tokens in BPE)
- * - Devanagari (Hindi, Sanskrit): ~3.0 chars/token (UTF-8 multi-byte overhead)
- * - Other (digits, punctuation, symbols): ~3.5 chars/token (special chars often 1-3 tokens)
- * 
- * Sources:
- * - OpenAI: "1 token ≈ 4 characters" for English
- * - Anthropic: "A token approximately represents 3.5 English characters"
- * - Jina AI: "0.6 to 0.75 tokens per Chinese character"
- * - arXiv 2305.15425: "Language Model Tokenizers Introduce Unfairness Between Languages"
- */
+// Token estimation using language-specific ratios (Latin: ~4, CJK: ~0.6, Cyrillic: ~3.5).
 
-// Characters per token ratios by script (conservative estimates)
 const RATIOS = {
   latin: 4.0,       // ~4 chars/token - industry consensus for English
   cyrillic: 3.5,    // ~3.5 chars/token - slightly higher token premium

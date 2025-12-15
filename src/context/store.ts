@@ -1,9 +1,3 @@
-/**
- * ContextStore - Manages file selection for sessions.
- * 
- * Provides atomic operations for adding/removing files with locking.
- */
-
 import { mkdir } from 'fs/promises';
 import { getSelectionPath, getSessionDir, isValidSessionId } from '../util/paths';
 import { withLock } from '../util/lock';

@@ -1,8 +1,4 @@
-/**
- * Persona loading and management.
- * 
- * Personas are stored in ~/.config/veda/personas/<name>/AGENTS.md
- */
+// Personas are stored in ~/.config/veda/personas/<name>/AGENTS.md
 
 import { readdir } from 'fs/promises';
 import { join } from 'path';
@@ -11,29 +7,18 @@ import type { ReasoningLevel, AgentConfig, SandboxMode } from './config';
 import { withSandboxNotice } from './sandbox';
 
 export interface Persona {
-  /** Persona name (directory name) */
   name: string;
-  /** System prompt content */
   systemPrompt: string;
-  /** Path to AGENTS.md file */
   path: string;
-  /** Default reasoning level for this persona */
   defaultReasoning: ReasoningLevel;
 }
 
-/**
- * Default reasoning levels for built-in personas.
- * All personas use codex backend with gpt-5.2.
- */
 const PERSONA_REASONING: Record<string, ReasoningLevel> = {
   'navigator-plan': 'high',
   'navigator-chat': 'medium',
   'reviewer': 'medium',
 };
 
-/**
- * Load a persona by name.
- */
 export async function loadPersona(name: string, baseDir?: string): Promise<Persona> {
   const personaDir = getPersonaDir(name, baseDir);
   const agentsPath = join(personaDir, 'AGENTS.md');
@@ -53,9 +38,6 @@ export async function loadPersona(name: string, baseDir?: string): Promise<Perso
   };
 }
 
-/**
- * List all available personas.
- */
 export async function listPersonas(baseDir?: string): Promise<string[]> {
   const personasDir = getPersonasDir(baseDir);
   
@@ -65,7 +47,6 @@ export async function listPersonas(baseDir?: string): Promise<string[]> {
     
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        // Check if AGENTS.md exists
         const agentsPath = join(personasDir, entry.name, 'AGENTS.md');
         if (await Bun.file(agentsPath).exists()) {
           personas.push(entry.name);
@@ -79,39 +60,27 @@ export async function listPersonas(baseDir?: string): Promise<string[]> {
   }
 }
 
-/**
- * Check if a persona exists.
- */
 export async function personaExists(name: string, baseDir?: string): Promise<boolean> {
   const agentsPath = join(getPersonaDir(name, baseDir), 'AGENTS.md');
   return await Bun.file(agentsPath).exists();
 }
 
 export interface ResolveConfigOptions {
-  /** Persona name */
   persona?: string;
-  /** Model override */
   model?: string;
-  /** Reasoning level override */
   reasoning?: ReasoningLevel;
-  /** Sandbox mode */
   sandbox?: SandboxMode;
-  /** Base config directory */
   baseDir?: string;
-  /** Inline system prompt (overrides persona) */
   systemPrompt?: string;
 }
 
-/**
- * Resolve final agent configuration by merging persona defaults with overrides.
- */
+/** Merges persona defaults with overrides */
 export async function resolveAgentConfig(
   options: ResolveConfigOptions,
   defaults: { model: string; reasoning: ReasoningLevel; persona: string }
 ): Promise<AgentConfig> {
   const personaName = options.persona ?? defaults.persona;
   
-  // Load persona if not using inline system prompt
   let systemPrompt: string;
   let systemPromptPath: string | undefined;
   let defaultReasoning: ReasoningLevel = defaults.reasoning;

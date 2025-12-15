@@ -1,7 +1,3 @@
-/**
- * Init command - initialize veda configuration.
- */
-
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { getVedaHome, getPersonasDir, getConfigPath } from '../util/paths';

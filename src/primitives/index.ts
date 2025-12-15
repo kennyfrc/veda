@@ -1,8 +1,3 @@
-/**
- * Primitives module exports.
- */
-
-// Core types
 export type {
   Solver,
   SolverConfig,
@@ -27,7 +22,6 @@ export type {
   PipelineEvent,
 } from './types';
 
-// Built-in aggregators
 export {
   MajorityVote,
   FirstSuccess,
@@ -36,7 +30,6 @@ export {
   createMergeAggregator,
 } from './aggregators';
 
-// Factory functions
 export {
   createSolver,
   createSolverPool,
@@ -67,7 +60,6 @@ export {
   type CreatePipelineOptions,
 } from './pipeline';
 
-// Reasoning modules for solver diversity
 export {
   selectModules,
   REASONING_MODULES,

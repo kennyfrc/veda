@@ -1,7 +1,3 @@
-/**
- * Main prompt execution command.
- */
-
 import { ContextStore, readSliceText, serializeAllFileContextBlocks } from '../context';
 import { parseSlice } from '../context/slice';
 import { getBackend, extractText, getSessionId, getUsage, collectMessages } from '../backend';

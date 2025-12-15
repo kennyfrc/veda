@@ -1,7 +1,3 @@
-/**
- * Utilities for spawning CLI processes and parsing NDJSON streams.
- */
-
 import type { Subprocess } from 'bun';
 
 export interface SpawnOptions {
@@ -17,9 +13,6 @@ export interface SpawnResult {
   process: Subprocess;
 }
 
-/**
- * Spawn a CLI process with optional stdin.
- */
 export function spawnCli(options: SpawnOptions): SpawnResult {
   const proc = Bun.spawn([options.command, ...options.args], {
     cwd: options.cwd,
@@ -28,8 +21,6 @@ export function spawnCli(options: SpawnOptions): SpawnResult {
     stderr: 'pipe',
   });
 
-  // Write stdin if provided
-  // Note: Bun's proc.stdin is a FileSink, not a WritableStream
   if (options.stdin && proc.stdin) {
     proc.stdin.write(options.stdin);
     proc.stdin.end();
@@ -42,9 +33,6 @@ export function spawnCli(options: SpawnOptions): SpawnResult {
   };
 }
 
-/**
- * Check if a command exists in PATH.
- */
 export async function commandExists(command: string): Promise<boolean> {
   try {
     const proc = Bun.spawn(['which', command], {
@@ -58,9 +46,6 @@ export async function commandExists(command: string): Promise<boolean> {
   }
 }
 
-/**
- * Parse NDJSON stream into individual objects.
- */
 export async function* parseNdjsonStream(
   stream: ReadableStream<Uint8Array>
 ): AsyncGenerator<unknown> {
@@ -73,31 +58,21 @@ export async function* parseNdjsonStream(
       const { done, value } = await reader.read();
       
       if (done) {
-        // Process any remaining buffer content
         if (buffer.trim()) {
-          try {
-            yield JSON.parse(buffer);
-          } catch {
-            // Ignore malformed JSON at end of stream
-          }
+          try { yield JSON.parse(buffer); } catch { /* ignore malformed */ }
         }
         break;
       }
 
       buffer += decoder.decode(value, { stream: true });
       
-      // Process complete lines
       const lines = buffer.split('\n');
-      buffer = lines.pop() ?? ''; // Keep incomplete line in buffer
+      buffer = lines.pop() ?? '';
       
       for (const line of lines) {
         const trimmed = line.trim();
         if (trimmed) {
-          try {
-            yield JSON.parse(trimmed);
-          } catch {
-            // Skip malformed JSON lines
-          }
+          try { yield JSON.parse(trimmed); } catch { /* skip malformed */ }
         }
       }
     }

@@ -1,20 +1,4 @@
-/**
- * DeepThink Pipeline - Full deep reasoning mode.
- * 
- * Based on:
- * - Self-Consistency (Wang et al., 2022) - sample diverse reasoning paths, aggregate
- *   https://arxiv.org/abs/2203.11171
- * - Universal Self-Consistency (Chen et al., 2023) - LLM as judge to select best
- *   https://arxiv.org/abs/2311.17311
- * - Chain-of-Verification (Dhuliawala et al., 2023) - fact-check before finalizing
- *   https://arxiv.org/abs/2309.11495
- * 
- * Uses:
- * - Reasoning modules for cognitive diversity (different problem-solving strategies)
- * - Prompt variants for stylistic diversity
- * - Judge aggregation to select best answer
- * - Optional Chain-of-Verification to check and revise
- */
+// DeepThink: parallel solvers with diverse reasoning → judge aggregation → optional verification.
 
 import { getDefaults } from '../agent';
 import type { UsageStats } from '../backend';
@@ -130,9 +114,6 @@ export interface DeepThinkEvent {
   result?: DeepThinkResult;
 }
 
-/**
- * Run the DeepThink pipeline.
- */
 export async function* runDeepThink(
   prompt: string,
   options: DeepThinkOptions = {}
@@ -362,13 +343,6 @@ export async function* runDeepThink(
   };
 }
 
-/**
- * Create diverse solvers using reasoning modules for cognitive diversity.
- * 
- * Diversity comes from:
- * 1. Different reasoning modules (cognitive heuristics)
- * 2. Different prompt variants (stylistic differences)
- */
 function createDiverseSolvers(
   backendName: string, 
   modules: ReasoningModule[],
@@ -394,9 +368,6 @@ function createDiverseSolvers(
   });
 }
 
-/**
- * Truncate text to max length.
- */
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen - 3) + '...';

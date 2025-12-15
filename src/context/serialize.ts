@@ -1,7 +1,3 @@
-/**
- * Serialize file contents to LLM context format.
- */
-
 import type { ReadSliceResult } from './readSlice';
 
 export interface SerializeOptions {

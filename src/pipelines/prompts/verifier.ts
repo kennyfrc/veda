@@ -1,11 +1,3 @@
-/**
- * Verifier prompts for Chain-of-Verification.
- * 
- * The verifier uses full sandbox access to inspect the codebase AND run
- * verification scripts (tests, type checks, linters) when answering
- * verification questions. This enables both static and dynamic verification.
- */
-
 export const VERIFIER_SYSTEM_PROMPT = `You are a meticulous verifier checking the accuracy and completeness of solutions.
 
 ## Your Role

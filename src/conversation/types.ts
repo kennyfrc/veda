@@ -1,7 +1,3 @@
-/**
- * Conversation/Thread types.
- */
-
 export interface ThreadInfo {
   /** Backend that created this thread */
   backend: string;

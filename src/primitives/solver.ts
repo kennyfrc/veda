@@ -1,25 +1,14 @@
-/**
- * Solver implementation - A configured LLM endpoint with a role.
- */
-
 import type { Backend, Message } from '../backend';
 import { getBackend } from '../backend';
 import type { Solver, SolverConfig } from './types';
 
 export interface CreateSolverOptions {
-  /** Unique identifier for this solver */
   id?: string;
-  /** Backend instance or name */
   backend: Backend | string;
-  /** System prompt for this solver's role */
   systemPrompt: string;
-  /** Additional configuration */
   config?: SolverConfig;
 }
 
-/**
- * Create a solver instance.
- */
 export function createSolver(options: CreateSolverOptions): Solver {
   const backend = typeof options.backend === 'string'
     ? getBackend(options.backend)
@@ -38,7 +27,6 @@ export function createSolver(options: CreateSolverOptions): Solver {
         prompt,
         context,
         config: {
-          // Let backend use its default model if none specified
           model: options.config?.model ?? '',
           reasoning: options.config?.reasoning ?? 'medium',
           sandbox: options.config?.sandbox ?? 'read-only',
@@ -51,20 +39,12 @@ export function createSolver(options: CreateSolverOptions): Solver {
 }
 
 export interface CreateSolverPoolOptions {
-  /** Backend instances or names */
   backends: (Backend | string)[];
-  /** System prompt for all solvers */
   systemPrompt: string;
-  /** Additional configuration */
   config?: SolverConfig;
-  /** Optional prompt variants for diversity */
   promptVariants?: string[];
 }
 
-/**
- * Create a pool of solvers for ensemble use.
- * Each solver uses a different backend for model diversity.
- */
 export function createSolverPool(options: CreateSolverPoolOptions): Solver[] {
   const { backends, systemPrompt, config, promptVariants } = options;
   

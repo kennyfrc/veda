@@ -1,20 +1,7 @@
-/**
- * Reasoning Modules for Solver Diversity
- * 
- * Used to create diverse reasoning paths for Self-Consistency:
- * - "Self-Consistency Improves Chain of Thought Reasoning" (Wang et al., 2022)
- *   https://arxiv.org/abs/2203.11171
- * 
- * Each solver gets a different cognitive strategy to encourage diverse solutions.
- * 
- * 8 MECE categories × 4 orthogonal modules = 32 total
- */
+// Reasoning modules for solver diversity (8 categories × 4 modules = 32).
+// Each solver gets different cognitive strategy for diverse solutions.
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export type ModuleCategory = 
+export type ModuleCategory =
   | 'analytical'
   | 'creative'
   | 'systematic'
@@ -32,17 +19,10 @@ export interface ReasoningModule {
 }
 
 export interface SelectModulesOptions {
-  /** Number of modules to select (max 8) */
-  k: number;
-  /** Specific categories to sample from */
-  categories?: string[];
-  /** Exact module IDs to use (overrides k and categories) */
-  modules?: string[];
+  k: number;              // Max 8
+  categories?: string[];  // Sample from these
+  modules?: string[];     // Exact IDs (overrides k/categories)
 }
-
-// ============================================================================
-// Module Catalog (8 categories × 4 modules = 32)
-// ============================================================================
 
 export const REASONING_MODULES: ReasoningModule[] = [
   // ANALYTICAL - Examine the problem rigorously
@@ -254,9 +234,9 @@ export const REASONING_MODULES: ReasoningModule[] = [
   },
 ];
 
-// ============================================================================
+
 // Indexes
-// ============================================================================
+
 
 export const ALL_CATEGORIES: ModuleCategory[] = [
   'analytical',
@@ -281,18 +261,7 @@ export const MODULE_BY_ID: Record<string, ReasoningModule> =
     return acc;
   }, {} as Record<string, ReasoningModule>);
 
-// ============================================================================
-// Selection Logic
-// ============================================================================
 
-/**
- * Select reasoning modules for solver diversity.
- * 
- * Selection logic:
- * - If `modules` specified: use exact modules (ignore k and categories)
- * - If `categories` specified: distribute k across those categories
- * - Otherwise: sample k categories, 1 random module from each
- */
 export function selectModules(options: SelectModulesOptions): ReasoningModule[] {
   const { k, categories, modules } = options;
 
@@ -400,9 +369,9 @@ function selectDefault(k: number): ReasoningModule[] {
   });
 }
 
-// ============================================================================
+
 // Helpers
-// ============================================================================
+
 
 function normalizeId(id: string): string {
   return id.toLowerCase().trim().replace(/-/g, '_');

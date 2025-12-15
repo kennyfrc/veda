@@ -1,7 +1,3 @@
-/**
- * Path utilities for veda configuration and session management.
- */
-
 import { join } from 'path';
 import { homedir } from 'os';
 

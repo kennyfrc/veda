@@ -1,11 +1,4 @@
-/**
- * Verification implementation - Task-aware output checking.
- * 
- * Implements Chain-of-Verification (CoVe) pattern:
- * 1. Generate verification checks from draft output
- * 2. Answer checks independently
- * 3. Revise draft based on check results
- */
+// Chain-of-Verification (CoVe): generate checks, answer independently, revise.
 
 import { collectMessages, extractText } from '../backend';
 import type {
@@ -18,17 +11,11 @@ import type {
 } from './types';
 
 export interface CreateVerificationOptions {
-  /** Verification type */
   type: 'factual' | 'code' | 'reasoning';
-  /** Solver for verification steps */
   solver: Solver;
-  /** If true, answer each check in a separate solver call (CoVe-pure mode). Default: false (batched). */
-  independent?: boolean;
+  independent?: boolean; // CoVe-pure: each check in separate call
 }
 
-/**
- * Create a verification instance.
- */
 export function createVerification(options: CreateVerificationOptions): Verification {
   const { type, solver, independent = false } = options;
   
@@ -73,9 +60,9 @@ export function createVerification(options: CreateVerificationOptions): Verifica
   };
 }
 
-// ============================================================================
-// Prompt Templates
-// ============================================================================
+
+
+
 
 function getGenerateChecksPrompt(
   type: 'factual' | 'code' | 'reasoning',
@@ -237,13 +224,7 @@ Any unresolved conflicts (or "none")
 </conflicts>`;
 }
 
-// ============================================================================
-// Answer Checks Implementations
-// ============================================================================
 
-/**
- * Batched mode: single solver call answers all checks.
- */
 async function answerChecksBatched(
   checks: Check[],
   solver: Solver,
@@ -255,9 +236,6 @@ async function answerChecksBatched(
   return parseBatchedCheckResults(text, checks);
 }
 
-/**
- * Independent mode: each check gets its own solver call (CoVe-pure).
- */
 async function answerChecksIndependent(
   checks: Check[],
   solver: Solver,
@@ -274,9 +252,9 @@ async function answerChecksIndependent(
   return results;
 }
 
-// ============================================================================
-// Parsers
-// ============================================================================
+
+
+
 
 function parseChecks(text: string): Check[] {
   const checks: Check[] = [];
@@ -310,10 +288,6 @@ function parseCheckResult(checkId: string, text: string): CheckResult {
   };
 }
 
-/**
- * Parse batched check results from a single solver response.
- * Falls back to empty results with warnings if parsing fails.
- */
 function parseBatchedCheckResults(text: string, checks: Check[]): CheckResult[] {
   const results: CheckResult[] = [];
   const resultRegex = /<result id="(\d+)">\s*<answer>([\s\S]*?)<\/answer>\s*<verdict>([\s\S]*?)<\/verdict>\s*(?:<confidence>([\s\S]*?)<\/confidence>)?\s*<\/result>/g;

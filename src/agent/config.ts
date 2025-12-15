@@ -1,14 +1,8 @@
-/**
- * Agent configuration types and loading.
- */
-
 import { getConfigPath } from '../util/paths';
 
 export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
-/** Sandbox modes (user-facing names) */
 export type SandboxMode = 'read-only' | 'workspace-write' | 'full';
 
-/** Map user-facing sandbox mode to codex CLI value */
 export function toCodexSandbox(mode: SandboxMode): string {
   switch (mode) {
     case 'read-only': return 'read-only';
@@ -18,28 +12,18 @@ export function toCodexSandbox(mode: SandboxMode): string {
 }
 
 export interface AgentConfig {
-  /** Model identifier */
   model: string;
-  /** Reasoning level for chain-of-thought */
   reasoning: ReasoningLevel;
-  /** Sandbox mode for file access */
   sandbox: SandboxMode;
-  /** System prompt content */
   systemPrompt: string;
-  /** Path to system prompt file (if loaded from file) */
   systemPromptPath?: string;
 }
 
 export interface GlobalConfig {
-  /** Default model */
   model?: string;
-  /** Default reasoning level */
   reasoning?: ReasoningLevel;
-  /** Default persona */
   persona?: string;
-  /** Default backend */
   backend?: string;
-  /** Default session */
   session?: string;
 }
 
@@ -48,9 +32,7 @@ const DEFAULT_REASONING: ReasoningLevel = 'medium';
 const DEFAULT_PERSONA = 'navigator-chat';
 const DEFAULT_BACKEND = 'codex';
 
-/**
- * Parse a shell-style config file (KEY="value" format).
- */
+/** Parses shell-style config (KEY="value" or KEY=value) */
 export function parseConfigFile(content: string): GlobalConfig {
   const config: GlobalConfig = {};
   
@@ -92,9 +74,6 @@ export function parseConfigFile(content: string): GlobalConfig {
   return config;
 }
 
-/**
- * Load global config from ~/.config/veda/config
- */
 export async function loadGlobalConfig(baseDir?: string): Promise<GlobalConfig> {
   const configPath = getConfigPath(baseDir);
   
@@ -110,9 +89,6 @@ export async function loadGlobalConfig(baseDir?: string): Promise<GlobalConfig> 
   }
 }
 
-/**
- * Get default values with global config overlay.
- */
 export async function getDefaults(baseDir?: string): Promise<{
   model: string;
   reasoning: ReasoningLevel;
@@ -129,21 +105,14 @@ export async function getDefaults(baseDir?: string): Promise<{
   };
 }
 
-/**
- * Validate reasoning level.
- */
 export function isValidReasoning(level: string): level is ReasoningLevel {
   return ['minimal', 'low', 'medium', 'high', 'xhigh'].includes(level);
 }
 
-/**
- * Validate sandbox mode.
- */
 export function isValidSandbox(mode: string): mode is SandboxMode {
   return ['read-only', 'workspace-write', 'full'].includes(mode);
 }
 
-/** Sandbox mode aliases for CLI input */
 export function parseSandboxMode(input: string): SandboxMode | undefined {
   switch (input.toLowerCase()) {
     case 'read-only':

@@ -1,7 +1,3 @@
-/**
- * Agent module exports.
- */
-
 export {
   type AgentConfig,
   type GlobalConfig,

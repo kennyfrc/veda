@@ -1,7 +1,3 @@
-/**
- * Judge prompts for selecting the best solution.
- */
-
 import { SANDBOX_NOTICE_READONLY_CONTEXTFIRST } from '../../agent/sandbox';
 
 export const JUDGE_SYSTEM_PROMPT = `${SANDBOX_NOTICE_READONLY_CONTEXTFIRST}You are an expert judge evaluating multiple candidate solutions. Your task is to select the best one based on objective criteria.

@@ -1,19 +1,6 @@
-/**
- * Built-in Aggregators for Ensemble outputs.
- * 
- * These implement different strategies for combining multiple LLM outputs.
- */
-
 import type { Aggregator, AggregatedOutput, StepContext, Solver, Message } from './types';
 import { collectMessages, extractText } from '../backend';
 
-// ============================================================================
-// Utilities
-// ============================================================================
-
-/**
- * Fisher-Yates shuffle - returns a new shuffled array.
- */
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -23,14 +10,7 @@ function shuffle<T>(arr: T[]): T[] {
   return copy;
 }
 
-// ============================================================================
-// MajorityVote - Simple voting on final answers
-// ============================================================================
-
-/**
- * Select the output that appears most frequently.
- * Good for tasks with discrete answers.
- */
+/** Select most frequent output. Good for discrete answers. */
 export const MajorityVote: Aggregator<string> = {
   name: 'majority-vote',
   
@@ -75,14 +55,7 @@ export const MajorityVote: Aggregator<string> = {
   },
 };
 
-// ============================================================================
-// FirstSuccess - Take the first successful output
-// ============================================================================
-
-/**
- * Use the first non-empty output.
- * Good for fallback patterns where you try multiple models.
- */
+/** Use first non-empty output. Good for fallback patterns. */
 export const FirstSuccess: Aggregator<string> = {
   name: 'first-success',
   
@@ -104,14 +77,7 @@ export const FirstSuccess: Aggregator<string> = {
   },
 };
 
-// ============================================================================
-// Longest - Select the most detailed response
-// ============================================================================
-
-/**
- * Select the longest output (by character count).
- * Heuristic: longer responses are often more detailed.
- */
+/** Select longest output. Heuristic: longer = more detailed. */
 export const Longest: Aggregator<string> = {
   name: 'longest',
   
@@ -134,16 +100,7 @@ export const Longest: Aggregator<string> = {
   },
 };
 
-// ============================================================================
-// LLM-based Aggregators (require a Solver)
-// ============================================================================
-
-/**
- * Create a Judge aggregator that uses an LLM to pick the best answer.
- * 
- * Uses shuffling to reduce position bias - candidates are presented in
- * randomized order, then the selection is mapped back to the original index.
- */
+/** LLM judge picks best answer. Shuffles candidates to reduce position bias. */
 export function createJudgeAggregator(judgeSolver: Solver): Aggregator<string> {
   return {
     name: 'judge',
@@ -231,9 +188,7 @@ function parseJudgeResult(
   };
 }
 
-/**
- * Create a Merge aggregator that synthesizes the best parts of all answers.
- */
+/** LLM synthesizes best parts of all answers into one. */
 export function createMergeAggregator(mergeSolver: Solver): Aggregator<string> {
   return {
     name: 'merge',

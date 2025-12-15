@@ -1,7 +1,3 @@
-/**
- * Solver prompts for deep thinking mode.
- */
-
 import { SANDBOX_NOTICE_READONLY_CONTEXTFIRST } from '../../agent/sandbox';
 import type { ReasoningModule } from '../../primitives/self-discover';
 

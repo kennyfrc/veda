@@ -1,27 +1,9 @@
-/**
- * Claude Backend - Anthropic's CLI agent.
- * 
- * JSON Format (with --output-format stream-json --verbose):
- * - Init: {"type":"system","subtype":"init","session_id":"UUID",...}
- * - Message: {"type":"assistant","message":{"content":[{"type":"text","text":"..."}]}}
- * - Done: {"type":"result","usage":{"input_tokens":N,"output_tokens":M},"session_id":"..."}
- * 
- * Notes:
- * - Requires --verbose flag with --output-format stream-json
- * - Uses positional prompt argument, not --prompt flag
- * - --print flag required for non-interactive mode
- * 
- * System Prompt: Flag-based (--system-prompt "...")
- */
+// Claude backend - uses --system-prompt flag and --output-format stream-json.
 
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
 import type { SandboxMode } from '../agent/config';
 import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
 
-/**
- * Map veda sandbox mode to Claude's --permission-mode.
- * Claude uses: default (prompt), acceptEdits (auto-edit), bypassPermissions (full access)
- */
 function toClaudePermissionMode(sandbox: SandboxMode): string {
   switch (sandbox) {
     case 'read-only': return 'default';
@@ -33,87 +15,37 @@ function toClaudePermissionMode(sandbox: SandboxMode): string {
 export class ClaudeBackend implements Backend {
   readonly name = 'claude';
   readonly command = 'claude';
-  // Claude uses flag-based system prompt, not file
   readonly systemPromptFile = undefined;
 
   async *run(options: RunOptions): AsyncIterable<Message> {
     const { prompt, context, config, cwd } = options;
     
     const args: string[] = [];
+    if (config.model) args.push('--model', config.model);
+    if (config.systemPrompt) args.push('--system-prompt', config.systemPrompt);
+    if (config.sandbox) args.push('--permission-mode', toClaudePermissionMode(config.sandbox));
     
-    // Model
-    if (config.model) {
-      args.push('--model', config.model);
-    }
-    
-    // System prompt via flag
-    if (config.systemPrompt) {
-      args.push('--system-prompt', config.systemPrompt);
-    }
-    
-    // Permission mode (maps from veda sandbox mode)
-    if (config.sandbox) {
-      args.push('--permission-mode', toClaudePermissionMode(config.sandbox));
-    }
-    
-    // Non-interactive mode
     args.push('--print');
-    
-    // JSON output mode (requires --verbose)
     args.push('--output-format', 'stream-json');
     args.push('--verbose');
+    args.push(context ? `${context}\n\n${prompt}` : prompt);
     
-    // Build input: context + prompt (positional argument, not --prompt flag)
-    const input = context ? `${context}\n\n${prompt}` : prompt;
-    args.push(input);
-    
-    const { stdout, process } = spawnCli({
-      command: this.command,
-      args,
-      cwd,
-    });
-
+    const { stdout, process } = spawnCli({ command: this.command, args, cwd });
     yield* this.parseStream(stdout);
-    
     await process.exited;
   }
 
   async *resume(options: ResumeOptions): AsyncIterable<Message> {
     const { sessionId, prompt, config, cwd } = options;
     
-    const args: string[] = [];
+    const args: string[] = ['--resume', sessionId];
+    if (config.sandbox) args.push('--permission-mode', toClaudePermissionMode(config.sandbox));
     
-    // Resume with session ID
-    args.push('--resume', sessionId);
+    args.push('--print', '--output-format', 'stream-json', '--verbose');
+    args.push(prompt ?? '--continue');
     
-    // Permission mode (maps from veda sandbox mode)
-    if (config.sandbox) {
-      args.push('--permission-mode', toClaudePermissionMode(config.sandbox));
-    }
-    
-    // Non-interactive mode
-    args.push('--print');
-    
-    // JSON output mode (requires --verbose)
-    args.push('--output-format', 'stream-json');
-    args.push('--verbose');
-    
-    if (prompt) {
-      // Positional prompt
-      args.push(prompt);
-    } else {
-      // Use --continue for continuing without new prompt
-      args.push('--continue');
-    }
-    
-    const { stdout, process } = spawnCli({
-      command: this.command,
-      args,
-      cwd,
-    });
-
+    const { stdout, process } = spawnCli({ command: this.command, args, cwd });
     yield* this.parseStream(stdout);
-    
     await process.exited;
   }
 
@@ -121,9 +53,6 @@ export class ClaudeBackend implements Backend {
     return commandExists(this.command);
   }
 
-  /**
-   * Parse Claude NDJSON stream into normalized messages.
-   */
   private async *parseStream(stream: ReadableStream<Uint8Array>): AsyncIterable<Message> {
     let sessionId: string | undefined;
     let usage: UsageStats | undefined;
@@ -131,31 +60,17 @@ export class ClaudeBackend implements Backend {
     for await (const event of parseNdjsonStream(stream)) {
       const msg = this.normalizeEvent(event);
       if (msg) {
-        // Track session ID from init
-        if (msg.type === 'init' && msg.sessionId) {
-          sessionId = msg.sessionId;
-        }
-        // Track usage from done
-        if (msg.type === 'done' && msg.usage) {
-          usage = msg.usage;
-        }
+        if (msg.type === 'init' && msg.sessionId) sessionId = msg.sessionId;
+        if (msg.type === 'done' && msg.usage) usage = msg.usage;
         yield msg;
       }
     }
 
-    // Ensure we emit a done message with usage
     if (!usage) {
-      yield {
-        type: 'done',
-        sessionId,
-        usage: { inputTokens: 0, outputTokens: 0 },
-      };
+      yield { type: 'done', sessionId, usage: { inputTokens: 0, outputTokens: 0 } };
     }
   }
 
-  /**
-   * Normalize a Claude event to our Message type.
-   */
   private normalizeEvent(event: unknown): Message | null {
     if (!event || typeof event !== 'object') return null;
     
@@ -171,54 +86,24 @@ export class ClaudeBackend implements Backend {
         };
 
       case 'assistant': {
-        const message = e.message as Record<string, unknown> | undefined;
-        const content = message?.content as Array<{ type: string; text?: string }> | undefined;
-        
+        const content = (e.message as Record<string, unknown>)?.content as Array<{ type: string; text?: string }> | undefined;
         if (!content || !Array.isArray(content)) return null;
         
-        // Extract text from content blocks
-        const textParts = content
-          .filter(c => c.type === 'text')
-          .map(c => c.text ?? '')
-          .join('');
+        const textParts = content.filter(c => c.type === 'text').map(c => c.text ?? '').join('');
+        if (textParts) return { type: 'text', content: textParts, raw: event };
         
-        if (textParts) {
-          return {
-            type: 'text',
-            content: textParts,
-            raw: event,
-          };
-        }
-        
-        // Check for tool use
         const toolUse = content.find(c => c.type === 'tool_use') as Record<string, unknown> | undefined;
-        if (toolUse) {
-          return {
-            type: 'tool_use',
-            toolName: toolUse.name as string,
-            toolInput: toolUse.input,
-            raw: event,
-          };
-        }
+        if (toolUse) return { type: 'tool_use', toolName: toolUse.name as string, toolInput: toolUse.input, raw: event };
         
         return null;
       }
 
       case 'user': {
-        // Tool result from user
-        const message = e.message as Record<string, unknown> | undefined;
-        const content = message?.content as Array<{ type: string; output?: unknown }> | undefined;
-        
+        const content = (e.message as Record<string, unknown>)?.content as Array<{ type: string; output?: unknown }> | undefined;
         if (!content || !Array.isArray(content)) return null;
         
         const toolResult = content.find(c => c.type === 'tool_result') as Record<string, unknown> | undefined;
-        if (toolResult) {
-          return {
-            type: 'tool_result',
-            toolResult: toolResult.output,
-            raw: event,
-          };
-        }
+        if (toolResult) return { type: 'tool_result', toolResult: toolResult.output, raw: event };
         
         return null;
       }
@@ -253,9 +138,6 @@ export class ClaudeBackend implements Backend {
   }
 }
 
-/**
- * Create a Claude backend instance.
- */
 export function createClaudeBackend(): ClaudeBackend {
   return new ClaudeBackend();
 }

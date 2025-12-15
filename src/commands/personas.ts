@@ -1,7 +1,3 @@
-/**
- * Personas command.
- */
-
 import { listPersonas } from '../agent';
 import type { CliOptions } from '../cli';
 

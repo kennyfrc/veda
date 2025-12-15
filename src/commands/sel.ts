@@ -1,7 +1,3 @@
-/**
- * Selection commands: add, rm, ls, clear, tokens
- */
-
 import { ContextStore } from '../context';
 import type { CliOptions } from '../cli';
 

@@ -1,7 +1,3 @@
-/**
- * Utility module exports.
- */
-
 export {
   VEDA_HOME,
   DEFAULT_SESSION,

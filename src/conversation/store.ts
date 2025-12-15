@@ -1,7 +1,3 @@
-/**
- * Conversation Store - Manages thread/session persistence.
- */
-
 import { mkdir } from 'fs/promises';
 import {
   getThreadPath,

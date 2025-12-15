@@ -1,7 +1,3 @@
-/**
- * CLI argument parsing.
- */
-
 import { DEFAULT_SESSION, isValidSessionId } from './util/paths';
 
 export interface CliOptions {

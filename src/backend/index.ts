@@ -1,7 +1,3 @@
-/**
- * Backend module exports.
- */
-
 export type {
   Message,
   UsageStats,
@@ -26,12 +22,10 @@ export {
   getAvailableBackends,
 } from './registry';
 
-// Backend implementations
 export { CodexBackend, createCodexBackend } from './codex';
 export { ClaudeBackend, createClaudeBackend } from './claude';
 export { GeminiBackend, createGeminiBackend } from './gemini';
 
-// Register default backends
 import { registerBackend } from './registry';
 import { createCodexBackend } from './codex';
 import { createClaudeBackend } from './claude';

@@ -1,7 +1,3 @@
-/**
- * Pipelines module exports.
- */
-
 export {
   runDeepThink,
   type DeepThinkOptions,

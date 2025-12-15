@@ -1,7 +1,3 @@
-/**
- * Deep thinking mode command.
- */
-
 import { ContextStore } from '../context';
 import { runDeepThink, type DeepThinkEvent, type DeepThinkResult } from '../pipelines';
 import type { CliOptions } from '../cli';

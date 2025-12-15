@@ -1,8 +1,3 @@
-/**
- * Read file content with slice support.
- * Best-effort: returns null for unreadable files.
- */
-
 import { relative } from 'path';
 import type { FileSlice } from './slice';
 
