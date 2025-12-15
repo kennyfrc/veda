@@ -8,6 +8,22 @@ import type { Aggregator, AggregatedOutput, StepContext, Solver, Message } from 
 import { collectMessages, extractText } from '../backend';
 
 // ============================================================================
+// Utilities
+// ============================================================================
+
+/**
+ * Fisher-Yates shuffle - returns a new shuffled array.
+ */
+function shuffle<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+// ============================================================================
 // MajorityVote - Simple voting on final answers
 // ============================================================================
 
@@ -124,6 +140,9 @@ export const Longest: Aggregator<string> = {
 
 /**
  * Create a Judge aggregator that uses an LLM to pick the best answer.
+ * 
+ * Uses shuffling to reduce position bias - candidates are presented in
+ * randomized order, then the selection is mapped back to the original index.
  */
 export function createJudgeAggregator(judgeSolver: Solver): Aggregator<string> {
   return {
@@ -138,16 +157,26 @@ export function createJudgeAggregator(judgeSolver: Solver): Aggregator<string> {
         return { selected: outputs[0], confidence: 1 };
       }
       
-      const prompt = formatJudgePrompt(outputs, context);
+      // Shuffle to reduce position bias
+      // indexMapping[shuffledIdx] = originalIdx
+      const indices = outputs.map((_, i) => i);
+      const indexMapping = shuffle(indices);
+      
+      const prompt = formatJudgePrompt(outputs, indexMapping, context);
       const messages = await collectMessages(judgeSolver.run(prompt));
-      return parseJudgeResult(outputs, messages);
+      return parseJudgeResult(outputs, indexMapping, messages);
     },
   };
 }
 
-function formatJudgePrompt(outputs: string[], context?: StepContext): string {
-  const candidateList = outputs
-    .map((o, i) => `## Candidate ${i + 1}\n${o}`)
+function formatJudgePrompt(
+  outputs: string[],
+  indexMapping: number[],
+  context?: StepContext
+): string {
+  // Present candidates in shuffled order
+  const candidateList = indexMapping
+    .map((originalIdx, displayIdx) => `## Candidate ${displayIdx + 1}\n${outputs[originalIdx]}`)
     .join('\n\n');
   
   const taskContext = context?.originalTask
@@ -171,23 +200,29 @@ Respond with:
 - REASON: <brief explanation>`;
 }
 
-function parseJudgeResult(outputs: string[], messages: Message[]): AggregatedOutput<string> {
+function parseJudgeResult(
+  outputs: string[],
+  indexMapping: number[],
+  messages: Message[]
+): AggregatedOutput<string> {
   const text = extractText(messages);
   
-  // Parse "BEST: N" pattern
+  // Parse "BEST: N" pattern (N is 1-indexed display position)
   const bestMatch = text.match(/BEST:\s*(\d+)/i);
   const confMatch = text.match(/CONFIDENCE:\s*(high|medium|low)/i);
   
-  const bestIdx = bestMatch ? parseInt(bestMatch[1], 10) - 1 : 0;
+  const displayIdx = bestMatch ? parseInt(bestMatch[1], 10) - 1 : 0;
   const confLevel = confMatch?.[1]?.toLowerCase() ?? 'medium';
   
   const confidence = confLevel === 'high' ? 0.9 : confLevel === 'medium' ? 0.5 : 0.3;
   
-  // Ensure index is in bounds
-  const selected = outputs[Math.min(Math.max(0, bestIdx), outputs.length - 1)];
+  // Map display index back to original index
+  const clampedDisplayIdx = Math.min(Math.max(0, displayIdx), indexMapping.length - 1);
+  const originalIdx = indexMapping[clampedDisplayIdx];
+  const selected = outputs[originalIdx];
   
-  // Other candidates are conflicts
-  const conflicts = outputs.filter((_, i) => i !== bestIdx);
+  // Other candidates are conflicts (filter by original index)
+  const conflicts = outputs.filter((_, i) => i !== originalIdx);
   
   return {
     selected,
