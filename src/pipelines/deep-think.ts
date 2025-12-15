@@ -266,7 +266,8 @@ export async function* runDeepThink(
       systemPrompt: VERIFIER_SYSTEM_PROMPT,
       config: { 
         reasoning: verifyReasoning,
-        // Pass cwd so verifier can access project files in read-only mode
+        // Full sandbox access so verifier can run tests, type checks, linters, etc.
+        sandbox: 'full',
         cwd: options.cwd ?? process.cwd(),
       },
     });
