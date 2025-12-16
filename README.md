@@ -14,7 +14,7 @@ So I built my own, inspired by a few papers:
 - [Universal Self-Consistency](https://arxiv.org/abs/2311.17311) — use an LLM as judge to select among candidates
 - [Chain-of-Verification](https://arxiv.org/abs/2309.11495) — fact-check outputs before finalizing
 
-Solvers run in parallel, each using a different problem-solving strategy. A judge picks the best answer, and a verifier kicks in when they disagree. That's basically it—a homegrown Deepthink I can invoke from the terminal.
+Solvers run in parallel, each using a different problem-solving strategy. A judge picks the best answer, and a verifier kicks in when confidence is low. That's basically it—a homegrown Deepthink I can invoke from the terminal.
 
 ## Quick Start
 
@@ -68,6 +68,7 @@ veda -S agent-1 resume -- "--explain flags"  # Prompt with dashes
 veda deep "Complex design question"           # 3 solvers, verification on
 veda deep -k 5 "Critical architecture"        # 5 solvers
 veda deep --no-verify "Quick comparison"      # Skip verification
+veda deep --trace /tmp/trace.yaml "..."       # Save trace for debugging
 veda deep --json "..." | jq '.candidates'     # JSON output
 ```
 
@@ -80,61 +81,59 @@ veda -p reviewer "..."         # Code review (high reasoning)
 veda personas                  # List available
 ```
 
-## Key Concepts
+## Architecture
 
-### Primitives
+### Core Primitives
 
-The core building blocks for AI orchestration:
+The library uses data-oriented primitives—plain data structs with standalone functions:
 
-**Solver** — Configured LLM endpoint with role
+**LLM Call** — Single model invocation
 ```typescript
-interface Solver {
-  id: string;
-  backend: Backend;
+interface LlmRequest {
+  backend: string;
+  prompt: string;
+  context?: string;
   systemPrompt: string;
-  run(prompt: string): AsyncIterable<Message>;
+  model?: string;
+  reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  sandbox?: 'read-only' | 'workspace-write' | 'full';
 }
-// Usage: const solver = createSolver({ backend, systemPrompt, config });
+
+// Usage
+const response = await runLlm(request);
+console.log(response.text, response.usage);
 ```
 
-**Step** — Single LLM call with typed I/O
+**Ensemble** — Parallel LLM calls
 ```typescript
-interface Step<I, O> {
-  solver: Solver;
-  formatPrompt(input: I): string;
-  parseOutput(messages: Message[]): O;
-  run(input: I): Promise<StepResult<O>>;
-}
-// Usage: const step = createStep({ solver, formatPrompt, parseOutput });
+const result = await runEnsemble([
+  { id: 'solver-1', request: { backend: 'codex', prompt, systemPrompt: '...' } },
+  { id: 'solver-2', request: { backend: 'codex', prompt, systemPrompt: '...' } },
+]);
+console.log(result.successful); // Array of response texts
 ```
 
-**Ensemble** — Parallel solvers with aggregation
+**Judge** — Select best candidate
 ```typescript
-interface Ensemble<I, O> {
-  solvers: Solver[];
-  aggregator: Aggregator<O>;
-  run(input: I): Promise<EnsembleResult<O>>;
-}
-// Usage: const ensemble = createEnsemble({ solvers, aggregator });
-```
-
-**Aggregator** — Combine multiple outputs
-```typescript
-interface Aggregator<O> {
-  aggregate(outputs: O[]): AggregatedOutput<O>;
-}
-// Built-in: MajorityVote, Longest, FirstSuccess, createJudgeAggregator(solver)
+const result = await runJudge({
+  backend: 'codex',
+  systemPrompt: JUDGE_SYSTEM_PROMPT,
+  candidates: ['Answer A', 'Answer B', 'Answer C'],
+  originalTask: 'What is 2+2?',
+});
+console.log(result.selected, result.decision.confidence);
 ```
 
 **Verification** — Chain-of-Verification for fact-checking
 ```typescript
-interface Verification {
-  type: 'factual' | 'code' | 'reasoning';
-  generateChecks(draft: string): Promise<Check[]>;
-  answerChecks(checks: Check[]): Promise<CheckResult[]>;
-  revise(draft: string, results: CheckResult[]): Promise<RevisionResult>;
-}
-// Usage: const v = createVerification({ type: 'reasoning', solver });
+const result = await runVerification({
+  backend: 'codex',
+  systemPrompt: VERIFIER_SYSTEM_PROMPT,
+  type: 'reasoning',
+  draft: 'The answer is 42',
+  originalTask: 'What is the meaning of life?',
+});
+console.log(result.checks, result.results, result.revision);
 ```
 
 ### Deep Thinking Pipeline
@@ -145,16 +144,16 @@ interface Verification {
 └──────┬──────┘
        ▼
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Solver 1   │    │  Solver 2   │    │  Solver 3   │  (parallel, diverse backends)
+│  Solver 1   │    │  Solver 2   │    │  Solver 3   │  (parallel, diverse strategies)
 └──────┬──────┘    └──────┬──────┘    └──────┬──────┘
        └──────────────────┼──────────────────┘
                           ▼
                  ┌─────────────────┐
-                 │      Judge      │  (select/synthesize best)
+                 │      Judge      │  (select best candidate)
                  └────────┬────────┘
                           ▼
                  ┌─────────────────┐
-                 │    Verifier     │  (if disagreement detected)
+                 │    Verifier     │  (if confidence < 70%)
                  └────────┬────────┘
                           ▼
                  ┌─────────────────┐
@@ -163,9 +162,27 @@ interface Verification {
 ```
 
 **Verification triggers when:**
-- Solvers disagree (low agreement rate)
-- Judge picks minority answer
-- Low margin between top answers
+- Judge confidence is below 70% (medium or low)
+
+### Reasoning Modules
+
+Each solver uses a different cognitive strategy from 8 categories:
+
+| Category | Focus |
+|----------|-------|
+| `analytical` | Critical thinking, assumption analysis, causal reasoning |
+| `creative` | Novel solutions, alternative perspectives |
+| `systematic` | Step-by-step decomposition, simplification |
+| `strategic` | Planning, iterative solving |
+| `evaluative` | Risk assessment, tradeoff analysis |
+| `contextual` | Stakeholder analysis, constraints |
+| `empirical` | Data analysis, experimental design |
+| `reflective` | Meta-cognition, success metrics |
+
+```bash
+veda deep --categories analytical,evaluative "Should we use microservices?"
+veda deep --modules critical_thinking,step_by_step "Analyze this design"
+```
 
 ### Backends
 
@@ -202,8 +219,11 @@ Options:
   -b, --backend <name>   codex|claude|gemini
   -m, --model <model>    Model override
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
-  -k <n>                 Solver count for deep mode (default: 3)
+  -k <n>                 Solver count for deep mode (default: 3, max: 8)
+  --categories <list>    Reasoning categories (comma-separated)
+  --modules <list>       Exact module IDs (comma-separated)
   --no-verify            Skip verification in deep mode
+  --trace <file>         Save trace to YAML file
   --no-sel               Ignore selection
   --json                 JSON output
   -o, --output <file>    Save to file
@@ -213,7 +233,7 @@ Options:
 
 ```
 src/
-├── primitives/    # Solver, Step, Ensemble, Aggregator, Verification
+├── core/          # Deep primitives (llm, ensemble, judge, verify, modules)
 ├── backend/       # codex.ts, claude.ts, gemini.ts
 ├── pipelines/     # deep-think.ts (orchestration)
 ├── context/       # Selection and slice management
@@ -236,7 +256,8 @@ BACKEND="codex"
 ## Development
 
 ```bash
-bun test              # Run 147 tests
+bun test              # Run tests
+bun run typecheck     # Type check
 bun run build         # Compile to dist/veda
 bun run dev -- args   # Run without compiling
 ```

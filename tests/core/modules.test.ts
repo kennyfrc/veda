@@ -5,7 +5,7 @@ import {
   ALL_CATEGORIES,
   MODULES_BY_CATEGORY,
   MODULE_BY_ID,
-} from '../../src/primitives/self-discover';
+} from '../../src/core/modules';
 
 describe('Reasoning Modules', () => {
   describe('catalog', () => {

@@ -3,15 +3,14 @@
 import { getDefaults } from '../agent';
 import type { UsageStats } from '../backend';
 import {
-  createSolver,
-  createStringEnsemble,
-  createJudgeAggregator,
-  createVerification,
+  runEnsemble,
+  runJudge,
+  runVerification,
   combineUsage,
   selectModules,
-  type Solver,
-  type ReasoningModule,
-} from '../primitives';
+  type EnsembleMember,
+  type Reasoning,
+} from '../core';
 import { buildDeepSolverSystemPrompt, JUDGE_SYSTEM_PROMPT, VERIFIER_SYSTEM_PROMPT } from './prompts';
 
 export interface DeepThinkOptions {
@@ -24,11 +23,11 @@ export interface DeepThinkOptions {
   /** Context string */
   context?: string;
   /** Reasoning level for solvers (default: 'medium') */
-  solverReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  solverReasoning?: Reasoning;
   /** Reasoning level for judge (default: 'medium') */
-  judgeReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  judgeReasoning?: Reasoning;
   /** Reasoning level for verifier (default: 'high') */
-  verifyReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  verifyReasoning?: Reasoning;
   /** Specific categories to sample modules from */
   categories?: string[];
   /** Exact module IDs to use (overrides k and categories) */
@@ -131,8 +130,9 @@ export async function* runDeepThink(
   const defaults = await getDefaults();
   const backendName = options.backend ?? defaults.backend;
   
-  const usages: UsageStats[] = [];
+  const usages: (UsageStats | undefined)[] = [];
   const stages: string[] = [];
+  const cwd = options.cwd ?? process.cwd();
   
   // Initialize trace data
   const trace: DeepThinkTrace = {
@@ -159,166 +159,134 @@ export async function* runDeepThink(
     modules: options.modules,
   });
   
-  // Create diverse solvers with variant + module combinations
-  // Solvers get read-only sandbox + cwd so they can inspect files if needed
-  const cwd = options.cwd ?? process.cwd();
-  const solvers = createDiverseSolvers(backendName, modules, solverReasoning, cwd);
-  
-  // Create judge with read-only sandbox + cwd
-  const judgeSolver = createSolver({
-    id: 'judge',
-    backend: backendName,
-    systemPrompt: JUDGE_SYSTEM_PROMPT,
-    config: { 
-      reasoning: judgeReasoning,
-      sandbox: 'read-only',
+  // Build ensemble members (plain data)
+  const members: EnsembleMember[] = modules.map((module, i) => ({
+    id: `solver-${i}-${module.category}`,
+    request: {
+      backend: backendName,
+      prompt,
+      context,
+      systemPrompt: buildDeepSolverSystemPrompt({ module }),
+      reasoning: solverReasoning,
+      sandbox: 'read-only' as const,
       cwd,
     },
-  });
-  
-  // Create ensemble
-  const ensemble = createStringEnsemble({
-    name: 'solvers',
-    solvers,
-    aggregator: createJudgeAggregator(judgeSolver),
-  });
+  }));
   
   // Run ensemble
-  const ensembleResult = await ensemble.run(prompt, {
-    originalTask: prompt,
-    priorSteps: [],
-    additionalContext: context,
-  });
-  
-  usages.push(ensembleResult.usage);
+  const ensembleResult = await runEnsemble(members);
+  usages.push(ensembleResult.totalUsage);
   
   // Populate trace with solver candidates and modules
-  for (let i = 0; i < ensembleResult.candidates.length; i++) {
+  for (let i = 0; i < ensembleResult.outputs.length; i++) {
+    const output = ensembleResult.outputs[i];
     const module = modules[i];
     trace.solve.candidates.push({
-      id: `solver-${i}-${module.category}`,
+      id: output.id,
       module: {
         id: module.id,
         category: module.category,
         name: module.name,
       },
-      response: ensembleResult.candidates[i],
+      response: output.text,
+      usage: output.usage,
     });
   }
   
-  // Find which candidate was selected
-  const selectedIndex = ensembleResult.candidates.findIndex(
-    c => c === ensembleResult.selected
-  );
-  trace.judge.selectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
-  trace.judge.confidence = ensembleResult.confidence;
+  // Run judge to select best candidate
+  const judgeResult = await runJudge({
+    backend: backendName,
+    systemPrompt: JUDGE_SYSTEM_PROMPT,
+    reasoning: judgeReasoning,
+    sandbox: 'read-only',
+    cwd,
+    candidates: ensembleResult.successful,
+    originalTask: prompt,
+  });
+  usages.push(judgeResult.usage);
+  
+  // Update trace with judge decision
+  trace.judge.selectedIndex = judgeResult.decision.selectedIndex;
+  trace.judge.confidence = judgeResult.decision.confidence;
+  trace.judge.reasoning = judgeResult.decision.reasoning;
   
   // Emit candidate events
-  for (let i = 0; i < ensembleResult.candidates.length; i++) {
+  for (let i = 0; i < ensembleResult.successful.length; i++) {
     yield {
       type: 'candidate',
       stage: 'solve',
-      content: `Candidate ${i + 1}: ${truncate(ensembleResult.candidates[i], 200)}`,
+      content: `Candidate ${i + 1}: ${truncate(ensembleResult.successful[i], 200)}`,
     };
   }
   
   yield {
     type: 'selected',
     stage: 'solve',
-    content: ensembleResult.selected,
-    confidence: ensembleResult.confidence,
+    content: judgeResult.selected,
+    confidence: judgeResult.decision.confidence,
   };
   
   yield {
     type: 'stage_complete',
     stage: 'solve',
-    confidence: ensembleResult.confidence,
-    usage: ensembleResult.usage,
+    confidence: judgeResult.decision.confidence,
+    usage: ensembleResult.totalUsage,
   };
   
-  let finalAnswer = ensembleResult.selected;
+  let finalAnswer = judgeResult.selected;
   let wasRevised = false;
   
   // Stage 2: Optional verification
   // Trigger based on judge confidence threshold (< 0.7)
-  const shouldVerify = verify && ensembleResult.confidence < 0.7;
+  const shouldVerify = verify && judgeResult.decision.confidence < 0.7;
   
   if (shouldVerify) {
     yield { type: 'stage_start', stage: 'verify' };
     stages.push('verify');
     
-    const verifierSolver = createSolver({
-      id: 'verifier',
+    const verifyResult = await runVerification({
       backend: backendName,
       systemPrompt: VERIFIER_SYSTEM_PROMPT,
-      config: { 
-        reasoning: verifyReasoning,
-        // Full sandbox access so verifier can run tests, type checks, linters, etc.
-        sandbox: 'full',
-        cwd,
-      },
-    });
-    
-    const verification = createVerification({
+      reasoning: verifyReasoning,
+      sandbox: 'full',
+      cwd,
       type: 'reasoning',
-      solver: verifierSolver,
-    });
-    
-    // Generate checks
-    const generateResult = await verification.generateChecks(finalAnswer, {
+      draft: finalAnswer,
       originalTask: prompt,
-      priorSteps: [{ name: 'solve', output: finalAnswer }],
     });
-    usages.push(generateResult.usage);
+    usages.push(verifyResult.usage);
     
     // Initialize verification trace
     trace.verify = {
-      checks: generateResult.checks.map(c => ({
+      checks: verifyResult.checks.map(c => ({
         id: c.id,
         question: c.question,
         targetClaim: c.targetClaim,
       })),
-      results: [],
-    };
-    
-    if (generateResult.checks.length > 0) {
-      // Answer checks
-      const answerResult = await verification.answerChecks(generateResult.checks);
-      usages.push(answerResult.usage);
-      
-      // Populate trace with check results
-      trace.verify.results = answerResult.results.map(r => ({
+      results: verifyResult.results.map(r => ({
         checkId: r.checkId,
         answer: r.answer,
         verdict: r.contradictsDraft ? 'contradicts' : (r.confidence >= 0.7 ? 'supports' : 'uncertain'),
         confidence: r.confidence,
-      }));
+      })),
+    };
+    
+    // Check if revision happened
+    if (verifyResult.revision && !verifyResult.revision.unchanged) {
+      finalAnswer = verifyResult.revision.revised;
+      wasRevised = true;
       
-      // Check for contradictions
-      const contradictions = answerResult.results.filter(r => r.contradictsDraft);
+      // Add revision to trace
+      trace.verify.revision = {
+        changes: verifyResult.revision.changes,
+        revised: verifyResult.revision.revised,
+      };
       
-      if (contradictions.length > 0) {
-        // Revise
-        const revision = await verification.revise(finalAnswer, answerResult.results);
-        usages.push(revision.usage);
-        
-        if (!revision.unchanged) {
-          finalAnswer = revision.revised;
-          wasRevised = true;
-          
-          // Add revision to trace
-          trace.verify.revision = {
-            changes: revision.changes,
-            revised: revision.revised,
-          };
-          
-          yield {
-            type: 'verified',
-            stage: 'verify',
-            content: `Revised: ${revision.changes.join(', ')}`,
-          };
-        }
-      }
+      yield {
+        type: 'verified',
+        stage: 'verify',
+        content: `Revised: ${verifyResult.revision.changes.join(', ')}`,
+      };
     }
     
     yield {
@@ -332,8 +300,8 @@ export async function* runDeepThink(
   
   const result: DeepThinkResult = {
     answer: finalAnswer,
-    confidence: ensembleResult.confidence,
-    candidates: ensembleResult.candidates,
+    confidence: judgeResult.decision.confidence,
+    candidates: ensembleResult.successful,
     wasRevised,
     usage: totalUsage,
     stages,
@@ -344,28 +312,6 @@ export async function* runDeepThink(
     type: 'complete',
     result,
   };
-}
-
-function createDiverseSolvers(
-  backendName: string, 
-  modules: ReasoningModule[],
-  reasoning: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' = 'medium',
-  cwd?: string
-): Solver[] {
-  return modules.map((module, i) => {
-    const systemPrompt = buildDeepSolverSystemPrompt({ module });
-    
-    return createSolver({
-      id: `solver-${i}-${module.category}`,
-      backend: backendName,
-      systemPrompt,
-      config: { 
-        reasoning,
-        sandbox: 'read-only',
-        cwd,
-      },
-    });
-  });
 }
 
 function truncate(text: string, maxLen: number): string {

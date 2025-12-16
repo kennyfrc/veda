@@ -1,6 +1,6 @@
 import { ContextStore, readSliceText, serializeAllFileContextBlocks } from '../context';
 import { parseSlice } from '../context/slice';
-import { getBackend, extractText, getSessionId, getUsage, collectMessages } from '../backend';
+import { runLlm, isBackendAvailable } from '../core';
 import { getDefaults, resolveAgentConfig } from '../agent';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
@@ -15,10 +15,9 @@ export async function handleRun(
   
   // Resolve backend
   const backendName = options.backend ?? defaults.backend;
-  const backend = getBackend(backendName);
   
   // Check backend availability
-  if (!await backend.isAvailable()) {
+  if (!await isBackendAvailable(backendName)) {
     console.error(`Backend '${backendName}' is not available. Is it installed?`);
     process.exit(1);
   }
@@ -52,40 +51,41 @@ export async function handleRun(
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
   
-  // Run the prompt
-  const messages = await collectMessages(
-    backend.run({
-      prompt,
-      context,
-      config,
-    })
-  );
-  
-  // Extract results
-  const text = extractText(messages);
-  const sessionId = getSessionId(messages);
-  const usage = getUsage(messages);
+  // Run the prompt using core/llm primitive
+  const response = await runLlm({
+    backend: backendName,
+    prompt,
+    context,
+    systemPrompt: config.systemPrompt,
+    model: config.model,
+    reasoning: config.reasoning,
+    sandbox: config.sandbox,
+  });
   
   // Save thread ID for resume
-  if (sessionId) {
+  if (response.sessionId) {
     const conversationStore = new ConversationStore({ sessionId: options.session });
     await conversationStore.save({
       backend: backendName,
-      threadId: sessionId,
+      threadId: response.sessionId,
     });
   }
   
   // Output
   if (options.output) {
-    await Bun.write(options.output, text);
+    await Bun.write(options.output, response.text);
     console.error(`Response saved to ${options.output}`);
-    if (usage) {
-      console.error(`Tokens: ${usage.inputTokens} in, ${usage.outputTokens} out`);
+    if (response.usage) {
+      console.error(`Tokens: ${response.usage.inputTokens} in, ${response.usage.outputTokens} out`);
     }
   } else if (options.json) {
-    console.log(JSON.stringify({ text, sessionId, usage }, null, 2));
+    console.log(JSON.stringify({
+      text: response.text,
+      sessionId: response.sessionId,
+      usage: response.usage,
+    }, null, 2));
   } else {
-    console.log(text);
+    console.log(response.text);
   }
 }
 

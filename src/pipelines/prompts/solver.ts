@@ -1,4 +1,4 @@
-import type { ReasoningModule } from '../../primitives/self-discover';
+import type { ReasoningModule } from '../../core/modules';
 
 export const SOLVER_SYSTEM_PROMPT = `<conversation_rules>
 You are an expert problem solver. Your task is to provide a thorough, well-reasoned solution to the given problem.
