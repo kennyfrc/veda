@@ -49,19 +49,37 @@ veda -S $VEDA_SESSION sel ls
 
 ### File Slices
 
-Use slices to focus on specific code sections:
+Use slices to include specific line ranges instead of entire files. **Only use slices when you significantly exceed the ~80k token budget**—otherwise, prefer full files for better context.
 
 ```bash
+# Selection-based slices
 veda -S $VEDA_SESSION sel add main.c:10-50       # Lines 10-50
+veda -S $VEDA_SESSION sel add main.c:100-        # Line 100 to end of file
 veda -S $VEDA_SESSION sel add "src/*.ts:1-100"   # First 100 lines of each
+
+# Ad-hoc file slices (doesn't modify selection)
+veda deep -f src/auth.ts:50-150 -f src/models/user.ts:1-80 "What's the best approach?"
 ```
+
+| Syntax | Description |
+|--------|-------------|
+| `file.c:10-20` | Lines 10 to 20 (inclusive) |
+| `file.c:15-` | Line 15 to end of file |
+| `file.c:8` | Single line 8 |
+| `"src/*.c:1-50"` | First 50 lines of each matched file |
+
+**When to use slices:**
+- Context significantly exceeds ~80k tokens
+- Large files where only specific functions/sections are relevant
+- Focusing on a particular code region for the question
 
 ### Ad-hoc Files
 
-Or provide files directly without affecting selection:
+Provide files directly without affecting selection:
 
 ```bash
 veda deep -f src/api/auth.ts -f src/models/user.ts "What's the best approach?"
+veda deep -f large_file.c:100-200 "Review this function"  # Slices work here too
 ```
 
 ---

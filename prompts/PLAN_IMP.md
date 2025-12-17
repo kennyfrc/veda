@@ -67,10 +67,12 @@ veda -S $VEDA_SESSION sel add "src/*.c:1-80"     # First 80 lines of each .c fil
 | `file.c:8` | Single line 8 |
 | `"src/*.c:1-50"` | First 50 lines of each matched file |
 
-**When to use slices:**
+**When to use slices** (only if you significantly exceed ~80k tokens):
 - Large files where only specific functions/sections are relevant
 - Focusing on a particular code region for discussion
 - Staying within token budget while including more files
+
+Prefer full files when possible—more context is better for Navigator.
 
 ---
 

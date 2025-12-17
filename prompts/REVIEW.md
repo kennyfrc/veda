@@ -166,7 +166,7 @@ Key commands:
 
 ### File Slices for Reviews
 
-Use file slices to focus on specific code sections during review:
+Use file slices to focus on specific code sections during review. **Only use slices when you significantly exceed the token budget**—otherwise, prefer full files for better review context.
 
 ```bash
 veda -S $VEDA_SESSION sel add src/auth.c:50-120   # Only the modified function
