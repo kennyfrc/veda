@@ -58,6 +58,11 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions): void {
       console.error(`[${event.stage}] Starting...`);
       break;
     
+    case 'tool_start':
+      // Show tool execution progress
+      console.error(`  [${event.source}] → ${formatToolStart(event.content, event.toolInput)}`);
+      break;
+    
     case 'candidate':
       console.error(`  ${event.content}`);
       break;
@@ -100,6 +105,32 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions): void {
       }
       break;
   }
+}
+
+/**
+ * Format a tool_start event for display.
+ */
+function formatToolStart(toolName?: string, toolInput?: unknown): string {
+  if (!toolName) return 'tool call';
+  
+  // Format based on tool type
+  if (toolName === 'shell' && toolInput && typeof toolInput === 'object') {
+    const input = toolInput as { command?: string };
+    const cmd = input.command ?? '';
+    // Truncate long commands
+    const displayCmd = cmd.length > 60 ? cmd.slice(0, 57) + '...' : cmd;
+    return `shell: ${displayCmd}`;
+  }
+  
+  if (toolName === 'file_change') {
+    return 'file change';
+  }
+  
+  if (toolName.startsWith('mcp:')) {
+    return toolName;
+  }
+  
+  return toolName;
 }
 
 async function buildContext(store: ContextStore): Promise<string> {
