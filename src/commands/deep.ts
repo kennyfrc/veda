@@ -31,6 +31,8 @@ export async function handleDeep(
   
   // Run the pipeline
   for await (const event of runDeepThink(prompt, {
+    backend: options.backend,
+    model: options.model,  // Pass model override (if any)
     k: options.k,
     verify: !options.noVerify,
     context,
