@@ -3,7 +3,8 @@
 import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { getPersonasDir, getPersonaDir } from '../util/paths';
-import type { ReasoningLevel, AgentConfig, SandboxMode } from './config';
+import type { ReasoningLevel, AgentConfig, SandboxMode, GlobalConfig } from './config';
+import { resolveModel } from './config';
 
 export interface Persona {
   name: string;
@@ -69,6 +70,7 @@ export interface ResolveConfigOptions {
   model?: string;
   reasoning?: ReasoningLevel;
   sandbox?: SandboxMode;
+  backend?: string;           // Backend for model resolution
   baseDir?: string;
   systemPrompt?: string;
 }
@@ -76,7 +78,8 @@ export interface ResolveConfigOptions {
 /** Merges persona defaults with overrides */
 export async function resolveAgentConfig(
   options: ResolveConfigOptions,
-  defaults: { model: string; reasoning: ReasoningLevel; persona: string }
+  defaults: { model: string; reasoning: ReasoningLevel; persona: string },
+  globalConfig?: GlobalConfig
 ): Promise<AgentConfig> {
   const personaName = options.persona ?? defaults.persona;
   
@@ -93,8 +96,18 @@ export async function resolveAgentConfig(
     defaultReasoning = persona.defaultReasoning;
   }
   
+  // Resolve model based on backend (if provided)
+  // This ensures each backend gets its appropriate default model
+  const model = options.backend
+    ? resolveModel({
+        backend: options.backend,
+        explicitModel: options.model,
+        globalConfig,
+      })
+    : (options.model ?? defaults.model);  // Fallback for backwards compat
+  
   return {
-    model: options.model ?? defaults.model,
+    model: model ?? '',
     reasoning: options.reasoning ?? defaultReasoning,
     sandbox: options.sandbox ?? 'read-only',
     systemPrompt,
