@@ -1,7 +1,7 @@
 // DeepThink: parallel solvers with diverse reasoning → judge aggregation → optional verification.
 
 import { getDefaults } from '../agent';
-import type { UsageStats } from '../backend';
+import type { Message, UsageStats } from '../backend';
 import {
   runEnsemble,
   runJudge,
@@ -9,6 +9,7 @@ import {
   combineUsage,
   selectModules,
   type EnsembleMember,
+  type EnsembleEvent,
   type Reasoning,
 } from '../core';
 import { buildDeepSolverSystemPrompt, JUDGE_SYSTEM_PROMPT, VERIFIER_SYSTEM_PROMPT } from './prompts';
@@ -105,9 +106,14 @@ export interface DeepThinkTrace {
 }
 
 export interface DeepThinkEvent {
-  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete';
+  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start';
   stage?: string;
+  /** For most events: descriptive content. For tool_start: tool name */
   content?: string;
+  /** For tool_start: source identifier (e.g., "solver-0", "judge", "verifier") */
+  source?: string;
+  /** For tool_start: tool input/arguments */
+  toolInput?: unknown;
   confidence?: number;
   usage?: UsageStats;
   result?: DeepThinkResult;
@@ -133,6 +139,20 @@ export async function* runDeepThink(
   const usages: (UsageStats | undefined)[] = [];
   const stages: string[] = [];
   const cwd = options.cwd ?? process.cwd();
+  
+  // Event queue for tool_start events from callbacks
+  const pendingEvents: DeepThinkEvent[] = [];
+  
+  // Helper to create tool_start event from message
+  const makeToolEvent = (source: string, msg: Message): DeepThinkEvent | null => {
+    if (msg.type !== 'tool_start') return null;
+    return {
+      type: 'tool_start',
+      source,
+      content: msg.toolName,
+      toolInput: msg.toolInput,
+    };
+  };
   
   // Initialize trace data
   const trace: DeepThinkTrace = {
@@ -173,9 +193,17 @@ export async function* runDeepThink(
     },
   }));
   
-  // Run ensemble
-  const ensembleResult = await runEnsemble(members);
+  // Run ensemble with event callback
+  const ensembleResult = await runEnsemble(members, (event: EnsembleEvent) => {
+    const toolEvent = makeToolEvent(event.memberId, event.message);
+    if (toolEvent) pendingEvents.push(toolEvent);
+  });
   usages.push(ensembleResult.totalUsage);
+  
+  // Yield any pending tool events from solvers
+  while (pendingEvents.length > 0) {
+    yield pendingEvents.shift()!;
+  }
   
   // Populate trace with solver candidates and modules
   for (let i = 0; i < ensembleResult.outputs.length; i++) {
@@ -202,8 +230,17 @@ export async function* runDeepThink(
     cwd,
     candidates: ensembleResult.successful,
     originalTask: prompt,
+    onMessage: (msg: Message) => {
+      const toolEvent = makeToolEvent('judge', msg);
+      if (toolEvent) pendingEvents.push(toolEvent);
+    },
   });
   usages.push(judgeResult.usage);
+  
+  // Yield any pending tool events from judge
+  while (pendingEvents.length > 0) {
+    yield pendingEvents.shift()!;
+  }
   
   // Update trace with judge decision
   trace.judge.selectedIndex = judgeResult.decision.selectedIndex;
@@ -253,8 +290,17 @@ export async function* runDeepThink(
       type: 'reasoning',
       draft: finalAnswer,
       originalTask: prompt,
+      onMessage: (msg: Message) => {
+        const toolEvent = makeToolEvent('verifier', msg);
+        if (toolEvent) pendingEvents.push(toolEvent);
+      },
     });
     usages.push(verifyResult.usage);
+    
+    // Yield any pending tool events from verifier
+    while (pendingEvents.length > 0) {
+      yield pendingEvents.shift()!;
+    }
     
     // Initialize verification trace
     trace.verify = {
