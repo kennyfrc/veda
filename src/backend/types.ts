@@ -4,13 +4,13 @@
 import type { AgentConfig } from '../agent';
 
 export interface Message {
-  type: 'init' | 'text' | 'reasoning' | 'tool_use' | 'tool_result' | 'error' | 'done';
+  type: 'init' | 'text' | 'reasoning' | 'tool_use' | 'tool_result' | 'tool_start' | 'error' | 'done';
   content?: string;
   sessionId?: string;       // Set on 'init'
   usage?: UsageStats;       // Set on 'done'
-  toolName?: string;
-  toolInput?: unknown;
-  toolResult?: unknown;
+  toolName?: string;        // For tool_use, tool_start
+  toolInput?: unknown;      // For tool_use, tool_start
+  toolResult?: unknown;     // For tool_result
   raw?: unknown;
 }
 
