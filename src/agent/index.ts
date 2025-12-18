@@ -3,6 +3,7 @@ export {
   type GlobalConfig,
   type ReasoningLevel,
   type SandboxMode,
+  type ResolveModelOptions,
   parseConfigFile,
   loadGlobalConfig,
   getDefaults,
@@ -10,6 +11,7 @@ export {
   isValidSandbox,
   toCodexSandbox,
   parseSandboxMode,
+  resolveModel,
 } from './config';
 
 export {
