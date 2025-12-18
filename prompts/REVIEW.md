@@ -66,18 +66,20 @@ git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/cha
 # git diff -- src/ lib/ > /tmp/changes.diff
 
 # Build selection with diff and key files
-veda -S $VEDA_SESSION sel clear
-veda -S $VEDA_SESSION sel add /tmp/changes.diff
-veda -S $VEDA_SESSION sel add src/changed_file.c src/related.c include/header.h
+# IMPORTANT: Use a literal session ID to avoid shell variable issues
+veda -S my-review sel clear
+veda -S my-review sel add /tmp/changes.diff
+veda -S my-review sel add src/changed_file.c src/related.c include/header.h
 
 # Use file slices if files are large (focus on relevant sections)
-veda -S $VEDA_SESSION sel add large_file.c:100-200  # Only the changed function
+veda -S my-review sel add large_file.c:100-200  # Only the changed function
 
-# Check token count
-veda -S $VEDA_SESSION sel ls
+# CRITICAL: Verify selection includes diff before sending review
+veda -S my-review sel ls
+# Should show /tmp/changes.diff with token count - if not, re-add it!
 
 # Request review
-veda -S $VEDA_SESSION -p reviewer "Final Review Request: Implementation for this task is complete.
+veda -S my-review -p reviewer "Final Review Request: Implementation for this task is complete.
 Overall summary of changes:
 - Added X feature
 - Modified Y to handle Z
@@ -85,6 +87,24 @@ Overall summary of changes:
 
 Key files are selected. Please perform a holistic review checking for correctness, integration issues, regressions, and adherence to codebase patterns."
 ```
+
+### Critical: Verify Diff is in Selection
+
+**The reviewer cannot see your changes without the diff file.** Before every review request:
+
+1. Run `veda -S <session> sel ls` and confirm `/tmp/changes.diff` appears with a token count
+2. If the diff is missing or shows 0 tokens, re-add it:
+   ```bash
+   git diff -- . ':(exclude)*.png' > /tmp/changes.diff
+   veda -S my-review sel add /tmp/changes.diff
+   veda -S my-review sel ls  # Verify again
+   ```
+3. Only then send the review request
+
+**Common failure modes:**
+- Session variable `$VEDA_SESSION` not expanding correctly in subshells → use literal session ID
+- Diff file was empty (no changes) → check `wc -l /tmp/changes.diff`
+- Selection cleared between commands → verify with `sel ls` immediately before review
 
 2. Review → Fix → Review loop
 
@@ -108,11 +128,15 @@ Example follow-up final review:
 git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/changes.diff
 
 # Re-add diff to selection (file content changed, must re-add)
-veda -S $VEDA_SESSION sel rm /tmp/changes.diff
-veda -S $VEDA_SESSION sel add /tmp/changes.diff
+veda -S my-review sel rm /tmp/changes.diff
+veda -S my-review sel add /tmp/changes.diff
+
+# VERIFY diff is in selection before sending
+veda -S my-review sel ls
+# Must show /tmp/changes.diff with non-zero token count!
 
 # Request re-review with updated diff
-veda -S $VEDA_SESSION -p reviewer "Final Review Follow-up: I have addressed your feedback:
+veda -S my-review -p reviewer "Final Review Follow-up: I have addressed your feedback:
 - Fixed X (P1 issue)
 - Added handling for Y
 - Updated Z as suggested
@@ -120,7 +144,7 @@ veda -S $VEDA_SESSION -p reviewer "Final Review Follow-up: I have addressed your
 Please re-review and confirm whether any issues remain or if the implementation is now acceptable."
 ```
 
-**Important:** Always regenerate and re-add the diff before each re-review. Reviewer cannot see your fixes without the updated diff.
+**Important:** Always regenerate and re-add the diff before each re-review. Reviewer cannot see your fixes without the updated diff. **Always verify with `sel ls` before sending.**
 
 **Exit conditions** (any of these):
 
@@ -153,16 +177,25 @@ If the answer to #2 or #3 is yes → skip it.
 Make sure to onboard yourself with veda at `~/.pi/agent/docs/veda.md` before acting.
 Key commands:
 - `git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/changes.diff` to capture changes **(exclude binaries, regenerate before EVERY re-review)**
-- `veda -S $VEDA_SESSION sel rm /tmp/changes.diff && veda -S $VEDA_SESSION sel add /tmp/changes.diff` to refresh diff in selection
-- `veda -S $VEDA_SESSION sel clear` then `veda -S $VEDA_SESSION sel add` to build context
-- `veda -S $VEDA_SESSION sel add file.c:10-50` to add specific line ranges (slices)
-- `veda -S $VEDA_SESSION sel ls` to verify selection and token count  
-- `veda -S $VEDA_SESSION -p reviewer` for review requests (medium reasoning, read-only sandbox)
-- `veda -S $VEDA_SESSION resume` to continue the review conversation (session-scoped)
+- `veda -S my-review sel rm /tmp/changes.diff && veda -S my-review sel add /tmp/changes.diff` to refresh diff in selection
+- `veda -S my-review sel clear` then `veda -S my-review sel add` to build context
+- `veda -S my-review sel add file.c:10-50` to add specific line ranges (slices)
+- `veda -S my-review sel ls` to verify selection and token count  
+- `veda -S my-review -p reviewer` for review requests (medium reasoning, read-only sandbox)
+- `veda -S my-review resume` to continue the review conversation (session-scoped)
 - Look for verdict: "patch is correct" or "patch is incorrect"
 - **Only fix [P0]/[P1]** — skip P2/P3 and low-confidence suggestions
 - Output goes to stdout; use `-o file.md` to save response
-- **Always use `-S $VEDA_SESSION`** to avoid conflicts with other agents
+- **Use a literal session ID** (e.g., `my-review`) — `$VEDA_SESSION` may not expand correctly in all contexts
+
+### Pre-Review Checklist
+
+Before every review request, verify:
+1. ✅ Diff file exists and is non-empty: `wc -l /tmp/changes.diff`
+2. ✅ Diff is in selection: `veda -S my-review sel ls` shows `/tmp/changes.diff`
+3. ✅ Selection has reasonable token count (not 0, not excessive)
+
+**If the reviewer says "no diff/context available" or gives low confidence due to missing context, the diff was not properly included. Re-add it and retry.**
 
 ### File Slices for Reviews
 
