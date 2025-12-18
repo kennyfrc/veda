@@ -22,6 +22,8 @@ export {
   getAvailableBackends,
 } from './registry';
 
+export { getBackendDefaultModel, BACKEND_DEFAULT_MODELS } from './defaults';
+
 export { CodexBackend, createCodexBackend } from './codex';
 export { ClaudeBackend, createClaudeBackend } from './claude';
 export { GeminiBackend, createGeminiBackend } from './gemini';
@@ -31,6 +33,7 @@ import { createCodexBackend } from './codex';
 import { createClaudeBackend } from './claude';
 import { createGeminiBackend } from './gemini';
 
+// Register backends with canonical names
 registerBackend('codex', createCodexBackend);
-registerBackend('claude', createClaudeBackend);
-registerBackend('gemini', createGeminiBackend);
+registerBackend('claude-code', createClaudeBackend);
+registerBackend('gemini-cli', createGeminiBackend);
