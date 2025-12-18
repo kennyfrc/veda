@@ -266,7 +266,7 @@ Usage:
 Options:
   -S, --session <id>      Session ID (or use VEDA_SESSION env)
   -p, --persona <name>    Use persona (default: navigator-chat)
-  -b, --backend <name>    Backend: codex, claude, gemini, opencode (default: codex)
+  -b, --backend <name>    Backend: codex, claude-code, gemini-cli (default: codex)
   -m, --model <name>      Model override
   -r, --reasoning <level> Reasoning: minimal, low, medium, high, xhigh
   --sandbox <mode>        Sandbox: read-only, workspace-write, full
@@ -299,7 +299,7 @@ Examples:
   veda -S agent-1 sel add "src/*.ts"
   veda -S agent-1 -p navigator-plan "Design a caching layer"
   veda -S agent-1 resume "What about LRU?"
-  veda -S agent-1 --backend claude "Explain this code"
+  veda -S agent-1 --backend claude-code "Explain this code"
   veda --no-sel "What is the CAP theorem?"
 `);
 }
