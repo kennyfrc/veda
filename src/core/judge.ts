@@ -120,6 +120,7 @@ export function parseJudgeDecision(
  */
 export async function runJudge(args: {
   backend: string;
+  model?: string;
   systemPrompt: string;
   reasoning?: Reasoning;
   sandbox?: Sandbox;
@@ -128,7 +129,7 @@ export async function runJudge(args: {
   originalTask?: string;
   onMessage?: (msg: Message) => void;
 }): Promise<JudgeResult> {
-  const { backend, systemPrompt, reasoning, sandbox, cwd, candidates, originalTask, onMessage } = args;
+  const { backend, model, systemPrompt, reasoning, sandbox, cwd, candidates, originalTask, onMessage } = args;
 
   // Handle edge cases
   if (candidates.length === 0) {
@@ -156,6 +157,7 @@ export async function runJudge(args: {
   
   const response = await runLlm({
     backend,
+    model,
     prompt,
     systemPrompt,
     reasoning,

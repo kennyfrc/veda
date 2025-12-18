@@ -282,6 +282,7 @@ export function parseRevision(originalDraft: string, text: string): Revision {
  */
 export async function runVerification(args: {
   backend: string;
+  model?: string;
   systemPrompt: string;
   reasoning?: Reasoning;
   sandbox?: Sandbox;
@@ -291,13 +292,14 @@ export async function runVerification(args: {
   originalTask: string;
   onMessage?: (msg: Message) => void;
 }): Promise<VerificationResult> {
-  const { backend, systemPrompt, reasoning, sandbox, cwd, type, draft, originalTask, onMessage } = args;
+  const { backend, model, systemPrompt, reasoning, sandbox, cwd, type, draft, originalTask, onMessage } = args;
   const usages: (UsageStats | undefined)[] = [];
 
   // Step 1: Generate checks
   const generatePrompt = formatGenerateChecksPrompt(type, draft, originalTask);
   const generateResponse = await runLlm({
     backend,
+    model,
     prompt: generatePrompt,
     systemPrompt,
     reasoning,
@@ -321,6 +323,7 @@ export async function runVerification(args: {
   const answerPrompt = formatAnswerChecksPrompt(checks);
   const answerResponse = await runLlm({
     backend,
+    model,
     prompt: answerPrompt,
     systemPrompt,
     reasoning,
@@ -347,6 +350,7 @@ export async function runVerification(args: {
   const revisionPrompt = formatRevisionPrompt(draft, contradictions);
   const revisionResponse = await runLlm({
     backend,
+    model,
     prompt: revisionPrompt,
     systemPrompt,
     reasoning,
