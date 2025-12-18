@@ -1,4 +1,4 @@
-// Claude backend - uses --system-prompt flag and --output-format stream-json.
+// Claude backend - uses prompt injection for system prompt (consistent with other backends).
 
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
 import type { SandboxMode } from '../agent/config';
@@ -13,7 +13,7 @@ function toClaudePermissionMode(sandbox: SandboxMode): string {
 }
 
 export class ClaudeBackend implements Backend {
-  readonly name = 'claude';
+  readonly name = 'claude-code';
   readonly command = 'claude';
   readonly systemPromptFile = undefined;
 
@@ -22,13 +22,18 @@ export class ClaudeBackend implements Backend {
     
     const args: string[] = [];
     if (config.model) args.push('--model', config.model);
-    if (config.systemPrompt) args.push('--system-prompt', config.systemPrompt);
     if (config.sandbox) args.push('--permission-mode', toClaudePermissionMode(config.sandbox));
     
     args.push('--print');
     args.push('--output-format', 'stream-json');
     args.push('--verbose');
-    args.push(context ? `${context}\n\n${prompt}` : prompt);
+    
+    // Build input with system prompt injection (consistent with other backends)
+    let input = '';
+    if (config.systemPrompt) input += `<system_instructions>\n${config.systemPrompt}\n</system_instructions>\n\n`;
+    if (context) input += `${context}\n\n`;
+    input += prompt;
+    args.push(input);
     
     const { stdout, process } = spawnCli({ command: this.command, args, cwd });
     yield* this.parseStream(stdout);
