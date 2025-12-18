@@ -1,7 +1,7 @@
 import { ContextStore, readSliceText, serializeAllFileContextBlocks } from '../context';
 import { parseSlice } from '../context/slice';
 import { runLlm, isBackendAvailable } from '../core';
-import { getDefaults, resolveAgentConfig } from '../agent';
+import { getDefaults, resolveAgentConfig, loadGlobalConfig } from '../agent';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 import { resolve } from 'path';
@@ -10,8 +10,9 @@ export async function handleRun(
   prompt: string,
   options: CliOptions
 ): Promise<void> {
-  // Get defaults
+  // Get defaults and global config
   const defaults = await getDefaults();
+  const globalConfig = await loadGlobalConfig();
   
   // Resolve backend
   const backendName = options.backend ?? defaults.backend;
@@ -22,15 +23,17 @@ export async function handleRun(
     process.exit(1);
   }
   
-  // Resolve agent config
+  // Resolve agent config with backend context for proper model resolution
   const config = await resolveAgentConfig(
     {
       persona: options.persona,
       model: options.model,
       reasoning: options.reasoning,
       sandbox: options.sandbox,
+      backend: backendName,  // Pass backend for model resolution
     },
-    defaults
+    defaults,
+    globalConfig  // Pass global config for per-backend model overrides
   );
   
   // Build context from selection (unless --no-sel)
