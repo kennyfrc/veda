@@ -22,12 +22,15 @@ If you need follow-up discussion after getting a deep answer, start a fresh conv
 
 ---
 
-## Session Isolation (for Selection)
+## Session Naming (for Selection)
 
-Use `-S $VEDA_SESSION` to isolate your file selection from other concurrent agents:
+**Use a descriptive, contextual session ID** with `-S` to isolate your file selection from other concurrent agents. Format: `deep-TASKNAME` where TASKNAME briefly describes the work.
 
 ```bash
-export VEDA_SESSION="${VEDA_SESSION:-agent-$$}"
+# Examples of good session names:
+veda -S deep-cache-design ...     # Deep thinking about cache design
+veda -S deep-auth-strategy ...    # Deep thinking about auth strategy
+veda -S deep-api-versioning ...   # Deep thinking about API versioning
 ```
 
 ---
@@ -39,12 +42,12 @@ Build context with `veda sel add` before running deep mode. The context is passe
 **Budget:** Keep context under ~80k tokens. Deep mode runs multiple solvers, so large context multiplies cost.
 
 ```bash
-# Clear and build selection
-veda -S $VEDA_SESSION sel clear
-veda -S $VEDA_SESSION sel add "src/feature/" "src/shared/"
+# Clear and build selection (use your session name)
+veda -S deep-cache-design sel clear
+veda -S deep-cache-design sel add "src/feature/" "src/shared/"
 
 # Check token count
-veda -S $VEDA_SESSION sel ls
+veda -S deep-cache-design sel ls
 ```
 
 ### File Slices
@@ -53,12 +56,12 @@ Use slices to include specific line ranges instead of entire files. **Only use s
 
 ```bash
 # Selection-based slices
-veda -S $VEDA_SESSION sel add main.c:10-50       # Lines 10-50
-veda -S $VEDA_SESSION sel add main.c:100-        # Line 100 to end of file
-veda -S $VEDA_SESSION sel add "src/*.ts:1-100"   # First 100 lines of each
+veda -S deep-cache-design sel add main.c:10-50       # Lines 10-50
+veda -S deep-cache-design sel add main.c:100-        # Line 100 to end of file
+veda -S deep-cache-design sel add "src/*.ts:1-100"   # First 100 lines of each
 
 # Ad-hoc file slices (doesn't modify selection)
-veda deep -f src/auth.ts:50-150 -f src/models/user.ts:1-80 "What's the best approach?"
+veda -S deep-cache-design deep -f src/auth.ts:50-150 -f src/models/user.ts:1-80 "What's the best approach?"
 ```
 
 | Syntax | Description |
@@ -92,13 +95,13 @@ veda deep -f large_file.c:100-200 "Review this function"  # Slices work here too
 
 ```bash
 # Simple deep thinking (4 solvers, verification enabled)
-veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml "What's the best way to handle authentication in this app?"
+veda -S deep-auth-strategy deep --trace /tmp/deep-trace.yaml "What's the best way to handle authentication in this app?"
 
 # More solvers for complex questions
-veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml -k 5 "Design a caching layer for this API"
+veda -S deep-cache-design deep --trace /tmp/deep-trace.yaml -k 5 "Design a caching layer for this API"
 
 # Skip verification for faster results
-veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml --no-verify "Compare REST vs GraphQL for this use case"
+veda -S deep-api-design deep --trace /tmp/deep-trace.yaml --no-verify "Compare REST vs GraphQL for this use case"
 ```
 
 ### Options
@@ -176,18 +179,15 @@ veda deep --modules critical_thinking,step_by_step,risk_assessment "Analyze this
 ## Example Workflow
 
 ```bash
-# 1. Set session
-export VEDA_SESSION="${VEDA_SESSION:-agent-$$}"
+# 1. Build context (use a descriptive session name)
+veda -S deep-realtime-notif sel clear
+veda -S deep-realtime-notif sel add "src/api/" "src/models/" "src/config/"
+veda -S deep-realtime-notif sel ls
 
-# 2. Build context
-veda -S $VEDA_SESSION sel clear
-veda -S $VEDA_SESSION sel add "src/api/" "src/models/" "src/config/"
-veda -S $VEDA_SESSION sel ls
+# 2. Ask a complex design question (always trace to /tmp)
+veda -S deep-realtime-notif deep --trace /tmp/deep-trace.yaml "Given this codebase, what's the best strategy for adding real-time notifications? Consider: scalability, complexity, and integration with existing code."
 
-# 3. Ask a complex design question (always trace to /tmp)
-veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml "Given this codebase, what's the best strategy for adding real-time notifications? Consider: scalability, complexity, and integration with existing code."
-
-# 4. Review trace if needed
+# 3. Review trace if needed
 cat /tmp/deep-trace.yaml
 ```
 
@@ -224,7 +224,7 @@ Deep mode shows progress as it runs:
 Use `--json` for structured output:
 
 ```bash
-veda -S $VEDA_SESSION deep --json "..." | jq '.answer'
+veda -S deep-cache-design deep --json "..." | jq '.answer'
 ```
 
 Returns:
@@ -258,11 +258,13 @@ Returns:
 ## Reminders
 
 Key commands:
-- `veda -S $VEDA_SESSION sel add` to build context
-- `veda -S $VEDA_SESSION sel ls` to check token count
-- `veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml "question"` for deep thinking
-- `veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml -k 5 "question"` for more solvers
-- `veda -S $VEDA_SESSION deep --trace /tmp/deep-trace.yaml --no-verify "question"` for faster results
+- `veda -S deep-TASKNAME sel add` to build context
+- `veda -S deep-TASKNAME sel ls` to check token count
+- `veda -S deep-TASKNAME deep --trace /tmp/deep-trace.yaml "question"` for deep thinking
+- `veda -S deep-TASKNAME deep --trace /tmp/deep-trace.yaml -k 5 "question"` for more solvers
+- `veda -S deep-TASKNAME deep --trace /tmp/deep-trace.yaml --no-verify "question"` for faster results
 - `cat /tmp/deep-trace.yaml` to review full pipeline execution
+
+**Use a descriptive session name** (e.g., `deep-cache-design`) to keep selections organized.
 
 **Note:** Deep mode is stateless - no `resume` support. Each run is independent. Always use `--trace` for reviewability.
