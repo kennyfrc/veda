@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { parseConfigFile, isValidReasoning, isValidSandbox, toCodexSandbox, parseSandboxMode } from '../../src/agent/config';
+import { parseConfigFile, isValidReasoning, isValidSandbox, toCodexSandbox, parseSandboxMode, resolveModel } from '../../src/agent/config';
 
 describe('parseConfigFile', () => {
   test('parses empty file', () => {
@@ -51,6 +51,32 @@ MODEL="gpt-5.2"
     const content = `MODEL='gpt-5.2'`;
     const config = parseConfigFile(content);
     expect(config.model).toBe('gpt-5.2');
+  });
+
+  test('parses per-backend model keys', () => {
+    const content = `
+CLAUDE_CODE_MODEL=opus
+CODEX_MODEL=gpt-4o
+GEMINI_CLI_MODEL=gemini-2.5-pro
+`;
+    const config = parseConfigFile(content);
+    expect(config.backendModels).toEqual({
+      'claude-code': 'opus',
+      'codex': 'gpt-4o',
+      'gemini-cli': 'gemini-2.5-pro',
+    });
+  });
+
+  test('separates global MODEL from per-backend models', () => {
+    const content = `
+MODEL=gpt-5.2
+CLAUDE_CODE_MODEL=opus
+`;
+    const config = parseConfigFile(content);
+    expect(config.model).toBe('gpt-5.2');
+    expect(config.backendModels).toEqual({
+      'claude-code': 'opus',
+    });
   });
 });
 
@@ -119,5 +145,77 @@ describe('parseSandboxMode', () => {
   test('returns undefined for invalid input', () => {
     expect(parseSandboxMode('invalid')).toBeUndefined();
     expect(parseSandboxMode('')).toBeUndefined();
+  });
+});
+
+describe('resolveModel', () => {
+  test('returns explicit model when provided', () => {
+    expect(resolveModel({
+      backend: 'claude-code',
+      explicitModel: 'opus',
+    })).toBe('opus');
+  });
+
+  test('returns per-backend config override', () => {
+    expect(resolveModel({
+      backend: 'claude-code',
+      globalConfig: {
+        backendModels: { 'claude-code': 'haiku' },
+      },
+    })).toBe('haiku');
+  });
+
+  test('returns built-in default for claude-code', () => {
+    expect(resolveModel({ backend: 'claude-code' })).toBe('opus');
+  });
+
+  test('returns built-in default for codex', () => {
+    expect(resolveModel({ backend: 'codex' })).toBe('gpt-5.2');
+  });
+
+  test('returns built-in default for gemini-cli', () => {
+    expect(resolveModel({ backend: 'gemini-cli' })).toBe('gemini-3-pro-preview');
+  });
+
+  test('explicit model takes precedence over config', () => {
+    expect(resolveModel({
+      backend: 'claude-code',
+      explicitModel: 'opus',
+      globalConfig: {
+        backendModels: { 'claude-code': 'haiku' },
+      },
+    })).toBe('opus');
+  });
+
+  test('config takes precedence over built-in default', () => {
+    expect(resolveModel({
+      backend: 'codex',
+      globalConfig: {
+        backendModels: { 'codex': 'gpt-4o' },
+      },
+    })).toBe('gpt-4o');
+  });
+
+  test('returns undefined for unknown backend without global config', () => {
+    expect(resolveModel({ backend: 'unknown' })).toBeUndefined();
+  });
+
+  test('falls back to global MODEL for unknown backend', () => {
+    expect(resolveModel({
+      backend: 'unknown',
+      globalConfig: {
+        model: 'fallback-model',
+      },
+    })).toBe('fallback-model');
+  });
+
+  test('built-in default takes precedence over global MODEL', () => {
+    // For known backends, built-in default wins over global MODEL
+    expect(resolveModel({
+      backend: 'claude-code',
+      globalConfig: {
+        model: 'global-model',
+      },
+    })).toBe('opus');
   });
 });

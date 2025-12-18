@@ -9,28 +9,33 @@ describe('Backend Registry', () => {
     expect(backend.command).toBe('codex');
   });
 
-  test('has claude backend registered', () => {
-    expect(hasBackend('claude')).toBe(true);
-    const backend = getBackend('claude');
-    expect(backend.name).toBe('claude');
+  test('has claude-code backend registered', () => {
+    expect(hasBackend('claude-code')).toBe(true);
+    const backend = getBackend('claude-code');
+    expect(backend.name).toBe('claude-code');
     expect(backend.command).toBe('claude');
   });
 
-  test('has gemini backend registered', () => {
-    expect(hasBackend('gemini')).toBe(true);
-    const backend = getBackend('gemini');
-    expect(backend.name).toBe('gemini');
+  test('has gemini-cli backend registered', () => {
+    expect(hasBackend('gemini-cli')).toBe(true);
+    const backend = getBackend('gemini-cli');
+    expect(backend.name).toBe('gemini-cli');
     expect(backend.command).toBe('gemini');
   });
 
   test('lists all backends', () => {
     const backends = listBackends();
     expect(backends).toContain('codex');
-    expect(backends).toContain('claude');
-    expect(backends).toContain('gemini');
+    expect(backends).toContain('claude-code');
+    expect(backends).toContain('gemini-cli');
   });
 
   test('throws for unknown backend', () => {
     expect(() => getBackend('unknown')).toThrow('Unknown backend');
+  });
+  
+  test('throws for old backend names (no aliases)', () => {
+    expect(() => getBackend('claude')).toThrow('Unknown backend');
+    expect(() => getBackend('gemini')).toThrow('Unknown backend');
   });
 });
