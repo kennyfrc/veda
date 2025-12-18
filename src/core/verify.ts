@@ -4,7 +4,7 @@
  * Plain data types + functions, no hidden state.
  */
 
-import type { UsageStats } from '../backend';
+import type { Message, UsageStats } from '../backend';
 import { runLlm, combineUsage, type Reasoning, type Sandbox } from './llm';
 
 // ============================================================================
@@ -278,6 +278,7 @@ export function parseRevision(originalDraft: string, text: string): Revision {
 
 /**
  * Run full verification: generate checks, answer them, revise if needed.
+ * @param onMessage Optional callback for streaming events
  */
 export async function runVerification(args: {
   backend: string;
@@ -288,8 +289,9 @@ export async function runVerification(args: {
   type: VerificationType;
   draft: string;
   originalTask: string;
+  onMessage?: (msg: Message) => void;
 }): Promise<VerificationResult> {
-  const { backend, systemPrompt, reasoning, sandbox, cwd, type, draft, originalTask } = args;
+  const { backend, systemPrompt, reasoning, sandbox, cwd, type, draft, originalTask, onMessage } = args;
   const usages: (UsageStats | undefined)[] = [];
 
   // Step 1: Generate checks
@@ -301,6 +303,7 @@ export async function runVerification(args: {
     reasoning,
     sandbox,
     cwd,
+    onMessage,
   });
   usages.push(generateResponse.usage);
 
@@ -323,6 +326,7 @@ export async function runVerification(args: {
     reasoning,
     sandbox,
     cwd,
+    onMessage,
   });
   usages.push(answerResponse.usage);
 
@@ -348,6 +352,7 @@ export async function runVerification(args: {
     reasoning,
     sandbox,
     cwd,
+    onMessage,
   });
   usages.push(revisionResponse.usage);
 
