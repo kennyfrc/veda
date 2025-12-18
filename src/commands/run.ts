@@ -1,7 +1,7 @@
 import { ContextStore, readSliceText, serializeAllFileContextBlocks } from '../context';
 import { parseSlice } from '../context/slice';
 import { runLlm, isBackendAvailable } from '../core';
-import { getDefaults, resolveAgentConfig, loadGlobalConfig } from '../agent';
+import { getDefaults, resolveAgentConfig, loadGlobalConfig, resolveBackendModel } from '../agent';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 import { resolve } from 'path';
@@ -14,8 +14,16 @@ export async function handleRun(
   const defaults = await getDefaults();
   const globalConfig = await loadGlobalConfig();
   
-  // Resolve backend
-  const backendName = options.backend ?? defaults.backend;
+  // Resolve backend and model together (supports model aliases)
+  // This enables `-m opus` (without -b) to auto-select claude-code backend
+  const resolved = resolveBackendModel({
+    explicitBackend: options.backend,
+    explicitModel: options.model,
+    fallbackBackend: defaults.backend,
+    globalConfig,
+  });
+  
+  const backendName = resolved.backend;
   
   // Check backend availability
   if (!await isBackendAvailable(backendName)) {
@@ -23,17 +31,17 @@ export async function handleRun(
     process.exit(1);
   }
   
-  // Resolve agent config with backend context for proper model resolution
+  // Resolve agent config with the resolved backend/model
   const config = await resolveAgentConfig(
     {
       persona: options.persona,
-      model: options.model,
+      model: resolved.model,  // Use resolved model (may be from alias)
       reasoning: options.reasoning,
       sandbox: options.sandbox,
-      backend: backendName,  // Pass backend for model resolution
+      backend: backendName,
     },
     defaults,
-    globalConfig  // Pass global config for per-backend model overrides
+    globalConfig
   );
   
   // Build context from selection (unless --no-sel)

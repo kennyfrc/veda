@@ -1,5 +1,6 @@
 import { getConfigPath } from '../util/paths';
 import { getBackendDefaultModel } from '../backend/defaults';
+import { resolveModelAlias } from './model-aliases';
 
 export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
 export type SandboxMode = 'read-only' | 'workspace-write' | 'full';
@@ -189,4 +190,96 @@ export function resolveModel(options: ResolveModelOptions): string | undefined {
   
   // 4. Global MODEL config (legacy fallback for unknown backends)
   return globalConfig?.model;
+}
+
+// ============================================================================
+// Backend + Model Resolution (with alias support)
+// ============================================================================
+
+export interface ResolveBackendModelOptions {
+  /** Explicit backend from -b flag */
+  explicitBackend?: string;
+  /** Explicit model from -m flag (may be an alias) */
+  explicitModel?: string;
+  /** Fallback backend (e.g., defaults.backend or stage default) */
+  fallbackBackend?: string;
+  /** Fallback model (e.g., legacy -m for stage fallback) */
+  fallbackModel?: string;
+  /** Global config for per-backend overrides */
+  globalConfig?: GlobalConfig;
+}
+
+export interface ResolvedBackendModel {
+  /** Resolved backend name */
+  backend: string;
+  /** Resolved model (may be undefined for unknown backends with no config) */
+  model?: string;
+  /** Whether backend was inferred from a model alias */
+  fromAlias: boolean;
+}
+
+/**
+ * Resolve both backend and model together, with alias support.
+ * 
+ * Resolution algorithm:
+ * 1. If explicitBackend is set → NO alias mapping (respect explicit backend choice)
+ * 2. Else if explicitModel is a known alias → adopt alias's backend + model
+ * 3. Determine final backend: explicitBackend ?? aliasBackend ?? fallbackBackend
+ * 4. Resolve model using existing 4-level precedence via resolveModel()
+ * 
+ * This enables `-m opus` (without -b) to auto-select claude-code backend.
+ */
+export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedBackendModel {
+  const { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig } = opts;
+  
+  let backend: string;
+  let modelForResolution: string | undefined;
+  let fromAlias = false;
+  
+  // Step 1 & 2: Determine if alias applies
+  if (explicitBackend) {
+    // Explicit backend provided - no alias mapping
+    // Treat explicitModel as a literal model name
+    backend = explicitBackend;
+    modelForResolution = explicitModel ?? fallbackModel;
+  } else if (explicitModel) {
+    // No explicit backend - check if model is an alias
+    const aliasTarget = resolveModelAlias(explicitModel);
+    if (aliasTarget) {
+      // Alias matched - use alias's backend and model
+      backend = aliasTarget.backend;
+      modelForResolution = aliasTarget.model;
+      fromAlias = true;
+    } else {
+      // Not an alias - use fallback backend with explicit model
+      backend = fallbackBackend ?? 'codex';
+      modelForResolution = explicitModel;
+    }
+  } else if (fallbackModel) {
+    // No explicit model but have fallback - check if fallback is an alias
+    const aliasTarget = resolveModelAlias(fallbackModel);
+    if (aliasTarget && !fallbackBackend) {
+      // Fallback model is an alias and no backend specified
+      backend = aliasTarget.backend;
+      modelForResolution = aliasTarget.model;
+      fromAlias = true;
+    } else {
+      // Use fallback backend with fallback model
+      backend = fallbackBackend ?? 'codex';
+      modelForResolution = fallbackModel;
+    }
+  } else {
+    // No model specified at all - use fallback backend
+    backend = fallbackBackend ?? 'codex';
+    modelForResolution = undefined;
+  }
+  
+  // Step 4: Resolve final model using 4-level precedence
+  const model = resolveModel({
+    backend,
+    explicitModel: modelForResolution,
+    globalConfig,
+  });
+  
+  return { backend, model, fromAlias };
 }

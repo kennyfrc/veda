@@ -1,6 +1,6 @@
 // DeepThink: parallel solvers with diverse reasoning → judge aggregation → optional verification.
 
-import { getDefaults, loadGlobalConfig, resolveModel } from '../agent';
+import { getDefaults, loadGlobalConfig, resolveBackendModel } from '../agent';
 import type { Message, UsageStats } from '../backend';
 import {
   runEnsemble,
@@ -37,6 +37,20 @@ export interface DeepThinkOptions {
   modules?: string[];
   /** Working directory for verifier to access project files (default: process.cwd()) */
   cwd?: string;
+  
+  // Per-stage backend/model overrides
+  /** Backend for solvers (overrides backend) */
+  solverBackend?: string;
+  /** Model for solvers (overrides model) */
+  solverModel?: string;
+  /** Backend for judge (overrides backend) */
+  judgeBackend?: string;
+  /** Model for judge (overrides model) */
+  judgeModel?: string;
+  /** Backend for verifier (overrides backend) */
+  verifierBackend?: string;
+  /** Model for verifier (overrides model) */
+  verifierModel?: string;
 }
 
 export interface DeepThinkResult {
@@ -69,6 +83,10 @@ export interface DeepThinkTrace {
     verify: boolean;
     categories?: string[];
     modules?: string[];
+    // Per-stage resolution results
+    solver?: { backend: string; model?: string };
+    judge?: { backend: string; model?: string };
+    verifier?: { backend: string; model?: string };
   };
   /** Solver candidates with module info */
   solve: {
@@ -136,17 +154,53 @@ export async function* runDeepThink(
     verifyReasoning = 'high',
   } = options;
   
-  // Get defaults and resolve backend/model
+  // Get defaults and global config
   const defaults = await getDefaults();
   const globalConfig = await loadGlobalConfig();
-  const backendName = options.backend ?? defaults.backend;
   
-  // Resolve model for this backend (explicit override or backend default)
-  const model = resolveModel({
-    backend: backendName,
+  // Resolve base backend/model first (supports alias: -m opus without -b → claude-code)
+  // This ensures deep mode has the same alias behavior as normal run mode
+  const base = resolveBackendModel({
+    explicitBackend: options.backend,
     explicitModel: options.model,
+    fallbackBackend: defaults.backend,
     globalConfig,
   });
+  
+  // Resolve per-stage backend/model with alias support
+  // Each stage can have its own backend/model, falling back to resolved base values
+  const solver = resolveBackendModel({
+    explicitBackend: options.solverBackend,
+    explicitModel: options.solverModel,
+    fallbackBackend: base.backend,
+    fallbackModel: base.model,
+    globalConfig,
+  });
+  
+  const judge = resolveBackendModel({
+    explicitBackend: options.judgeBackend,
+    explicitModel: options.judgeModel,
+    fallbackBackend: base.backend,
+    fallbackModel: base.model,
+    globalConfig,
+  });
+  
+  const verifier = resolveBackendModel({
+    explicitBackend: options.verifierBackend,
+    explicitModel: options.verifierModel,
+    fallbackBackend: base.backend,
+    fallbackModel: base.model,
+    globalConfig,
+  });
+  
+  // Validate that solver and judge have models resolved (always needed)
+  if (!solver.model) {
+    throw new Error(`Unable to resolve model for solver backend '${solver.backend}'. Specify --solver-model or set MODEL in config.`);
+  }
+  if (!judge.model) {
+    throw new Error(`Unable to resolve model for judge backend '${judge.backend}'. Specify --judge-model or set MODEL in config.`);
+  }
+  // Verifier model is validated later only if verification will actually run
   
   const usages: (UsageStats | undefined)[] = [];
   const stages: string[] = [];
@@ -166,17 +220,20 @@ export async function* runDeepThink(
     };
   };
   
-  // Initialize trace data
+  // Initialize trace data with per-stage info
   const trace: DeepThinkTrace = {
     prompt,
     context,
     options: {
-      backend: backendName,
-      model,
+      backend: base.backend,
+      model: base.model,
       k,
       verify,
       categories: options.categories,
       modules: options.modules,
+      solver: { backend: solver.backend, model: solver.model },
+      judge: { backend: judge.backend, model: judge.model },
+      verifier: { backend: verifier.backend, model: verifier.model },
     },
     solve: { candidates: [] },
     judge: { selectedIndex: 0, confidence: 0 },
@@ -193,12 +250,12 @@ export async function* runDeepThink(
     modules: options.modules,
   });
   
-  // Build ensemble members (plain data)
+  // Build ensemble members (plain data) - use solver backend/model
   const members: EnsembleMember[] = modules.map((module, i) => ({
     id: `solver-${i}-${module.category}`,
     request: {
-      backend: backendName,
-      model,
+      backend: solver.backend,
+      model: solver.model,
       prompt,
       context,
       systemPrompt: buildDeepSolverSystemPrompt({ module }),
@@ -236,10 +293,10 @@ export async function* runDeepThink(
     });
   }
   
-  // Run judge to select best candidate
+  // Run judge to select best candidate - use judge backend/model
   const judgeResult = await runJudge({
-    backend: backendName,
-    model,
+    backend: judge.backend,
+    model: judge.model,
     systemPrompt: JUDGE_SYSTEM_PROMPT,
     reasoning: judgeReasoning,
     sandbox: 'read-only',
@@ -294,12 +351,18 @@ export async function* runDeepThink(
   const shouldVerify = verify && judgeResult.decision.confidence < 0.7;
   
   if (shouldVerify) {
+    // Validate verifier model only when verification will actually run
+    if (!verifier.model) {
+      throw new Error(`Unable to resolve model for verifier backend '${verifier.backend}'. Specify --verifier-model or set MODEL in config.`);
+    }
+    
     yield { type: 'stage_start', stage: 'verify' };
     stages.push('verify');
     
+    // Use verifier backend/model
     const verifyResult = await runVerification({
-      backend: backendName,
-      model,
+      backend: verifier.backend,
+      model: verifier.model,
       systemPrompt: VERIFIER_SYSTEM_PROMPT,
       reasoning: verifyReasoning,
       sandbox: 'full',

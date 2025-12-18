@@ -26,7 +26,7 @@ cp dist/veda ~/.local/bin/
 # Basic usage
 veda "What is the CAP theorem?"
 veda -p navigator-plan "Design a caching layer"
-veda -b claude "Explain this code"
+veda -m opus "Explain this code"          # Auto-selects claude-code backend
 
 # Deep thinking (parallel solvers + verification)
 veda deep "Best architecture for real-time sync?"
@@ -49,10 +49,30 @@ veda sel clear                    # Clear all
 ### Use Different Backends
 
 ```bash
-veda -b codex "..."    # OpenAI Codex (default)
-veda -b claude "..."   # Anthropic Claude
-veda -b gemini "..."   # Google Gemini
+veda -b codex "..."        # OpenAI Codex (default)
+veda -b claude-code "..."  # Anthropic Claude Code
+veda -b gemini-cli "..."   # Google Gemini CLI
 ```
+
+### Use Model Aliases
+
+Model aliases auto-select the correct backend:
+
+```bash
+# Claude models (→ claude-code backend)
+veda -m opus "..."      # Uses claude-code with opus
+veda -m sonnet "..."    # Uses claude-code with sonnet
+veda -m haiku "..."     # Uses claude-code with haiku
+
+# OpenAI models (→ codex backend)
+veda -m gpt "..."       # Uses codex with gpt-5.2
+
+# Gemini models (→ gemini-cli backend)
+veda -m gemini-pro "..."    # Uses gemini-cli with gemini-3-pro-preview
+veda -m gemini-flash "..."  # Uses gemini-cli with gemini-3-flash-preview
+```
+
+When you specify both `-b` and `-m`, the model is passed literally (no alias resolution).
 
 ### Resume Conversations
 
@@ -70,6 +90,10 @@ veda deep -k 5 "Critical architecture"        # 5 solvers
 veda deep --no-verify "Quick comparison"      # Skip verification
 veda deep --trace /tmp/trace.yaml "..."       # Save trace for debugging
 veda deep --json "..." | jq '.candidates'     # JSON output
+
+# Per-stage model/backend overrides (mixed providers)
+veda deep --solver-model opus --judge-model gpt "..."
+veda deep --solver-backend claude-code --verifier-backend codex "..."
 ```
 
 ### Use Personas
@@ -216,8 +240,8 @@ veda deep [options] <prompt>
 Options:
   -S, --session <id>     Session ID (or VEDA_SESSION env)
   -p, --persona <name>   navigator-plan|navigator-chat|reviewer
-  -b, --backend <name>   codex|claude|gemini
-  -m, --model <model>    Model override
+  -b, --backend <name>   codex|claude-code|gemini-cli
+  -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|gemini-pro|gemini-flash)
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
   -k <n>                 Solver count for deep mode (default: 3, max: 8)
   --categories <list>    Reasoning categories (comma-separated)
@@ -227,6 +251,14 @@ Options:
   --no-sel               Ignore selection
   --json                 JSON output
   -o, --output <file>    Save to file
+
+Deep Mode Stage Overrides:
+  --solver-backend <name>   Backend for solvers
+  --solver-model <model>    Model for solvers
+  --judge-backend <name>    Backend for judge
+  --judge-model <model>     Model for judge
+  --verifier-backend <name> Backend for verifier
+  --verifier-model <model>  Model for verifier
 ```
 
 ### Project Structure
@@ -251,6 +283,11 @@ MODEL="gpt-5.2"
 REASONING="medium"
 PERSONA="navigator-chat"
 BACKEND="codex"
+
+# Per-backend model overrides
+CLAUDE_CODE_MODEL="opus"
+CODEX_MODEL="gpt-5.2"
+GEMINI_CLI_MODEL="gemini-3-pro-preview"
 ```
 
 ## Development

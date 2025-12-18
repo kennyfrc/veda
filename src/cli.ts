@@ -37,6 +37,20 @@ export interface CliOptions {
   help?: boolean;
   /** Show version */
   version?: boolean;
+  
+  // Per-stage overrides for deep mode
+  /** Backend for solvers in deep mode */
+  solverBackend?: string;
+  /** Model for solvers in deep mode */
+  solverModel?: string;
+  /** Backend for judge in deep mode */
+  judgeBackend?: string;
+  /** Model for judge in deep mode */
+  judgeModel?: string;
+  /** Backend for verifier in deep mode */
+  verifierBackend?: string;
+  /** Model for verifier in deep mode */
+  verifierModel?: string;
 }
 
 export interface ParsedArgs {
@@ -60,6 +74,10 @@ const FLAGS_WITH_VALUES = new Set([
   '--categories',
   '--modules',
   '--trace',
+  // Per-stage overrides for deep mode
+  '--solver-backend', '--solver-model',
+  '--judge-backend', '--judge-model',
+  '--verifier-backend', '--verifier-model',
 ]);
 
 /**
@@ -130,6 +148,25 @@ export function parseArgs(argv: string[]): ParsedArgs {
           break;
         case '--trace':
           options.trace = value;
+          break;
+        // Per-stage overrides for deep mode
+        case '--solver-backend':
+          options.solverBackend = value;
+          break;
+        case '--solver-model':
+          options.solverModel = value;
+          break;
+        case '--judge-backend':
+          options.judgeBackend = value;
+          break;
+        case '--judge-model':
+          options.judgeModel = value;
+          break;
+        case '--verifier-backend':
+          options.verifierBackend = value;
+          break;
+        case '--verifier-model':
+          options.verifierModel = value;
           break;
       }
       i += 2;
@@ -267,7 +304,8 @@ Options:
   -S, --session <id>      Session ID (or use VEDA_SESSION env)
   -p, --persona <name>    Use persona (default: navigator-chat)
   -b, --backend <name>    Backend: codex, claude-code, gemini-cli (default: codex)
-  -m, --model <name>      Model override
+  -m, --model <name>      Model: opus, sonnet, haiku, gpt, gemini-pro, gemini-flash
+                          (auto-selects backend if not specified with -b)
   -r, --reasoning <level> Reasoning: minimal, low, medium, high, xhigh
   --sandbox <mode>        Sandbox: read-only, workspace-write, full
   -o, --output <file>     Save response to file
@@ -282,6 +320,14 @@ Options:
   --json                  Output raw JSON
   --help, -h              Show help
   --version, -v           Show version
+
+Deep Mode Stage Overrides:
+  --solver-backend <name>   Backend for solvers (default: -b value)
+  --solver-model <name>     Model for solvers (default: -m value)
+  --judge-backend <name>    Backend for judge (default: -b value)
+  --judge-model <name>      Model for judge (default: -m value)
+  --verifier-backend <name> Backend for verifier (default: -b value)
+  --verifier-model <name>   Model for verifier (default: -m value)
 
 Selection Commands:
   sel add <files...>      Add files to selection (supports globs)

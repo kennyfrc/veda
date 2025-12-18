@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { parseConfigFile, isValidReasoning, isValidSandbox, toCodexSandbox, parseSandboxMode, resolveModel } from '../../src/agent/config';
+import { parseConfigFile, isValidReasoning, isValidSandbox, toCodexSandbox, parseSandboxMode, resolveModel, resolveBackendModel } from '../../src/agent/config';
 
 describe('parseConfigFile', () => {
   test('parses empty file', () => {
@@ -217,5 +217,226 @@ describe('resolveModel', () => {
         model: 'global-model',
       },
     })).toBe('opus');
+  });
+});
+
+describe('resolveBackendModel', () => {
+  describe('alias resolution without explicit backend', () => {
+    test('resolves opus alias to claude-code backend', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'opus',
+        fallbackBackend: 'codex',
+      });
+      expect(result.backend).toBe('claude-code');
+      expect(result.model).toBe('opus');
+      expect(result.fromAlias).toBe(true);
+    });
+
+    test('resolves sonnet alias to claude-code backend', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'sonnet',
+      });
+      expect(result.backend).toBe('claude-code');
+      expect(result.model).toBe('sonnet');
+      expect(result.fromAlias).toBe(true);
+    });
+
+    test('resolves gpt alias to codex backend', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'gpt',
+      });
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('gpt-5.2');
+      expect(result.fromAlias).toBe(true);
+    });
+
+    test('resolves gemini-pro alias to gemini-cli backend', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'gemini-pro',
+      });
+      expect(result.backend).toBe('gemini-cli');
+      expect(result.model).toBe('gemini-3-pro-preview');
+      expect(result.fromAlias).toBe(true);
+    });
+
+    test('resolves gemini-flash alias to gemini-cli backend', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'gemini-flash',
+      });
+      expect(result.backend).toBe('gemini-cli');
+      expect(result.model).toBe('gemini-3-flash-preview');
+      expect(result.fromAlias).toBe(true);
+    });
+  });
+
+  describe('explicit backend disables alias mapping', () => {
+    test('treats opus as literal model when backend is explicit', () => {
+      const result = resolveBackendModel({
+        explicitBackend: 'codex',
+        explicitModel: 'opus',
+      });
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('opus');
+      expect(result.fromAlias).toBe(false);
+    });
+
+    test('treats sonnet as literal model when backend is explicit', () => {
+      const result = resolveBackendModel({
+        explicitBackend: 'gemini-cli',
+        explicitModel: 'sonnet',
+      });
+      expect(result.backend).toBe('gemini-cli');
+      expect(result.model).toBe('sonnet');
+      expect(result.fromAlias).toBe(false);
+    });
+  });
+
+  describe('non-alias models use fallback backend', () => {
+    test('uses fallback backend for unknown model', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'gpt-4o',
+        fallbackBackend: 'codex',
+      });
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('gpt-4o');
+      expect(result.fromAlias).toBe(false);
+    });
+
+    test('defaults to codex when no fallback and unknown model', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'some-custom-model',
+      });
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('some-custom-model');
+      expect(result.fromAlias).toBe(false);
+    });
+  });
+
+  describe('fallback model behavior', () => {
+    test('uses fallback model when no explicit model', () => {
+      const result = resolveBackendModel({
+        fallbackBackend: 'claude-code',
+        fallbackModel: 'haiku',
+      });
+      expect(result.backend).toBe('claude-code');
+      expect(result.model).toBe('haiku');
+    });
+
+    test('resolves fallback model alias when no backend specified', () => {
+      const result = resolveBackendModel({
+        fallbackModel: 'opus',
+      });
+      expect(result.backend).toBe('claude-code');
+      expect(result.model).toBe('opus');
+      expect(result.fromAlias).toBe(true);
+    });
+
+    test('does not resolve fallback model alias when backend is specified', () => {
+      const result = resolveBackendModel({
+        fallbackBackend: 'codex',
+        fallbackModel: 'opus',
+      });
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('opus');
+      expect(result.fromAlias).toBe(false);
+    });
+  });
+
+  describe('no model specified', () => {
+    test('uses backend default model', () => {
+      const result = resolveBackendModel({
+        fallbackBackend: 'claude-code',
+      });
+      expect(result.backend).toBe('claude-code');
+      expect(result.model).toBe('opus');
+      expect(result.fromAlias).toBe(false);
+    });
+
+    test('uses explicit backend default model', () => {
+      const result = resolveBackendModel({
+        explicitBackend: 'gemini-cli',
+      });
+      expect(result.backend).toBe('gemini-cli');
+      expect(result.model).toBe('gemini-3-pro-preview');
+      expect(result.fromAlias).toBe(false);
+    });
+  });
+
+  describe('config overrides', () => {
+    test('config per-backend overrides built-in default', () => {
+      const result = resolveBackendModel({
+        explicitBackend: 'codex',
+        globalConfig: {
+          backendModels: { 'codex': 'gpt-4o' },
+        },
+      });
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('gpt-4o');
+    });
+
+    test('explicit model takes precedence over config', () => {
+      const result = resolveBackendModel({
+        explicitBackend: 'codex',
+        explicitModel: 'gpt-5',
+        globalConfig: {
+          backendModels: { 'codex': 'gpt-4o' },
+        },
+      });
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('gpt-5');
+    });
+
+    test('alias model takes precedence over config on resolved backend', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'opus',
+        globalConfig: {
+          backendModels: { 'claude-code': 'haiku' },
+        },
+      });
+      expect(result.backend).toBe('claude-code');
+      expect(result.model).toBe('opus');
+      expect(result.fromAlias).toBe(true);
+    });
+  });
+
+  describe('unknown backend handling', () => {
+    test('falls back to global MODEL for unknown backend', () => {
+      const result = resolveBackendModel({
+        explicitBackend: 'unknown-backend',
+        globalConfig: {
+          model: 'fallback-model',
+        },
+      });
+      expect(result.backend).toBe('unknown-backend');
+      expect(result.model).toBe('fallback-model');
+    });
+
+    test('returns undefined model for unknown backend without config', () => {
+      const result = resolveBackendModel({
+        explicitBackend: 'unknown-backend',
+      });
+      expect(result.backend).toBe('unknown-backend');
+      expect(result.model).toBeUndefined();
+    });
+  });
+
+  describe('case insensitivity', () => {
+    test('handles uppercase alias', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'OPUS',
+      });
+      expect(result.backend).toBe('claude-code');
+      expect(result.model).toBe('opus');
+      expect(result.fromAlias).toBe(true);
+    });
+
+    test('handles mixed case alias', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'Sonnet',
+      });
+      expect(result.backend).toBe('claude-code');
+      expect(result.model).toBe('sonnet');
+      expect(result.fromAlias).toBe(true);
+    });
   });
 });

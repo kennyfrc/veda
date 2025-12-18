@@ -4,6 +4,8 @@ export {
   type ReasoningLevel,
   type SandboxMode,
   type ResolveModelOptions,
+  type ResolveBackendModelOptions,
+  type ResolvedBackendModel,
   parseConfigFile,
   loadGlobalConfig,
   getDefaults,
@@ -12,7 +14,17 @@ export {
   toCodexSandbox,
   parseSandboxMode,
   resolveModel,
+  resolveBackendModel,
 } from './config';
+
+export {
+  type ModelAliasTarget,
+  MODEL_ALIASES,
+  normalizeModelName,
+  resolveModelAlias,
+  isModelAlias,
+  listModelAliases,
+} from './model-aliases';
 
 export {
   type Persona,

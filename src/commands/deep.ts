@@ -39,6 +39,13 @@ export async function handleDeep(
     categories: options.categories,
     modules: options.modules,
     cwd: process.cwd(),
+    // Per-stage overrides
+    solverBackend: options.solverBackend,
+    solverModel: options.solverModel,
+    judgeBackend: options.judgeBackend,
+    judgeModel: options.judgeModel,
+    verifierBackend: options.verifierBackend,
+    verifierModel: options.verifierModel,
   })) {
     handleEvent(event, options);
     

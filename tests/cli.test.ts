@@ -149,4 +149,75 @@ describe('parseArgs', () => {
       expect(() => parseArgs(['bun', 'script', '-S'])).toThrow('requires a value');
     });
   });
+
+  describe('per-stage deep mode flags', () => {
+    test('parses --solver-backend flag', () => {
+      const result = parseArgs(['bun', 'script', 'deep', '--solver-backend', 'claude-code', 'hello']);
+      expect(result.options.solverBackend).toBe('claude-code');
+    });
+
+    test('parses --solver-model flag', () => {
+      const result = parseArgs(['bun', 'script', 'deep', '--solver-model', 'opus', 'hello']);
+      expect(result.options.solverModel).toBe('opus');
+    });
+
+    test('parses --judge-backend flag', () => {
+      const result = parseArgs(['bun', 'script', 'deep', '--judge-backend', 'codex', 'hello']);
+      expect(result.options.judgeBackend).toBe('codex');
+    });
+
+    test('parses --judge-model flag', () => {
+      const result = parseArgs(['bun', 'script', 'deep', '--judge-model', 'gpt', 'hello']);
+      expect(result.options.judgeModel).toBe('gpt');
+    });
+
+    test('parses --verifier-backend flag', () => {
+      const result = parseArgs(['bun', 'script', 'deep', '--verifier-backend', 'gemini-cli', 'hello']);
+      expect(result.options.verifierBackend).toBe('gemini-cli');
+    });
+
+    test('parses --verifier-model flag', () => {
+      const result = parseArgs(['bun', 'script', 'deep', '--verifier-model', 'gemini-pro', 'hello']);
+      expect(result.options.verifierModel).toBe('gemini-pro');
+    });
+
+    test('parses all per-stage flags together', () => {
+      const result = parseArgs([
+        'bun', 'script', 'deep',
+        '--solver-backend', 'claude-code',
+        '--solver-model', 'sonnet',
+        '--judge-backend', 'codex',
+        '--judge-model', 'gpt',
+        '--verifier-backend', 'gemini-cli',
+        '--verifier-model', 'gemini-flash',
+        'solve this problem',
+      ]);
+      expect(result.options.solverBackend).toBe('claude-code');
+      expect(result.options.solverModel).toBe('sonnet');
+      expect(result.options.judgeBackend).toBe('codex');
+      expect(result.options.judgeModel).toBe('gpt');
+      expect(result.options.verifierBackend).toBe('gemini-cli');
+      expect(result.options.verifierModel).toBe('gemini-flash');
+      expect(result.prompt).toBe('solve this problem');
+    });
+
+    test('per-stage flags work with global -b and -m', () => {
+      const result = parseArgs([
+        'bun', 'script', 'deep',
+        '-b', 'codex',
+        '-m', 'gpt',
+        '--judge-model', 'opus',
+        'hello',
+      ]);
+      expect(result.options.backend).toBe('codex');
+      expect(result.options.model).toBe('gpt');
+      expect(result.options.judgeModel).toBe('opus');
+    });
+
+    test('throws on per-stage flag without value', () => {
+      expect(() => parseArgs(['bun', 'script', 'deep', '--solver-model'])).toThrow('requires a value');
+      expect(() => parseArgs(['bun', 'script', 'deep', '--judge-backend'])).toThrow('requires a value');
+      expect(() => parseArgs(['bun', 'script', 'deep', '--verifier-model'])).toThrow('requires a value');
+    });
+  });
 });
