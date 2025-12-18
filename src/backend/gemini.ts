@@ -4,7 +4,7 @@ import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './
 import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
 
 export class GeminiBackend implements Backend {
-  readonly name = 'gemini';
+  readonly name = 'gemini-cli';
   readonly command = 'gemini';
   readonly systemPromptFile = undefined;
 
@@ -18,9 +18,11 @@ export class GeminiBackend implements Backend {
     
     // Inject system prompt into first message since Gemini lacks --system-prompt flag
     let input = '';
-    if (config.systemPrompt) input += `[System Instructions]\n${config.systemPrompt}\n\n[User Request]\n`;
+    if (config.systemPrompt) input += `<system_instructions>\n${config.systemPrompt}\n</system_instructions>\n\n`;
     if (context) input += `${context}\n\n`;
     input += prompt;
+    
+    // Use positional argument for headless mode (--prompt is deprecated)
     args.push(input);
     
     const { stdout, process } = spawnCli({ command: this.command, args, cwd });
