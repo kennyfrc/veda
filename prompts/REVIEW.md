@@ -200,7 +200,9 @@ Before every review request, verify:
 
 ### File Slices for Reviews
 
-Use file slices to focus on specific code sections during review. **Only use slices when you significantly exceed the token budget**—otherwise, prefer full files for better review context.
+**Always start by selecting full files.** Check token count with `sel ls`. The 80k-100k range is acceptable; ~80k is ideal.
+
+**Only use slices if you exceed ~100k tokens.** When paring down, target ~80k tokens.
 
 ```bash
 veda -S review-auth-refactor sel add src/auth.c:50-120   # Only the modified function

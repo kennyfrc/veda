@@ -74,14 +74,14 @@ veda -S impl-auth-feature sel add "src/feature/" "src/shared/utils.ts"
 veda -S impl-auth-feature sel ls
 ```
 
-Maximize context (up to ~80k tokens). Select generously—more context is better.
+**Always start by selecting full files.** Check token count with `sel ls`. The 80k-100k range is acceptable; ~80k is ideal.
 
 ### File Slices (Line Ranges)
 
-Use file slices to select specific line ranges when you need to reduce context size or focus on particular sections:
+**Only use slices if you exceed ~100k tokens.** When paring down, target ~80k tokens.
 
 ```bash
-# Select specific line ranges
+# Select specific line ranges (only when over budget)
 veda -S impl-auth-feature sel add main.c:10-50       # Lines 10-50 only
 veda -S impl-auth-feature sel add main.c:100-        # Line 100 to end of file
 veda -S impl-auth-feature sel add config.ts:25       # Single line 25
@@ -95,10 +95,11 @@ veda -S impl-auth-feature sel add "src/*.c:1-80"     # First 80 lines of each .c
 | `file.c:8` | Single line 8 |
 | `"src/*.c:1-50"` | First 50 lines of each matched file |
 
-**When to use slices** (only if you significantly exceed ~80k tokens):
-- Large files where only specific functions/sections are relevant
-- Focusing on a particular code region for discussion
-- Staying within token budget while including more files
+**Selection strategy:**
+1. Start with full files—always
+2. Check `sel ls` for token count
+3. If under 100k tokens → you're done, full files are fine
+4. If over 100k tokens → pare down to ~80k using slices on the largest files
 
 Prefer full files when possible—more context is better for Navigator.
 
@@ -189,6 +190,6 @@ Key commands:
 - `veda -S review-TASKNAME -p reviewer` for code review (medium reasoning)
 - `veda -S impl-TASKNAME resume` to continue a conversation (session-scoped)
 - All personas run in read-only sandbox mode
-- Maximize context for Navigator (~80k tokens) via `veda sel add` since Navigator cannot use tools.
+- Always start with full files for Navigator context. 80k-100k tokens is acceptable; ~80k is ideal. Only use slices if you exceed 100k tokens.
 - **Use descriptive session names** (e.g., `impl-auth-feature`, `review-auth-feature`) to avoid conflicts with other agents
 
