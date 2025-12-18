@@ -1,6 +1,6 @@
 ## Your Task: Review-Fix Loop with Reviewer Process after Implementation
 
-You must always perform at least one final review with the Reviewer model via `veda -S $VEDA_SESSION -p reviewer` after all implementation work is complete.  
+You must always perform at least one final review with the Reviewer model via `veda -S review-TASKNAME -p reviewer` after all implementation work is complete.  
 That final review must run recursively in a Review → Fix → Review loop until Reviewer is satisfied that no further changes are needed.  
 You must not use Reviewer mid-implementation; Reviewer is for the final review phase only.
 
@@ -16,7 +16,7 @@ veda -p reviewer "Check if `getData()` handles errors"
 # Results in: sh: getData(): command not found
 
 # GOOD - use single quotes (simplest):
-veda -S $VEDA_SESSION -p reviewer 'Check if `getData()` handles errors correctly.'
+veda -S review-data-handler -p reviewer 'Check if `getData()` handles errors correctly.'
 
 # GOOD - escape backticks in double quotes:
 veda -p reviewer "Check if \`getData()\` handles errors"
@@ -26,17 +26,18 @@ veda -p reviewer "Check if \`getData()\` handles errors"
 
 ### Session Isolation (Critical for Multi-Agent)
 
-**Always use `-S $VEDA_SESSION`** (or set `VEDA_SESSION` env var) to isolate your selection from other concurrent agents. Each agent should have a unique session ID.
+**Use a descriptive, contextual session ID** with `-S` to isolate your selection from other concurrent agents. Format: `review-TASKNAME` where TASKNAME briefly describes the work being reviewed.
 
 ```bash
-# Set session ID (stable per shell, unique per terminal)
-export VEDA_SESSION="${VEDA_SESSION:-agent-$$}"
-# Or pass explicitly: veda -S my-session ...
+# Examples of good session names:
+veda -S review-auth-refactor ...    # Reviewing auth refactoring
+veda -S review-cache-impl ...       # Reviewing cache implementation  
+veda -S review-api-fix ...          # Reviewing API bug fix
 ```
 
 ### Reviewer Model notes
 
-* Receives final review requests via `veda -S $VEDA_SESSION -p reviewer`.
+* Receives final review requests via `veda -S review-TASKNAME -p reviewer`.
 * Reviews with diffs included in selection (save diff to file, add to selection).
 * Reviews the completed implementation, flags issues with priority tags [P0]-[P3], and provides an overall verdict.
 * Must be used at least once at the end of implementation for a final, holistic review.
@@ -54,8 +55,8 @@ Call Reviewer to initiate final review of the completed implementation:
 
 * Save the diff (excluding binaries): `git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.gif' ':(exclude)*.ico' ':(exclude)*.woff' ':(exclude)*.woff2' ':(exclude)*.ttf' ':(exclude)*.eot' ':(exclude)*.mp4' ':(exclude)*.webm' ':(exclude)*.pdf' ':(exclude)*.zip' ':(exclude)*.tar' ':(exclude)*.gz' > /tmp/changes.diff`
   * Or scope to specific paths: `git diff -- path/to/src/ > /tmp/changes.diff`
-* Build selection with diff + relevant source files via `veda -S $VEDA_SESSION sel add`
-* Send review request via `veda -S $VEDA_SESSION -p reviewer`
+* Build selection with diff + relevant source files via `veda -S review-TASKNAME sel add`
+* Send review request via `veda -S review-TASKNAME -p reviewer`
 
 Example final review request:
 
@@ -102,7 +103,7 @@ Key files are selected. Please perform a holistic review checking for correctnes
 3. Only then send the review request
 
 **Common failure modes:**
-- Session variable `$VEDA_SESSION` not expanding correctly in subshells → use literal session ID
+- Shell variables not expanding correctly in subshells → use literal session ID
 - Diff file was empty (no changes) → check `wc -l /tmp/changes.diff`
 - Selection cleared between commands → verify with `sel ls` immediately before review
 
@@ -186,7 +187,7 @@ Key commands:
 - Look for verdict: "patch is correct" or "patch is incorrect"
 - **Only fix [P0]/[P1]** — skip P2/P3 and low-confidence suggestions
 - Output goes to stdout; use `-o file.md` to save response
-- **Use a literal session ID** (e.g., `my-review`) — `$VEDA_SESSION` may not expand correctly in all contexts
+- **Use a descriptive session name** (e.g., `review-auth-refactor`) to keep reviews organized and avoid conflicts
 
 ### Pre-Review Checklist
 
@@ -202,8 +203,8 @@ Before every review request, verify:
 Use file slices to focus on specific code sections during review. **Only use slices when you significantly exceed the token budget**—otherwise, prefer full files for better review context.
 
 ```bash
-veda -S $VEDA_SESSION sel add src/auth.c:50-120   # Only the modified function
-veda -S $VEDA_SESSION sel add "src/*.h:1-30"      # Headers (just declarations)
+veda -S review-auth-refactor sel add src/auth.c:50-120   # Only the modified function
+veda -S review-auth-refactor sel add "src/*.h:1-30"      # Headers (just declarations)
 ```
 
 | Syntax | Description |
