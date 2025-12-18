@@ -3,7 +3,7 @@
  * Plain data types + functions, no hidden state.
  */
 
-import type { UsageStats } from '../backend';
+import type { Message, UsageStats } from '../backend';
 import { runLlm, type Reasoning, type Sandbox } from './llm';
 
 // ============================================================================
@@ -116,6 +116,7 @@ export function parseJudgeDecision(
 
 /**
  * Run the judge to select the best candidate.
+ * @param onMessage Optional callback for streaming events
  */
 export async function runJudge(args: {
   backend: string;
@@ -125,8 +126,9 @@ export async function runJudge(args: {
   cwd?: string;
   candidates: string[];
   originalTask?: string;
+  onMessage?: (msg: Message) => void;
 }): Promise<JudgeResult> {
-  const { backend, systemPrompt, reasoning, sandbox, cwd, candidates, originalTask } = args;
+  const { backend, systemPrompt, reasoning, sandbox, cwd, candidates, originalTask, onMessage } = args;
 
   // Handle edge cases
   if (candidates.length === 0) {
@@ -159,6 +161,7 @@ export async function runJudge(args: {
     reasoning,
     sandbox,
     cwd,
+    onMessage,
   });
 
   const decision = parseJudgeDecision(response.text, indexMapping, candidates.length);
