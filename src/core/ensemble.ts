@@ -3,7 +3,7 @@
  * Plain data types + functions, no hidden state.
  */
 
-import type { UsageStats } from '../backend';
+import type { Message, UsageStats } from '../backend';
 import { runLlm, combineUsage, type LlmRequest } from './llm';
 
 // ============================================================================
@@ -28,18 +28,33 @@ export interface EnsembleResult {
   totalUsage: UsageStats;
 }
 
+/** Event emitted during ensemble execution */
+export interface EnsembleEvent {
+  memberId: string;
+  message: Message;
+}
+
 // ============================================================================
 // Functions
 // ============================================================================
 
 /**
  * Run multiple LLM calls in parallel and collect results.
+ * @param onEvent Optional callback for streaming events from each member
  */
-export async function runEnsemble(members: EnsembleMember[]): Promise<EnsembleResult> {
+export async function runEnsemble(
+  members: EnsembleMember[],
+  onEvent?: (event: EnsembleEvent) => void
+): Promise<EnsembleResult> {
   const results = await Promise.all(
     members.map(async (member): Promise<EnsembleOutput> => {
       try {
-        const response = await runLlm(member.request);
+        const response = await runLlm({
+          ...member.request,
+          onMessage: onEvent 
+            ? (msg) => onEvent({ memberId: member.id, message: msg })
+            : undefined,
+        });
         return {
           id: member.id,
           text: response.text,

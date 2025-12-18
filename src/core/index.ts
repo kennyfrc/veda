@@ -26,6 +26,7 @@ export type {
   EnsembleMember,
   EnsembleOutput,
   EnsembleResult,
+  EnsembleEvent,
 } from './ensemble';
 
 export { runEnsemble } from './ensemble';
