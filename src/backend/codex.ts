@@ -29,17 +29,11 @@ export class CodexBackend implements Backend {
     
     args.push('--json');
     
-    // Build input: system prompt (if any) + context (if any) + prompt
-    const parts: string[] = [];
-    if (config.systemPrompt) {
-      parts.push(config.systemPrompt);
-    }
-    if (context) {
-      parts.push(context);
-    }
-    parts.push(prompt);
-    
-    const input = parts.join('\n\n');
+    // Build input with system prompt injection (consistent with other backends)
+    let input = '';
+    if (config.systemPrompt) input += `<system_instructions>\n${config.systemPrompt}\n</system_instructions>\n\n`;
+    if (context) input += `${context}\n\n`;
+    input += prompt;
     args.push('-'); // Read from stdin to avoid arg length limits
     
     const { stdout, process } = spawnCli({
