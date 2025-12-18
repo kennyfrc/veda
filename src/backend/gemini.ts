@@ -1,7 +1,16 @@
 // Gemini backend - injects system prompt into first message (no --system-prompt flag).
 
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
+import type { SandboxMode } from '../agent/config';
 import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
+
+function toGeminiApprovalMode(sandbox: SandboxMode): string {
+  switch (sandbox) {
+    case 'read-only': return 'default';
+    case 'workspace-write': return 'auto_edit';
+    case 'full': return 'yolo';
+  }
+}
 
 export class GeminiBackend implements Backend {
   readonly name = 'gemini-cli';
@@ -14,7 +23,7 @@ export class GeminiBackend implements Backend {
     const args: string[] = [];
     if (config.model) args.push('--model', config.model);
     args.push('--output-format', 'stream-json');
-    if (config.sandbox && config.sandbox !== 'full') args.push('--sandbox');
+    if (config.sandbox) args.push('--approval-mode', toGeminiApprovalMode(config.sandbox));
     
     // Inject system prompt into first message since Gemini lacks --system-prompt flag
     let input = '';
@@ -34,7 +43,7 @@ export class GeminiBackend implements Backend {
     const { sessionId, prompt, config, cwd } = options;
     
     const args: string[] = ['--resume', sessionId, '--output-format', 'stream-json'];
-    if (config.sandbox && config.sandbox !== 'full') args.push('--sandbox');
+    if (config.sandbox) args.push('--approval-mode', toGeminiApprovalMode(config.sandbox));
     if (prompt) args.push(prompt);
     
     const { stdout, process } = spawnCli({ command: this.command, args, cwd });
