@@ -1,6 +1,6 @@
 // DeepThink: parallel solvers with diverse reasoning → judge aggregation → optional verification.
 
-import { getDefaults } from '../agent';
+import { getDefaults, loadGlobalConfig, resolveModel } from '../agent';
 import type { Message, UsageStats } from '../backend';
 import {
   runEnsemble,
@@ -17,6 +17,8 @@ import { buildDeepSolverSystemPrompt, JUDGE_SYSTEM_PROMPT, VERIFIER_SYSTEM_PROMP
 export interface DeepThinkOptions {
   /** Backend to use (defaults to configured default) */
   backend?: string;
+  /** Model override (defaults to backend's default model) */
+  model?: string;
   /** Number of solvers/candidates (default: 3, max: 8) */
   k?: number;
   /** Enable verification (default: true) */
@@ -61,6 +63,8 @@ export interface DeepThinkTrace {
   context?: string;
   /** Options used */
   options: {
+    backend: string;
+    model?: string;
     k: number;
     verify: boolean;
     categories?: string[];
@@ -132,9 +136,17 @@ export async function* runDeepThink(
     verifyReasoning = 'high',
   } = options;
   
-  // Get default backend
+  // Get defaults and resolve backend/model
   const defaults = await getDefaults();
+  const globalConfig = await loadGlobalConfig();
   const backendName = options.backend ?? defaults.backend;
+  
+  // Resolve model for this backend (explicit override or backend default)
+  const model = resolveModel({
+    backend: backendName,
+    explicitModel: options.model,
+    globalConfig,
+  });
   
   const usages: (UsageStats | undefined)[] = [];
   const stages: string[] = [];
@@ -159,6 +171,8 @@ export async function* runDeepThink(
     prompt,
     context,
     options: {
+      backend: backendName,
+      model,
       k,
       verify,
       categories: options.categories,
@@ -184,6 +198,7 @@ export async function* runDeepThink(
     id: `solver-${i}-${module.category}`,
     request: {
       backend: backendName,
+      model,
       prompt,
       context,
       systemPrompt: buildDeepSolverSystemPrompt({ module }),
@@ -224,6 +239,7 @@ export async function* runDeepThink(
   // Run judge to select best candidate
   const judgeResult = await runJudge({
     backend: backendName,
+    model,
     systemPrompt: JUDGE_SYSTEM_PROMPT,
     reasoning: judgeReasoning,
     sandbox: 'read-only',
@@ -283,6 +299,7 @@ export async function* runDeepThink(
     
     const verifyResult = await runVerification({
       backend: backendName,
+      model,
       systemPrompt: VERIFIER_SYSTEM_PROMPT,
       reasoning: verifyReasoning,
       sandbox: 'full',
