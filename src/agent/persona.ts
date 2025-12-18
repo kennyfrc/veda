@@ -4,7 +4,7 @@ import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { getPersonasDir, getPersonaDir } from '../util/paths';
 import type { ReasoningLevel, AgentConfig, SandboxMode, GlobalConfig } from './config';
-import { resolveModel } from './config';
+import { resolveModel, resolveReasoning } from './config';
 
 export interface Persona {
   name: string;
@@ -78,14 +78,14 @@ export interface ResolveConfigOptions {
 /** Merges persona defaults with overrides */
 export async function resolveAgentConfig(
   options: ResolveConfigOptions,
-  defaults: { model: string; reasoning: ReasoningLevel; persona: string },
+  defaults: { persona: string },
   globalConfig?: GlobalConfig
 ): Promise<AgentConfig> {
   const personaName = options.persona ?? defaults.persona;
   
   let systemPrompt: string;
   let systemPromptPath: string | undefined;
-  let defaultReasoning: ReasoningLevel = defaults.reasoning;
+  let personaReasoning: ReasoningLevel | undefined;
   
   if (options.systemPrompt) {
     systemPrompt = options.systemPrompt;
@@ -93,22 +93,32 @@ export async function resolveAgentConfig(
     const persona = await loadPersona(personaName, options.baseDir);
     systemPrompt = persona.systemPrompt;
     systemPromptPath = persona.path;
-    defaultReasoning = persona.defaultReasoning;
+    personaReasoning = persona.defaultReasoning;
   }
   
-  // Resolve model based on backend (if provided)
-  // This ensures each backend gets its appropriate default model
-  const model = options.backend
-    ? resolveModel({
+  // Resolve model and reasoning based on backend
+  // Backend must be provided for proper resolution
+  if (!options.backend) {
+    throw new Error('Backend must be specified for agent config resolution');
+  }
+  
+  const model = resolveModel({
+    backend: options.backend,
+    explicitModel: options.model,
+    globalConfig,
+  });
+  
+  // Reasoning precedence: explicit -r > persona default > backend config > backend built-in
+  const reasoning = options.reasoning 
+    ?? personaReasoning 
+    ?? resolveReasoning({
         backend: options.backend,
-        explicitModel: options.model,
         globalConfig,
-      })
-    : (options.model ?? defaults.model);  // Fallback for backwards compat
+      });
   
   return {
     model: model ?? '',
-    reasoning: options.reasoning ?? defaultReasoning,
+    reasoning,
     sandbox: options.sandbox ?? 'read-only',
     systemPrompt,
     systemPromptPath,

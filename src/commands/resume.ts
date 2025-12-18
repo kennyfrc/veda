@@ -1,5 +1,5 @@
 import { getBackend, extractText, getSessionId, getUsage, collectMessages } from '../backend';
-import { getDefaults, resolveAgentConfig } from '../agent';
+import { getDefaults, resolveAgentConfig, loadGlobalConfig } from '../agent';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 
@@ -17,20 +17,23 @@ export async function handleResume(
     process.exit(1);
   }
   
+  // Use the original backend from the saved thread
+  const backendName = threadInfo.backend;
+  
   // Get defaults and config
   const defaults = await getDefaults();
+  const globalConfig = await loadGlobalConfig();
   const config = await resolveAgentConfig(
     {
       persona: options.persona,
       model: options.model,
       reasoning: options.reasoning,
       sandbox: options.sandbox,
+      backend: backendName,  // Use saved backend for resolution
     },
-    defaults
+    defaults,
+    globalConfig
   );
-  
-  // Use the original backend
-  const backendName = threadInfo.backend;
   const backend = getBackend(backendName);
   
   // Check backend availability

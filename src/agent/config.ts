@@ -1,5 +1,5 @@
 import { getConfigPath } from '../util/paths';
-import { getBackendDefaultModel } from '../backend/defaults';
+import { getBackendDefaultModel, getBackendDefaultReasoning } from '../backend/defaults';
 import { resolveModelAlias } from './model-aliases';
 
 export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
@@ -22,16 +22,13 @@ export interface AgentConfig {
 }
 
 export interface GlobalConfig {
-  model?: string;
-  reasoning?: ReasoningLevel;
   persona?: string;
   backend?: string;
   session?: string;
-  backendModels?: Record<string, string>;  // Per-backend model overrides
+  backendModels?: Record<string, string>;      // Per-backend model: CODEX_MODEL, CLAUDE_CODE_MODEL, etc.
+  backendReasoning?: Record<string, ReasoningLevel>;  // Per-backend reasoning: CODEX_REASONING, etc.
 }
 
-const DEFAULT_MODEL = 'gpt-5.2';
-const DEFAULT_REASONING: ReasoningLevel = 'medium';
 const DEFAULT_PERSONA = 'navigator-chat';
 const DEFAULT_BACKEND = 'codex';
 
@@ -39,6 +36,7 @@ const DEFAULT_BACKEND = 'codex';
 export function parseConfigFile(content: string): GlobalConfig {
   const config: GlobalConfig = {};
   const backendModels: Record<string, string> = {};
+  const backendReasoning: Record<string, ReasoningLevel> = {};
   
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
@@ -55,34 +53,31 @@ export function parseConfigFile(content: string): GlobalConfig {
       const backendModelMatch = key.match(/^(.+)_MODEL$/);
       if (backendModelMatch) {
         const prefix = backendModelMatch[1];
-        // Skip generic MODEL/DEFAULT_MODEL - those are handled below
-        if (prefix !== '' && prefix !== 'DEFAULT') {
-          // Convert CLAUDE_CODE -> claude-code, GEMINI_CLI -> gemini-cli
-          const backendId = prefix.toLowerCase().replace(/_/g, '-');
-          backendModels[backendId] = value;
-          continue;
+        // Convert CLAUDE_CODE -> claude-code, GEMINI_CLI -> gemini-cli
+        const backendId = prefix.toLowerCase().replace(/_/g, '-');
+        backendModels[backendId] = value;
+        continue;
+      }
+      
+      // Per-backend reasoning keys: CLAUDE_CODE_REASONING, CODEX_REASONING, GEMINI_CLI_REASONING
+      const backendReasoningMatch = key.match(/^(.+)_REASONING$/);
+      if (backendReasoningMatch) {
+        const prefix = backendReasoningMatch[1];
+        const backendId = prefix.toLowerCase().replace(/_/g, '-');
+        if (isValidReasoning(value)) {
+          backendReasoning[backendId] = value;
         }
+        continue;
       }
       
       switch (key) {
-        case 'MODEL':
-        case 'DEFAULT_MODEL':
-          config.model = value;
-          break;
-        case 'REASONING':
-        case 'DEFAULT_REASONING':
-          config.reasoning = value as ReasoningLevel;
-          break;
         case 'PERSONA':
-        case 'DEFAULT_PERSONA':
           config.persona = value;
           break;
         case 'BACKEND':
-        case 'DEFAULT_BACKEND':
           config.backend = value;
           break;
         case 'SESSION':
-        case 'DEFAULT_SESSION':
           config.session = value;
           break;
       }
@@ -91,6 +86,10 @@ export function parseConfigFile(content: string): GlobalConfig {
   
   if (Object.keys(backendModels).length > 0) {
     config.backendModels = backendModels;
+  }
+  
+  if (Object.keys(backendReasoning).length > 0) {
+    config.backendReasoning = backendReasoning;
   }
   
   return config;
@@ -112,16 +111,12 @@ export async function loadGlobalConfig(baseDir?: string): Promise<GlobalConfig> 
 }
 
 export async function getDefaults(baseDir?: string): Promise<{
-  model: string;
-  reasoning: ReasoningLevel;
   persona: string;
   backend: string;
 }> {
   const globalConfig = await loadGlobalConfig(baseDir);
   
   return {
-    model: globalConfig.model ?? DEFAULT_MODEL,
-    reasoning: globalConfig.reasoning ?? DEFAULT_REASONING,
     persona: globalConfig.persona ?? DEFAULT_PERSONA,
     backend: globalConfig.backend ?? DEFAULT_BACKEND,
   };
@@ -164,9 +159,8 @@ export interface ResolveModelOptions {
 /**
  * Resolve model for a backend. Precedence:
  * 1. Explicit -m flag
- * 2. User config per-backend (e.g., CLAUDE_CODE_MODEL in config)
+ * 2. User config per-backend (e.g., CODEX_MODEL in config)
  * 3. Built-in default per backend
- * 4. Global MODEL config (legacy fallback)
  */
 export function resolveModel(options: ResolveModelOptions): string | undefined {
   const { backend, explicitModel, globalConfig } = options;
@@ -183,13 +177,41 @@ export function resolveModel(options: ResolveModelOptions): string | undefined {
   }
   
   // 3. Built-in defaults per backend
-  const builtinDefault = getBackendDefaultModel(backend);
-  if (builtinDefault) {
-    return builtinDefault;
+  return getBackendDefaultModel(backend);
+}
+
+// ============================================================================
+// Reasoning Resolution
+// ============================================================================
+
+export interface ResolveReasoningOptions {
+  backend: string;
+  explicitReasoning?: ReasoningLevel;  // -r flag
+  globalConfig?: GlobalConfig;
+}
+
+/**
+ * Resolve reasoning level for a backend. Precedence:
+ * 1. Explicit -r flag
+ * 2. User config per-backend (e.g., CODEX_REASONING in config)
+ * 3. Built-in default per backend
+ */
+export function resolveReasoning(options: ResolveReasoningOptions): ReasoningLevel {
+  const { backend, explicitReasoning, globalConfig } = options;
+  
+  // 1. Explicit override wins
+  if (explicitReasoning) {
+    return explicitReasoning;
   }
   
-  // 4. Global MODEL config (legacy fallback for unknown backends)
-  return globalConfig?.model;
+  // 2. User config per-backend
+  const userOverride = globalConfig?.backendReasoning?.[backend];
+  if (userOverride) {
+    return userOverride;
+  }
+  
+  // 3. Built-in defaults per backend
+  return getBackendDefaultReasoning(backend);
 }
 
 // ============================================================================

@@ -279,15 +279,19 @@ src/
 
 `~/.config/veda/config`:
 ```bash
-MODEL="gpt-5.2"
-REASONING="medium"
-PERSONA="navigator-chat"
+# Default backend
 BACKEND="codex"
+PERSONA="navigator-chat"
 
-# Per-backend model overrides
-CLAUDE_CODE_MODEL="opus"
+# Per-backend model and reasoning settings
 CODEX_MODEL="gpt-5.2"
+CODEX_REASONING="medium"
+
+CLAUDE_CODE_MODEL="opus"
+CLAUDE_CODE_REASONING="medium"
+
 GEMINI_CLI_MODEL="gemini-3-pro-preview"
+GEMINI_CLI_REASONING="medium"
 ```
 
 ## Development

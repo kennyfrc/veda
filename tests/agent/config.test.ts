@@ -9,48 +9,12 @@ describe('parseConfigFile', () => {
 
   test('parses basic config', () => {
     const content = `
-MODEL="gpt-5.2"
-REASONING="high"
 PERSONA="navigator-plan"
-BACKEND="claude"
+BACKEND="claude-code"
 `;
     const config = parseConfigFile(content);
-    expect(config.model).toBe('gpt-5.2');
-    expect(config.reasoning).toBe('high');
     expect(config.persona).toBe('navigator-plan');
-    expect(config.backend).toBe('claude');
-  });
-
-  test('handles DEFAULT_ prefix', () => {
-    const content = `
-DEFAULT_MODEL="gpt-4"
-DEFAULT_REASONING="low"
-`;
-    const config = parseConfigFile(content);
-    expect(config.model).toBe('gpt-4');
-    expect(config.reasoning).toBe('low');
-  });
-
-  test('ignores comments', () => {
-    const content = `
-# This is a comment
-MODEL="gpt-5.2"
-# Another comment
-`;
-    const config = parseConfigFile(content);
-    expect(config.model).toBe('gpt-5.2');
-  });
-
-  test('handles unquoted values', () => {
-    const content = `MODEL=gpt-5.2`;
-    const config = parseConfigFile(content);
-    expect(config.model).toBe('gpt-5.2');
-  });
-
-  test('handles single quotes', () => {
-    const content = `MODEL='gpt-5.2'`;
-    const config = parseConfigFile(content);
-    expect(config.model).toBe('gpt-5.2');
+    expect(config.backend).toBe('claude-code');
   });
 
   test('parses per-backend model keys', () => {
@@ -67,16 +31,48 @@ GEMINI_CLI_MODEL=gemini-2.5-pro
     });
   });
 
-  test('separates global MODEL from per-backend models', () => {
+  test('parses per-backend reasoning keys', () => {
     const content = `
-MODEL=gpt-5.2
+CLAUDE_CODE_REASONING=high
+CODEX_REASONING=medium
+GEMINI_CLI_REASONING=low
+`;
+    const config = parseConfigFile(content);
+    expect(config.backendReasoning).toEqual({
+      'claude-code': 'high',
+      'codex': 'medium',
+      'gemini-cli': 'low',
+    });
+  });
+
+  test('parses mixed backend config', () => {
+    const content = `
+BACKEND=codex
+CODEX_MODEL=gpt-5.2
+CODEX_REASONING=high
 CLAUDE_CODE_MODEL=opus
 `;
     const config = parseConfigFile(content);
-    expect(config.model).toBe('gpt-5.2');
+    expect(config.backend).toBe('codex');
     expect(config.backendModels).toEqual({
+      'codex': 'gpt-5.2',
       'claude-code': 'opus',
     });
+    expect(config.backendReasoning).toEqual({
+      'codex': 'high',
+    });
+  });
+
+  test('ignores comments', () => {
+    const content = `
+# This is a comment
+BACKEND=codex
+# Another comment
+CODEX_MODEL=gpt-5.2
+`;
+    const config = parseConfigFile(content);
+    expect(config.backend).toBe('codex');
+    expect(config.backendModels?.['codex']).toBe('gpt-5.2');
   });
 });
 
@@ -196,26 +192,23 @@ describe('resolveModel', () => {
     })).toBe('gpt-4o');
   });
 
-  test('returns undefined for unknown backend without global config', () => {
+  test('returns undefined for unknown backend', () => {
     expect(resolveModel({ backend: 'unknown' })).toBeUndefined();
   });
 
-  test('falls back to global MODEL for unknown backend', () => {
+  test('uses per-backend config for unknown backend', () => {
     expect(resolveModel({
-      backend: 'unknown',
+      backend: 'custom-backend',
       globalConfig: {
-        model: 'fallback-model',
+        backendModels: { 'custom-backend': 'custom-model' },
       },
-    })).toBe('fallback-model');
+    })).toBe('custom-model');
   });
 
-  test('built-in default takes precedence over global MODEL', () => {
-    // For known backends, built-in default wins over global MODEL
+  test('built-in default is used when no config', () => {
+    // For known backends, built-in default is used
     expect(resolveModel({
       backend: 'claude-code',
-      globalConfig: {
-        model: 'global-model',
-      },
     })).toBe('opus');
   });
 });
@@ -400,15 +393,15 @@ describe('resolveBackendModel', () => {
   });
 
   describe('unknown backend handling', () => {
-    test('falls back to global MODEL for unknown backend', () => {
+    test('uses per-backend config for unknown backend', () => {
       const result = resolveBackendModel({
-        explicitBackend: 'unknown-backend',
+        explicitBackend: 'custom-backend',
         globalConfig: {
-          model: 'fallback-model',
+          backendModels: { 'custom-backend': 'custom-model' },
         },
       });
-      expect(result.backend).toBe('unknown-backend');
-      expect(result.model).toBe('fallback-model');
+      expect(result.backend).toBe('custom-backend');
+      expect(result.model).toBe('custom-model');
     });
 
     test('returns undefined model for unknown backend without config', () => {

@@ -22,7 +22,12 @@ export {
   getAvailableBackends,
 } from './registry';
 
-export { getBackendDefaultModel, BACKEND_DEFAULT_MODELS } from './defaults';
+export { 
+  getBackendDefaultModel, 
+  getBackendDefaultReasoning,
+  BACKEND_DEFAULT_MODELS,
+  BACKEND_DEFAULT_REASONING,
+} from './defaults';
 
 export { CodexBackend, createCodexBackend } from './codex';
 export { ClaudeBackend, createClaudeBackend } from './claude';

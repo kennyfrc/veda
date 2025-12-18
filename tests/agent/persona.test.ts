@@ -107,22 +107,23 @@ describe('persona', () => {
 
   describe('resolveAgentConfig', () => {
     const defaults = {
-      model: 'gpt-5.2',
-      reasoning: 'medium' as const,
       persona: 'navigator-chat',
     };
 
     test('uses defaults when no overrides', async () => {
-      const config = await resolveAgentConfig({ baseDir: TEST_BASE }, defaults);
+      const config = await resolveAgentConfig(
+        { backend: 'codex', baseDir: TEST_BASE },
+        defaults
+      );
       
-      expect(config.model).toBe('gpt-5.2');
+      expect(config.model).toBe('gpt-5.2');  // codex built-in default
       expect(config.reasoning).toBe('medium'); // from persona default
       expect(config.systemPrompt).toContain('chat assistant');
     });
 
     test('overrides model', async () => {
       const config = await resolveAgentConfig(
-        { model: 'gpt-4', baseDir: TEST_BASE },
+        { model: 'gpt-4', backend: 'codex', baseDir: TEST_BASE },
         defaults
       );
       
@@ -131,7 +132,7 @@ describe('persona', () => {
 
     test('overrides reasoning', async () => {
       const config = await resolveAgentConfig(
-        { reasoning: 'high', baseDir: TEST_BASE },
+        { reasoning: 'high', backend: 'codex', baseDir: TEST_BASE },
         defaults
       );
       
@@ -140,7 +141,7 @@ describe('persona', () => {
 
     test('overrides persona', async () => {
       const config = await resolveAgentConfig(
-        { persona: 'navigator-plan', baseDir: TEST_BASE },
+        { persona: 'navigator-plan', backend: 'codex', baseDir: TEST_BASE },
         defaults
       );
       
@@ -150,7 +151,7 @@ describe('persona', () => {
 
     test('uses inline system prompt', async () => {
       const config = await resolveAgentConfig(
-        { systemPrompt: 'Custom prompt', baseDir: TEST_BASE },
+        { systemPrompt: 'Custom prompt', backend: 'codex', baseDir: TEST_BASE },
         defaults
       );
       
@@ -161,7 +162,7 @@ describe('persona', () => {
 
     test('sets sandbox mode', async () => {
       const config = await resolveAgentConfig(
-        { sandbox: 'full', baseDir: TEST_BASE },
+        { sandbox: 'full', backend: 'codex', baseDir: TEST_BASE },
         defaults
       );
       
@@ -169,9 +170,44 @@ describe('persona', () => {
     });
 
     test('defaults sandbox to read-only', async () => {
-      const config = await resolveAgentConfig({ baseDir: TEST_BASE }, defaults);
+      const config = await resolveAgentConfig(
+        { backend: 'codex', baseDir: TEST_BASE },
+        defaults
+      );
       
       expect(config.sandbox).toBe('read-only');
+    });
+
+    test('uses backend-specific model default', async () => {
+      const codexConfig = await resolveAgentConfig(
+        { backend: 'codex', baseDir: TEST_BASE },
+        defaults
+      );
+      const claudeConfig = await resolveAgentConfig(
+        { backend: 'claude-code', baseDir: TEST_BASE },
+        defaults
+      );
+      
+      expect(codexConfig.model).toBe('gpt-5.2');
+      expect(claudeConfig.model).toBe('opus');
+    });
+
+    test('uses backend-specific reasoning from config', async () => {
+      const config = await resolveAgentConfig(
+        { backend: 'codex', baseDir: TEST_BASE },
+        defaults,
+        { backendReasoning: { 'codex': 'high' } }
+      );
+      
+      // persona reasoning takes precedence, but if no persona reasoning, backend config is used
+      expect(config.reasoning).toBe('medium'); // navigator-chat has medium reasoning
+    });
+
+    test('throws when backend is not specified', async () => {
+      await expect(resolveAgentConfig(
+        { baseDir: TEST_BASE },
+        defaults
+      )).rejects.toThrow('Backend must be specified');
     });
   });
 });

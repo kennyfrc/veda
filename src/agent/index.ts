@@ -4,6 +4,7 @@ export {
   type ReasoningLevel,
   type SandboxMode,
   type ResolveModelOptions,
+  type ResolveReasoningOptions,
   type ResolveBackendModelOptions,
   type ResolvedBackendModel,
   parseConfigFile,
@@ -14,6 +15,7 @@ export {
   toCodexSandbox,
   parseSandboxMode,
   resolveModel,
+  resolveReasoning,
   resolveBackendModel,
 } from './config';
 
