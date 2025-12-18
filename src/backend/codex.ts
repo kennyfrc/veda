@@ -101,6 +101,43 @@ export class CodexBackend implements Backend {
           raw: event,
         };
 
+      case 'item.started': {
+        // Tool execution started - emit progress event
+        const item = e.item as Record<string, unknown> | undefined;
+        if (!item) return null;
+        
+        const itemType = item.type as string;
+        
+        if (itemType === 'command_execution') {
+          return {
+            type: 'tool_start',
+            toolName: 'shell',
+            toolInput: { command: item.command as string },
+            raw: event,
+          };
+        }
+        
+        if (itemType === 'mcp_tool_call') {
+          return {
+            type: 'tool_start',
+            toolName: `mcp:${item.server}/${item.tool}`,
+            toolInput: item.arguments,
+            raw: event,
+          };
+        }
+        
+        if (itemType === 'file_change') {
+          return {
+            type: 'tool_start',
+            toolName: 'file_change',
+            toolInput: item.changes,
+            raw: event,
+          };
+        }
+        
+        return null;
+      }
+
       case 'item.completed': {
         const item = e.item as Record<string, unknown> | undefined;
         if (!item) return null;
@@ -136,6 +173,20 @@ export class CodexBackend implements Backend {
           return {
             type: 'tool_result',
             toolResult: item.output,
+            raw: event,
+          };
+        }
+        
+        // Also emit tool_result for command_execution completions
+        if (itemType === 'command_execution') {
+          return {
+            type: 'tool_result',
+            toolName: 'shell',
+            toolResult: {
+              command: item.command,
+              exitCode: item.exit_code,
+              output: item.aggregated_output,
+            },
             raw: event,
           };
         }
