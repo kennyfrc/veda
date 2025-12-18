@@ -6,7 +6,6 @@
 import type { Message, UsageStats } from '../backend';
 import {
   getBackend,
-  collectMessages,
   extractText as backendExtractText,
   getSessionId as backendGetSessionId,
   getUsage as backendGetUsage,
@@ -31,6 +30,8 @@ export interface LlmRequest {
   reasoning?: Reasoning;
   sandbox?: Sandbox;
   cwd?: string;
+  /** Optional callback for streaming events (tool_start, etc.) */
+  onMessage?: (msg: Message) => void;
 }
 
 export interface LlmResponse {
@@ -46,23 +47,31 @@ export interface LlmResponse {
 
 /**
  * Run a single LLM call. Returns collected messages + extracted results.
+ * If onMessage callback is provided, it will be called for each message as it arrives.
  */
 export async function runLlm(req: LlmRequest): Promise<LlmResponse> {
   const backend = getBackend(req.backend);
   
-  const messages = await collectMessages(
-    backend.run({
-      prompt: req.prompt,
-      context: req.context,
-      config: {
-        model: req.model ?? '',
-        reasoning: req.reasoning ?? 'medium',
-        sandbox: req.sandbox ?? 'read-only',
-        systemPrompt: req.systemPrompt,
-      },
-      cwd: req.cwd,
-    })
-  );
+  const stream = backend.run({
+    prompt: req.prompt,
+    context: req.context,
+    config: {
+      model: req.model ?? '',
+      reasoning: req.reasoning ?? 'medium',
+      sandbox: req.sandbox ?? 'read-only',
+      systemPrompt: req.systemPrompt,
+    },
+    cwd: req.cwd,
+  });
+  
+  // Collect messages, optionally calling callback for each
+  const messages: Message[] = [];
+  for await (const msg of stream) {
+    if (req.onMessage) {
+      req.onMessage(msg);
+    }
+    messages.push(msg);
+  }
   
   return {
     messages,
