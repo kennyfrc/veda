@@ -1,5 +1,3 @@
-// Codex backend - uses `codex exec` with system prompt prepended to input.
-
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
 import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
 import { toCodexSandbox } from '../agent';
@@ -29,12 +27,11 @@ export class CodexBackend implements Backend {
     
     args.push('--json');
     
-    // Build input with system prompt injection (consistent with other backends)
     let input = '';
     if (config.systemPrompt) input += `<system_instructions>\n${config.systemPrompt}\n</system_instructions>\n\n`;
     if (context) input += `${context}\n\n`;
     input += prompt;
-    args.push('-'); // Read from stdin to avoid arg length limits
+    args.push('-'); // stdin avoids arg length limits
     
     const { stdout, process } = spawnCli({
       command: this.command,
@@ -96,7 +93,6 @@ export class CodexBackend implements Backend {
         };
 
       case 'item.started': {
-        // Tool execution started - emit progress event
         const item = e.item as Record<string, unknown> | undefined;
         if (!item) return null;
         
@@ -171,7 +167,6 @@ export class CodexBackend implements Backend {
           };
         }
         
-        // Also emit tool_result for command_execution completions
         if (itemType === 'command_execution') {
           return {
             type: 'tool_result',

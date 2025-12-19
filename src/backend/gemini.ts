@@ -1,5 +1,3 @@
-// Gemini backend - injects system prompt into first message (no --system-prompt flag).
-
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
 import type { SandboxMode } from '../agent/config';
 import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
@@ -25,13 +23,11 @@ export class GeminiBackend implements Backend {
     args.push('--output-format', 'stream-json');
     if (config.sandbox) args.push('--approval-mode', toGeminiApprovalMode(config.sandbox));
     
-    // Inject system prompt into first message since Gemini lacks --system-prompt flag
+    // Gemini lacks --system-prompt, so we inject it into the message
     let input = '';
     if (config.systemPrompt) input += `<system_instructions>\n${config.systemPrompt}\n</system_instructions>\n\n`;
     if (context) input += `${context}\n\n`;
     input += prompt;
-    
-    // Use positional argument for headless mode (--prompt is deprecated)
     args.push(input);
     
     const { stdout, process } = spawnCli({ command: this.command, args, cwd });
@@ -118,39 +114,29 @@ export class GeminiBackend implements Backend {
         };
 
       case 'result': {
-        // Check for error status first
         if (e.status === 'error') {
           const errorObj = e.error as { message?: string; type?: string } | undefined;
           let errorMsg = errorObj?.message ?? 'Unknown error';
           
-          // Try to extract readable message from nested API error JSON
-          // Format: "[API Error: {\"error\":{\"message\":\"{nested json}\",\"code\":400}}]"
+          // Gemini wraps errors as: [API Error: {"error":{"message":"{nested json}"}}]
           const jsonMatch = errorMsg.match(/\[API Error: (.+)\]$/);
           if (jsonMatch) {
             try {
               const outer = JSON.parse(jsonMatch[1]) as { error?: { message?: string } };
               if (outer.error?.message) {
                 try {
-                  // The message field may contain another JSON string
                   const inner = JSON.parse(outer.error.message) as { error?: { message?: string } };
                   if (inner.error?.message) {
                     errorMsg = inner.error.message;
                   }
                 } catch {
-                  // Inner parse failed, use outer message as-is
                   errorMsg = outer.error.message;
                 }
               }
-            } catch {
-              // JSON parse failed, keep original message
-            }
+            } catch { /* keep original */ }
           }
           
-          return {
-            type: 'error',
-            content: errorMsg,
-            raw: event,
-          };
+          return { type: 'error', content: errorMsg, raw: event };
         }
         
         const stats = e.stats as Record<string, unknown> | undefined;

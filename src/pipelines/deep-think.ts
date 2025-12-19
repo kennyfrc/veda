@@ -1,4 +1,4 @@
-// DeepThink: parallel solvers with diverse reasoning → judge aggregation → optional verification.
+// DeepThink: parallel solvers → judge aggregation → optional verification.
 
 import { getDefaults, loadGlobalConfig, resolveBackendModel } from '../agent';
 import type { Message, UsageStats } from '../backend';
@@ -15,67 +15,38 @@ import {
 import { buildDeepSolverSystemPrompt, JUDGE_SYSTEM_PROMPT, VERIFIER_SYSTEM_PROMPT } from './prompts';
 
 export interface DeepThinkOptions {
-  /** Backend to use (defaults to configured default) */
   backend?: string;
-  /** Model override (defaults to backend's default model) */
   model?: string;
-  /** Number of solvers/candidates (default: 3, max: 8) */
   k?: number;
-  /** Enable verification (default: true) */
   verify?: boolean;
-  /** Context string */
   context?: string;
-  /** Reasoning level for solvers (default: 'medium') */
   solverReasoning?: Reasoning;
-  /** Reasoning level for judge (default: 'medium') */
   judgeReasoning?: Reasoning;
-  /** Reasoning level for verifier (default: 'high') */
   verifyReasoning?: Reasoning;
-  /** Specific categories to sample modules from */
   categories?: string[];
-  /** Exact module IDs to use (overrides k and categories) */
   modules?: string[];
-  /** Working directory for verifier to access project files (default: process.cwd()) */
   cwd?: string;
-  
-  // Per-stage backend/model overrides
-  /** Backend for solvers (overrides backend) */
   solverBackend?: string;
-  /** Model for solvers (overrides model) */
   solverModel?: string;
-  /** Backend for judge (overrides backend) */
   judgeBackend?: string;
-  /** Model for judge (overrides model) */
   judgeModel?: string;
-  /** Backend for verifier (overrides backend) */
   verifierBackend?: string;
-  /** Model for verifier (overrides model) */
   verifierModel?: string;
 }
 
 export interface DeepThinkResult {
-  /** Final answer */
   answer: string;
-  /** Confidence score (0-1) */
   confidence: number;
-  /** All candidate answers */
   candidates: string[];
-  /** Whether answer was revised by verification */
   wasRevised: boolean;
-  /** Usage statistics */
   usage: UsageStats;
-  /** Stages completed */
   stages: string[];
-  /** Trace data for --trace output */
   trace?: DeepThinkTrace;
 }
 
 export interface DeepThinkTrace {
-  /** Prompt sent to solvers */
   prompt: string;
-  /** Context string (if any) */
   context?: string;
-  /** Options used */
   options: {
     backend: string;
     model?: string;
@@ -83,58 +54,40 @@ export interface DeepThinkTrace {
     verify: boolean;
     categories?: string[];
     modules?: string[];
-    // Per-stage resolution results
     solver?: { backend: string; model?: string };
     judge?: { backend: string; model?: string };
     verifier?: { backend: string; model?: string };
   };
-  /** Solver candidates with module info */
   solve: {
     candidates: Array<{
       id: string;
-      module: {
-        id: string;
-        category: string;
-        name: string;
-      };
+      module: { id: string; category: string; name: string };
       response: string;
       usage?: UsageStats;
     }>;
   };
-  /** Judge aggregation */
   judge: {
     selectedIndex: number;
     confidence: number;
     reasoning?: string;
   };
-  /** Verification (if run) */
   verify?: {
-    checks: Array<{
-      id: string;
-      question: string;
-      targetClaim?: string;
-    }>;
+    checks: Array<{ id: string; question: string; targetClaim?: string }>;
     results: Array<{
       checkId: string;
       answer: string;
       verdict: 'supports' | 'contradicts' | 'uncertain';
       confidence: number;
     }>;
-    revision?: {
-      changes: string[];
-      revised: string;
-    };
+    revision?: { changes: string[]; revised: string };
   };
 }
 
 export interface DeepThinkEvent {
   type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error';
   stage?: string;
-  /** For most events: descriptive content. For tool_start: tool name. For error: error message */
   content?: string;
-  /** For tool_start: source identifier (e.g., "solver-0", "judge", "verifier") */
   source?: string;
-  /** For tool_start: tool input/arguments */
   toolInput?: unknown;
   confidence?: number;
   usage?: UsageStats;

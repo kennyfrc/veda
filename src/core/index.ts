@@ -1,6 +1,3 @@
-// Core primitives: plain data types + functions, no hidden state.
-
-// LLM primitive
 export type {
   Message,
   UsageStats,
@@ -22,7 +19,6 @@ export {
   collectAllMessages,
 } from './llm';
 
-// Ensemble primitive
 export type {
   EnsembleMember,
   EnsembleOutput,
@@ -32,7 +28,6 @@ export type {
 
 export { runEnsemble } from './ensemble';
 
-// Judge primitive
 export type {
   ConfidenceLevel,
   JudgeDecision,
@@ -45,7 +40,6 @@ export {
   runJudge,
 } from './judge';
 
-// Verification primitive
 export type {
   VerificationType,
   Check,
@@ -64,7 +58,6 @@ export {
   runVerification,
 } from './verify';
 
-// Reasoning modules
 export type {
   ModuleCategory,
   ReasoningModule,

@@ -1,16 +1,15 @@
-// Backend protocol for CLI adapters (codex, claude, gemini).
-// Each backend normalizes its output to Message events.
+// Backend protocol: each CLI adapter normalizes output to Message events.
 
 import type { AgentConfig } from '../agent';
 
 export interface Message {
   type: 'init' | 'text' | 'reasoning' | 'tool_use' | 'tool_result' | 'tool_start' | 'error' | 'done';
   content?: string;
-  sessionId?: string;       // Set on 'init'
-  usage?: UsageStats;       // Set on 'done'
-  toolName?: string;        // For tool_use, tool_start
-  toolInput?: unknown;      // For tool_use, tool_start
-  toolResult?: unknown;     // For tool_result
+  sessionId?: string;
+  usage?: UsageStats;
+  toolName?: string;
+  toolInput?: unknown;
+  toolResult?: unknown;
   raw?: unknown;
 }
 

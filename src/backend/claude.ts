@@ -1,5 +1,3 @@
-// Claude backend - uses prompt injection for system prompt (consistent with other backends).
-
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
 import type { SandboxMode } from '../agent/config';
 import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
@@ -28,7 +26,6 @@ export class ClaudeBackend implements Backend {
     args.push('--output-format', 'stream-json');
     args.push('--verbose');
     
-    // Build input with system prompt injection (consistent with other backends)
     let input = '';
     if (config.systemPrompt) input += `<system_instructions>\n${config.systemPrompt}\n</system_instructions>\n\n`;
     if (context) input += `${context}\n\n`;
@@ -114,14 +111,8 @@ export class ClaudeBackend implements Backend {
       }
 
       case 'result': {
-        // Check for error flag first
         if (e.is_error === true) {
-          const errorMsg = (e.result as string) ?? 'Unknown error';
-          return {
-            type: 'error',
-            content: errorMsg,
-            raw: event,
-          };
+          return { type: 'error', content: (e.result as string) ?? 'Unknown error', raw: event };
         }
         
         const usage = e.usage as Record<string, unknown> | undefined;

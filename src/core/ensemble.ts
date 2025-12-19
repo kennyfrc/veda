@@ -1,14 +1,7 @@
-/**
- * Ensemble primitive: run multiple LLM calls in parallel.
- * Plain data types + functions, no hidden state.
- */
+// Ensemble primitive: run multiple LLM calls in parallel.
 
 import type { Message, UsageStats } from '../backend';
 import { runLlm, combineUsage, type LlmRequest } from './llm';
-
-// ============================================================================
-// Data Types
-// ============================================================================
 
 export interface EnsembleMember {
   id: string;
@@ -19,30 +12,21 @@ export interface EnsembleOutput {
   id: string;
   text: string;
   usage?: UsageStats;
-  error?: string;         // Exception error
-  backendErrors?: string[]; // Errors from backend (auth, API, etc.)
+  error?: string;
+  backendErrors?: string[];
 }
 
 export interface EnsembleResult {
   outputs: EnsembleOutput[];
-  successful: string[];  // Just the texts of successful outputs
+  successful: string[];
   totalUsage: UsageStats;
 }
 
-/** Event emitted during ensemble execution */
 export interface EnsembleEvent {
   memberId: string;
   message: Message;
 }
 
-// ============================================================================
-// Functions
-// ============================================================================
-
-/**
- * Run multiple LLM calls in parallel and collect results.
- * @param onEvent Optional callback for streaming events from each member
- */
 export async function runEnsemble(
   members: EnsembleMember[],
   onEvent?: (event: EnsembleEvent) => void
