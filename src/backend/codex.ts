@@ -196,12 +196,20 @@ export class CodexBackend implements Backend {
         };
       }
 
-      case 'error':
+      case 'error': {
+        const errorMsg = (e.message as string) ?? (e.error as string) ?? 'Unknown error';
+        
+        // Filter transient errors (reconnection attempts, retries)
+        if (isTransientError(errorMsg)) {
+          return null;
+        }
+        
         return {
           type: 'error',
-          content: (e.message as string) ?? (e.error as string) ?? 'Unknown error',
+          content: errorMsg,
           raw: event,
         };
+      }
 
       default:
         return null;
@@ -211,4 +219,13 @@ export class CodexBackend implements Backend {
 
 export function createCodexBackend(): CodexBackend {
   return new CodexBackend();
+}
+
+// Transient errors are recoverable and should not halt pipelines
+const TRANSIENT_ERROR_PATTERNS = [
+  /^Reconnecting\.\.\. \d+\/\d+$/,  // Stream reconnection attempts
+];
+
+function isTransientError(message: string): boolean {
+  return TRANSIENT_ERROR_PATTERNS.some(pattern => pattern.test(message));
 }

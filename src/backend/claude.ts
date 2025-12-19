@@ -112,7 +112,12 @@ export class ClaudeBackend implements Backend {
 
       case 'result': {
         if (e.is_error === true) {
-          return { type: 'error', content: (e.result as string) ?? 'Unknown error', raw: event };
+          const errorMsg = (e.result as string) ?? 'Unknown error';
+          // Filter transient errors (retry attempts)
+          if (isTransientError(errorMsg)) {
+            return null;
+          }
+          return { type: 'error', content: errorMsg, raw: event };
         }
         
         const usage = e.usage as Record<string, unknown> | undefined;
@@ -131,12 +136,18 @@ export class ClaudeBackend implements Backend {
         };
       }
 
-      case 'error':
+      case 'error': {
+        const errorMsg = (e.error as Record<string, unknown>)?.message as string ?? 'Unknown error';
+        // Filter transient errors (retry attempts)
+        if (isTransientError(errorMsg)) {
+          return null;
+        }
         return {
           type: 'error',
-          content: (e.error as Record<string, unknown>)?.message as string ?? 'Unknown error',
+          content: errorMsg,
           raw: event,
         };
+      }
 
       default:
         return null;
@@ -146,4 +157,15 @@ export class ClaudeBackend implements Backend {
 
 export function createClaudeBackend(): ClaudeBackend {
   return new ClaudeBackend();
+}
+
+// Transient errors are recoverable and should not halt pipelines
+const TRANSIENT_ERROR_PATTERNS = [
+  /Retrying in \d+ seconds/i,           // API retry messages
+  /\(attempt \d+\/\d+\)/i,              // Retry attempt indicators
+  /API Error: Connection error/i,        // Connection errors with retry
+];
+
+function isTransientError(message: string): boolean {
+  return TRANSIENT_ERROR_PATTERNS.some(pattern => pattern.test(message));
 }

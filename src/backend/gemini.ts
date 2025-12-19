@@ -151,12 +151,19 @@ export class GeminiBackend implements Backend {
         };
       }
 
-      case 'error':
+      case 'error': {
+        // Gemini emits severity: 'warning' for non-fatal errors (e.g., loop detection)
+        const severity = e.severity as string | undefined;
+        if (severity === 'warning') {
+          return null;
+        }
+        
         return {
           type: 'error',
           content: (e.message as string) ?? (e.error as string) ?? 'Unknown error',
           raw: event,
         };
+      }
 
       default:
         return null;
