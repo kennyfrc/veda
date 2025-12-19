@@ -7,6 +7,7 @@ import type { Message, UsageStats } from '../backend';
 import {
   getBackend,
   extractText as backendExtractText,
+  extractErrors as backendExtractErrors,
   getSessionId as backendGetSessionId,
   getUsage as backendGetUsage,
 } from '../backend';
@@ -37,6 +38,7 @@ export interface LlmRequest {
 export interface LlmResponse {
   messages: Message[];
   text: string;
+  errors: string[];
   sessionId?: string;
   usage?: UsageStats;
 }
@@ -76,6 +78,7 @@ export async function runLlm(req: LlmRequest): Promise<LlmResponse> {
   return {
     messages,
     text: backendExtractText(messages),
+    errors: backendExtractErrors(messages),
     sessionId: backendGetSessionId(messages),
     usage: backendGetUsage(messages),
   };
@@ -114,6 +117,9 @@ export async function isBackendAvailable(backendName: string): Promise<boolean> 
 
 /** Extract text content from messages. */
 export const extractText = backendExtractText;
+
+/** Extract error messages from messages. */
+export const extractErrors = backendExtractErrors;
 
 /** Get session ID from messages (set on 'init' message). */
 export const getSessionId = backendGetSessionId;

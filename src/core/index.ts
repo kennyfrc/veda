@@ -15,6 +15,7 @@ export {
   streamLlm,
   isBackendAvailable,
   extractText,
+  extractErrors,
   getSessionId,
   getUsage,
   combineUsage,
