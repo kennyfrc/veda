@@ -118,6 +118,41 @@ export class GeminiBackend implements Backend {
         };
 
       case 'result': {
+        // Check for error status first
+        if (e.status === 'error') {
+          const errorObj = e.error as { message?: string; type?: string } | undefined;
+          let errorMsg = errorObj?.message ?? 'Unknown error';
+          
+          // Try to extract readable message from nested API error JSON
+          // Format: "[API Error: {\"error\":{\"message\":\"{nested json}\",\"code\":400}}]"
+          const jsonMatch = errorMsg.match(/\[API Error: (.+)\]$/);
+          if (jsonMatch) {
+            try {
+              const outer = JSON.parse(jsonMatch[1]) as { error?: { message?: string } };
+              if (outer.error?.message) {
+                try {
+                  // The message field may contain another JSON string
+                  const inner = JSON.parse(outer.error.message) as { error?: { message?: string } };
+                  if (inner.error?.message) {
+                    errorMsg = inner.error.message;
+                  }
+                } catch {
+                  // Inner parse failed, use outer message as-is
+                  errorMsg = outer.error.message;
+                }
+              }
+            } catch {
+              // JSON parse failed, keep original message
+            }
+          }
+          
+          return {
+            type: 'error',
+            content: errorMsg,
+            raw: event,
+          };
+        }
+        
         const stats = e.stats as Record<string, unknown> | undefined;
         return {
           type: 'done',
