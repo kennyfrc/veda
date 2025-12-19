@@ -1,4 +1,4 @@
-import { getBackend, extractText, getSessionId, getUsage, collectMessages } from '../backend';
+import { getBackend, extractText, extractErrors, getSessionId, getUsage, collectMessages } from '../backend';
 import { getDefaults, resolveAgentConfig, loadGlobalConfig } from '../agent';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
@@ -53,6 +53,7 @@ export async function handleResume(
   
   // Extract results
   const text = extractText(messages);
+  const errors = extractErrors(messages);
   const sessionId = getSessionId(messages);
   const usage = getUsage(messages);
   
@@ -62,6 +63,23 @@ export async function handleResume(
       backend: backendName,
       threadId: sessionId,
     });
+  }
+  
+  // Check for backend errors
+  if (errors.length > 0) {
+    if (options.json) {
+      console.log(JSON.stringify({
+        text,
+        error: errors.join('\n'),
+        sessionId,
+        usage,
+      }, null, 2));
+    } else {
+      for (const err of errors) {
+        console.error(`Error: ${err}`);
+      }
+    }
+    process.exit(1);
   }
   
   // Output

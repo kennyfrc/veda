@@ -82,6 +82,23 @@ export async function handleRun(
     });
   }
   
+  // Check for backend errors
+  if (response.errors.length > 0) {
+    if (options.json) {
+      console.log(JSON.stringify({
+        text: response.text,
+        error: response.errors.join('\n'),
+        sessionId: response.sessionId,
+        usage: response.usage,
+      }, null, 2));
+    } else {
+      for (const err of response.errors) {
+        console.error(`Error: ${err}`);
+      }
+    }
+    process.exit(1);
+  }
+  
   // Output
   if (options.output) {
     await Bun.write(options.output, response.text);
