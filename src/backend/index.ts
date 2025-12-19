@@ -9,6 +9,7 @@ export type {
 
 export {
   extractText,
+  extractErrors,
   getSessionId,
   getUsage,
   collectMessages,

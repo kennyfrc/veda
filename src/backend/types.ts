@@ -61,6 +61,13 @@ export function getUsage(messages: Message[]): UsageStats | undefined {
   return messages.find(m => m.type === 'done')?.usage;
 }
 
+export function extractErrors(messages: Message[]): string[] {
+  return messages
+    .filter(m => m.type === 'error')
+    .map(m => m.content ?? '')
+    .filter(c => c.length > 0);
+}
+
 export async function collectMessages(stream: AsyncIterable<Message>): Promise<Message[]> {
   const messages: Message[] = [];
   for await (const msg of stream) {
