@@ -128,9 +128,9 @@ export interface DeepThinkTrace {
 }
 
 export interface DeepThinkEvent {
-  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start';
+  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error';
   stage?: string;
-  /** For most events: descriptive content. For tool_start: tool name */
+  /** For most events: descriptive content. For tool_start: tool name. For error: error message */
   content?: string;
   /** For tool_start: source identifier (e.g., "solver-0", "judge", "verifier") */
   source?: string;
@@ -275,6 +275,26 @@ export async function* runDeepThink(
   // Yield any pending tool events from solvers
   while (pendingEvents.length > 0) {
     yield pendingEvents.shift()!;
+  }
+  
+  // Check for backend errors from solvers
+  const solverErrors = ensembleResult.outputs.flatMap(o => o.backendErrors ?? []);
+  if (solverErrors.length > 0) {
+    yield { type: 'error', stage: 'solve', content: solverErrors[0] };
+    return;
+  }
+  
+  // Check if all solvers failed
+  if (ensembleResult.successful.length === 0) {
+    const exceptionErrors = ensembleResult.outputs
+      .filter(o => o.error)
+      .map(o => o.error!);
+    yield { 
+      type: 'error', 
+      stage: 'solve', 
+      content: exceptionErrors[0] ?? 'All solvers failed to produce output',
+    };
+    return;
   }
   
   // Populate trace with solver candidates and modules

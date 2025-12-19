@@ -92,6 +92,11 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions): void {
       console.error(`[verify] ${event.content}`);
       break;
     
+    case 'error':
+      console.error(`Error: ${event.content}`);
+      process.exit(1);
+      break;
+    
     case 'complete':
       if (event.result) {
         console.error(`\n[complete] Stages: ${event.result.stages.join(' → ')}`);

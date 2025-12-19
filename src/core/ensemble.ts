@@ -19,7 +19,8 @@ export interface EnsembleOutput {
   id: string;
   text: string;
   usage?: UsageStats;
-  error?: string;
+  error?: string;         // Exception error
+  backendErrors?: string[]; // Errors from backend (auth, API, etc.)
 }
 
 export interface EnsembleResult {
@@ -59,6 +60,7 @@ export async function runEnsemble(
           id: member.id,
           text: response.text,
           usage: response.usage,
+          backendErrors: response.errors.length > 0 ? response.errors : undefined,
         };
       } catch (error) {
         return {
@@ -71,7 +73,7 @@ export async function runEnsemble(
   );
 
   const successful = results
-    .filter(r => !r.error && r.text)
+    .filter(r => !r.error && !r.backendErrors?.length && r.text)
     .map(r => r.text);
 
   const totalUsage = combineUsage(results.map(r => r.usage));
