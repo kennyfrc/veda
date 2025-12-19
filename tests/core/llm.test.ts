@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { combineUsage, extractText, getSessionId, getUsage } from '../../src/core/llm';
+import { combineUsage, extractText, extractErrors, getSessionId, getUsage } from '../../src/core/llm';
 import type { Message, UsageStats } from '../../src/core/llm';
 
 describe('llm helpers', () => {
@@ -22,6 +22,60 @@ describe('llm helpers', () => {
       ];
       
       expect(extractText(messages)).toBe('test');
+    });
+  });
+
+  describe('extractErrors', () => {
+    it('returns empty array when no errors', () => {
+      const messages: Message[] = [
+        { type: 'init', sessionId: 'abc' },
+        { type: 'text', content: 'Hello' },
+        { type: 'done' },
+      ];
+      
+      expect(extractErrors(messages)).toEqual([]);
+    });
+
+    it('extracts single error', () => {
+      const messages: Message[] = [
+        { type: 'init' },
+        { type: 'error', content: 'Auth failed' },
+        { type: 'done' },
+      ];
+      
+      expect(extractErrors(messages)).toEqual(['Auth failed']);
+    });
+
+    it('extracts multiple errors', () => {
+      const messages: Message[] = [
+        { type: 'error', content: 'Error 1' },
+        { type: 'text', content: 'some text' },
+        { type: 'error', content: 'Error 2' },
+      ];
+      
+      expect(extractErrors(messages)).toEqual(['Error 1', 'Error 2']);
+    });
+
+    it('filters out undefined content', () => {
+      const messages: Message[] = [
+        { type: 'error' },
+        { type: 'error', content: 'Real error' },
+      ];
+      
+      expect(extractErrors(messages)).toEqual(['Real error']);
+    });
+
+    it('filters out empty content', () => {
+      const messages: Message[] = [
+        { type: 'error', content: '' },
+        { type: 'error', content: 'Real error' },
+      ];
+      
+      expect(extractErrors(messages)).toEqual(['Real error']);
+    });
+
+    it('returns empty array for empty messages', () => {
+      expect(extractErrors([])).toEqual([]);
     });
   });
 
