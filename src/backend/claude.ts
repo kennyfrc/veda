@@ -114,6 +114,16 @@ export class ClaudeBackend implements Backend {
       }
 
       case 'result': {
+        // Check for error flag first
+        if (e.is_error === true) {
+          const errorMsg = (e.result as string) ?? 'Unknown error';
+          return {
+            type: 'error',
+            content: errorMsg,
+            raw: event,
+          };
+        }
+        
         const usage = e.usage as Record<string, unknown> | undefined;
         const cost = e.cost as Record<string, unknown> | undefined;
         
