@@ -3,11 +3,14 @@ import { runDeepThink, type DeepThinkEvent, type DeepThinkResult } from '../pipe
 import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
+import { loadGlobalConfig } from '../agent';
 
 export async function handleDeep(
   prompt: string,
   options: CliOptions
 ): Promise<void> {
+  const globalConfig = await loadGlobalConfig();
+
   // Build context from selection (unless --no-sel)
   let context: string | undefined;
   if (!options.noSel) {
@@ -47,7 +50,7 @@ export async function handleDeep(
     verifierBackend: options.verifierBackend,
     verifierModel: options.verifierModel,
   })) {
-    handleEvent(event, options);
+    handleEvent(event, options, globalConfig.notify);
     
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
@@ -61,8 +64,17 @@ export async function handleDeep(
   }
 }
 
-function handleEvent(event: DeepThinkEvent, options: CliOptions): void {
+function handleEvent(event: DeepThinkEvent, options: CliOptions, globalNotify?: boolean): void {
+  const shouldNotify = options.notify || globalNotify;
+
   switch (event.type) {
+    case 'ensemble_complete':
+      if (shouldNotify) {
+        import('../util/notify').then(({ notify }) => 
+          notify({ title: 'Veda Deep', message: 'Solvers complete' }));
+      }
+      break;
+
     case 'stage_start':
       console.error(`[${event.stage}] Starting...`);
       break;
@@ -81,6 +93,12 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions): void {
       break;
     
     case 'stage_complete':
+      if (shouldNotify) {
+        import('../util/notify').then(({ notify }) => {
+          const msg = event.stage === 'solve' ? 'Judge complete' : 'Verifier complete';
+          notify({ title: 'Veda Deep', message: msg });
+        });
+      }
       if (event.usage) {
         console.error(`[${event.stage}] Complete (${event.usage.inputTokens + event.usage.outputTokens} tokens)`);
       } else {
@@ -98,6 +116,10 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions): void {
       break;
     
     case 'complete':
+      if (shouldNotify) {
+        import('../util/notify').then(({ notify }) => 
+          notify({ title: 'Veda Deep', message: 'Deep thinking complete' }));
+      }
       if (event.result) {
         console.error(`\n[complete] Stages: ${event.result.stages.join(' → ')}`);
         console.error(`[complete] Confidence: ${(event.result.confidence * 100).toFixed(0)}%`);

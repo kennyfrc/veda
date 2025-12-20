@@ -33,6 +33,8 @@ export interface CliOptions {
   json?: boolean;
   /** Trace output file (YAML) for deep mode */
   trace?: string;
+  /** Enable system notifications */
+  notify?: boolean;
   /** Show help */
   help?: boolean;
   /** Show version */
@@ -192,6 +194,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.json = true;
         i++;
         continue;
+      case '--notify':
+        options.notify = true;
+        i++;
+        continue;
       case '--help':
       case '-h':
         options.help = true;
@@ -311,6 +317,7 @@ Options:
   -o, --output <file>     Save response to file
   -f, --files <file>      Ad-hoc files (doesn't modify selection)
   --no-sel                Ignore selection for this run
+  --notify                Enable system notifications
   --deep, -d              Enable deep thinking mode
   -k <num>                Number of parallel solvers (default: 4, max: 8)
   --categories <list>     Reasoning categories (comma-separated)

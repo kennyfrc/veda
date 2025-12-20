@@ -25,6 +25,7 @@ export interface GlobalConfig {
   persona?: string;
   backend?: string;
   session?: string;
+  notify?: boolean;
   backendModels?: Record<string, string>;      // Per-backend model: CODEX_MODEL, CLAUDE_CODE_MODEL, etc.
   backendReasoning?: Record<string, ReasoningLevel>;  // Per-backend reasoning: CODEX_REASONING, etc.
 }
@@ -79,6 +80,9 @@ export function parseConfigFile(content: string): GlobalConfig {
           break;
         case 'SESSION':
           config.session = value;
+          break;
+        case 'NOTIFY':
+          config.notify = value.toLowerCase() === 'true';
           break;
       }
     }
@@ -258,15 +262,23 @@ export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedB
   let modelForResolution: string | undefined;
   let fromAlias = false;
   
-  // Step 1 & 2: Determine if alias applies
+  // Try to resolve alias if model is provided
+  const aliasTarget = explicitModel ? resolveModelAlias(explicitModel) : undefined;
+
   if (explicitBackend) {
-    // Explicit backend provided - no alias mapping
-    // Treat explicitModel as a literal model name
+    // Explicit backend provided
     backend = explicitBackend;
-    modelForResolution = explicitModel ?? fallbackModel;
+    
+    if (aliasTarget && aliasTarget.backend === explicitBackend) {
+      // Model is an alias for this specific backend
+      modelForResolution = aliasTarget.model;
+      fromAlias = true;
+    } else {
+      // Treat explicitModel as a literal model name
+      modelForResolution = explicitModel ?? fallbackModel;
+    }
   } else if (explicitModel) {
     // No explicit backend - check if model is an alias
-    const aliasTarget = resolveModelAlias(explicitModel);
     if (aliasTarget) {
       // Alias matched - use alias's backend and model
       backend = aliasTarget.backend;

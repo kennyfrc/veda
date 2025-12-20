@@ -84,7 +84,7 @@ export interface DeepThinkTrace {
 }
 
 export interface DeepThinkEvent {
-  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error';
+  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete';
   stage?: string;
   content?: string;
   source?: string;
@@ -229,6 +229,8 @@ export async function* runDeepThink(
   while (pendingEvents.length > 0) {
     yield pendingEvents.shift()!;
   }
+
+  yield { type: 'ensemble_complete', usage: ensembleResult.totalUsage };
   
   // Check for backend errors from solvers
   const solverErrors = ensembleResult.outputs.flatMap(o => o.backendErrors ?? []);

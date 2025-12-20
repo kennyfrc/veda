@@ -115,6 +115,12 @@ export async function handleRun(
   } else {
     console.log(response.text);
   }
+
+  // Notify on completion
+  if (options.notify || globalConfig.notify) {
+    const { notify } = await import('../util/notify');
+    notify({ title: 'Veda', message: 'Response complete' });
+  }
 }
 
 /**
