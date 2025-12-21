@@ -84,7 +84,7 @@ export interface DeepThinkTrace {
 }
 
 export interface DeepThinkEvent {
-  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete';
+  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete' | 'solver_complete';
   stage?: string;
   content?: string;
   source?: string;
@@ -161,10 +161,19 @@ export async function* runDeepThink(
   
   // Event queue for tool_start events from callbacks
   const pendingEvents: DeepThinkEvent[] = [];
+  let resolveNextEvent: (() => void) | null = null;
+  
+  const pushEvent = (event: DeepThinkEvent) => {
+    pendingEvents.push(event);
+    if (resolveNextEvent) {
+      resolveNextEvent();
+      resolveNextEvent = null;
+    }
+  };
   
   // Helper to create tool_start event from message
   const makeToolEvent = (source: string, msg: Message): DeepThinkEvent | null => {
-    if (msg.type !== 'tool_start') return null;
+    if (msg.type !== 'tool_start' && msg.type !== 'tool_use') return null;
     return {
       type: 'tool_start',
       source,
@@ -219,17 +228,49 @@ export async function* runDeepThink(
   }));
   
   // Run ensemble with event callback
-  const ensembleResult = await runEnsemble(members, (event: EnsembleEvent) => {
+  const ensemblePromise = runEnsemble(members, (event: EnsembleEvent) => {
     const toolEvent = makeToolEvent(event.memberId, event.message);
-    if (toolEvent) pendingEvents.push(toolEvent);
+    if (toolEvent) pushEvent(toolEvent);
+    
+    if (event.message.type === 'done') {
+      pushEvent({
+        type: 'solver_complete',
+        stage: 'solve',
+        source: event.memberId,
+        usage: event.message.usage,
+      });
+    }
   });
-  usages.push(ensembleResult.totalUsage);
-  
-  // Yield any pending tool events from solvers
-  while (pendingEvents.length > 0) {
-    yield pendingEvents.shift()!;
+
+  // Yield events as they arrive until ensemble is complete
+  let finished = false;
+  ensemblePromise.finally(() => {
+    finished = true;
+    if (resolveNextEvent) {
+      resolveNextEvent();
+      resolveNextEvent = null;
+    }
+  });
+
+  while (!finished || pendingEvents.length > 0) {
+    if (pendingEvents.length === 0 && !finished) {
+      await new Promise<void>(resolve => { 
+        // Re-check finished inside the promise constructor to close the race window
+        if (finished) {
+          resolve();
+        } else {
+          resolveNextEvent = resolve; 
+        }
+      });
+    }
+    while (pendingEvents.length > 0) {
+      yield pendingEvents.shift()!;
+    }
   }
 
+  const ensembleResult = await ensemblePromise;
+  usages.push(ensembleResult.totalUsage);
+  
   yield { type: 'ensemble_complete', usage: ensembleResult.totalUsage };
   
   // Check for backend errors from solvers

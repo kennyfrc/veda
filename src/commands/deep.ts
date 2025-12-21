@@ -75,6 +75,24 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions, globalNotify?: 
       }
       break;
 
+    case 'solver_complete': {
+      // ID format: solver-${i}-${category}
+      const parts = event.source?.split('-') || [];
+      const name = parts.length >= 3 ? parts.slice(2).join('-') : (event.source || 'unknown');
+      
+      if (shouldNotify) {
+        import('../util/notify').then(({ notify }) => 
+          notify({ title: 'Veda Deep', message: `Solver '${name}' complete` }));
+      }
+      if (event.usage) {
+        const tokens = event.usage.inputTokens + event.usage.outputTokens;
+        console.error(`  [solve] Solver '${name}' complete (${tokens} tokens)`);
+      } else {
+        console.error(`  [solve] Solver '${name}' complete`);
+      }
+      break;
+    }
+
     case 'stage_start':
       console.error(`[${event.stage}] Starting...`);
       break;

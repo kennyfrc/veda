@@ -101,8 +101,8 @@ export class GeminiBackend implements Backend {
       case 'tool_use':
         return {
           type: 'tool_use',
-          toolName: e.name as string,
-          toolInput: e.input,
+          toolName: (e.tool_name as string) ?? (e.name as string),
+          toolInput: e.parameters ?? e.input,
           raw: event,
         };
 
