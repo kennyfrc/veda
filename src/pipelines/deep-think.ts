@@ -132,7 +132,7 @@ export async function* runDeepThink(
       const base = resolveBackendModel({
         explicitBackend: options.backend,
         explicitModel: options.model,
-        fallbackBackend: defaults.backend,
+        fallbackBackend: options.backend ?? globalConfig.backend,
         globalConfig,
       });
       

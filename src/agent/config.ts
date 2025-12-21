@@ -24,6 +24,7 @@ export interface AgentConfig {
 export interface GlobalConfig {
   persona?: string;
   backend?: string;
+  model?: string;
   session?: string;
   notify?: boolean;
   backendModels?: Record<string, string>;      // Per-backend model: CODEX_MODEL, CLAUDE_CODE_MODEL, etc.
@@ -72,6 +73,9 @@ export function parseConfigFile(content: string): GlobalConfig {
           break;
         case 'BACKEND':
           config.backend = value;
+          break;
+        case 'MODEL':
+          config.model = value;
           break;
         case 'SESSION':
           config.session = value;
@@ -155,6 +159,15 @@ export function resolveModel(options: ResolveModelOptions): string | undefined {
   
   const userOverride = globalConfig?.backendModels?.[backend];
   if (userOverride) return userOverride;
+
+  if (globalConfig?.model) {
+    const alias = resolveModelAlias(globalConfig.model);
+    // If it's an alias, only use it if it matches the current backend.
+    // If it's not an alias, we treat it as a literal model name for the current backend.
+    if (!alias || alias.backend === backend) {
+      return globalConfig.model;
+    }
+  }
   
   return getBackendDefaultModel(backend);
 }
@@ -192,9 +205,12 @@ export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedB
   let backend: string;
   let modelForResolution: string | undefined;
   let fromAlias = false;
+
+  // Potential model to use for resolution if nothing else is provided
+  const preferredModel = explicitModel ?? fallbackModel ?? globalConfig?.model;
   
   // Try to resolve alias if model is provided
-  const aliasTarget = explicitModel ? resolveModelAlias(explicitModel) : undefined;
+  const aliasTarget = preferredModel ? resolveModelAlias(preferredModel) : undefined;
 
   if (explicitBackend) {
     // Explicit backend provided
@@ -205,8 +221,8 @@ export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedB
       modelForResolution = aliasTarget.model;
       fromAlias = true;
     } else {
-      // Treat explicitModel as a literal model name
-      modelForResolution = explicitModel ?? fallbackModel;
+      // Treat preferredModel as a literal model name for this backend
+      modelForResolution = preferredModel;
     }
   } else if (explicitModel) {
     // No explicit backend - check if model is an alias
@@ -222,7 +238,6 @@ export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedB
     }
   } else if (fallbackModel) {
     // No explicit model but have fallback - check if fallback is an alias
-    const aliasTarget = resolveModelAlias(fallbackModel);
     if (aliasTarget && !fallbackBackend) {
       // Fallback model is an alias and no backend specified
       backend = aliasTarget.backend;
@@ -233,13 +248,23 @@ export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedB
       backend = fallbackBackend ?? 'codex';
       modelForResolution = fallbackModel;
     }
+  } else if (globalConfig?.model) {
+    // Use global config model as fallback
+    if (aliasTarget && !fallbackBackend) {
+      backend = aliasTarget.backend;
+      modelForResolution = aliasTarget.model;
+      fromAlias = true;
+    } else {
+      backend = fallbackBackend ?? 'codex';
+      modelForResolution = globalConfig.model;
+    }
   } else {
     // No model specified at all - use fallback backend
     backend = fallbackBackend ?? 'codex';
     modelForResolution = undefined;
   }
   
-  // Step 4: Resolve final model using 4-level precedence
+  // Step 4: Resolve final model using precedence logic in resolveModel
   const model = resolveModel({
     backend,
     explicitModel: modelForResolution,
