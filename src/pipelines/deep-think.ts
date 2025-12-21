@@ -1,6 +1,7 @@
 // DeepThink: parallel solvers → judge aggregation → optional verification.
 
 import { getDefaults, loadGlobalConfig, resolveBackendModel } from '../agent';
+import { AsyncQueue } from '../util';
 import type { Message, UsageStats } from '../backend';
 import {
   runEnsemble,
@@ -107,62 +108,11 @@ export async function* runDeepThink(
     verifyReasoning = 'high',
   } = options;
   
-  const defaults = await getDefaults();
-  const globalConfig = await loadGlobalConfig();
-  
-  const base = resolveBackendModel({
-    explicitBackend: options.backend,
-    explicitModel: options.model,
-    fallbackBackend: defaults.backend,
-    globalConfig,
-  });
-  
-  const solver = resolveBackendModel({
-    explicitBackend: options.solverBackend,
-    explicitModel: options.solverModel,
-    fallbackBackend: base.backend,
-    fallbackModel: base.model,
-    globalConfig,
-  });
-  
-  const judge = resolveBackendModel({
-    explicitBackend: options.judgeBackend,
-    explicitModel: options.judgeModel,
-    fallbackBackend: base.backend,
-    fallbackModel: base.model,
-    globalConfig,
-  });
-  
-  const verifier = resolveBackendModel({
-    explicitBackend: options.verifierBackend,
-    explicitModel: options.verifierModel,
-    fallbackBackend: base.backend,
-    fallbackModel: base.model,
-    globalConfig,
-  });
-  
-  if (!solver.model) {
-    throw new Error(`Unable to resolve model for solver backend '${solver.backend}'. Specify --solver-model or set MODEL in config.`);
-  }
-  if (!judge.model) {
-    throw new Error(`Unable to resolve model for judge backend '${judge.backend}'. Specify --judge-model or set MODEL in config.`);
-  }
-  
+  const queue = new AsyncQueue<DeepThinkEvent>();
   const usages: (UsageStats | undefined)[] = [];
   const stages: string[] = [];
   const cwd = options.cwd ?? process.cwd();
-  
-  const pendingEvents: DeepThinkEvent[] = [];
-  let resolveNextEvent: (() => void) | null = null;
-  
-  const pushEvent = (event: DeepThinkEvent) => {
-    pendingEvents.push(event);
-    if (resolveNextEvent) {
-      resolveNextEvent();
-      resolveNextEvent = null;
-    }
-  };
-  
+
   const makeToolEvent = (source: string, msg: Message): DeepThinkEvent | null => {
     if (msg.type !== 'tool_start' && msg.type !== 'tool_use') return null;
     return {
@@ -172,257 +122,276 @@ export async function* runDeepThink(
       toolInput: msg.toolInput,
     };
   };
-  
-  const trace: DeepThinkTrace = {
-    prompt,
-    context,
-    options: {
-      backend: base.backend,
-      model: base.model,
-      k,
-      verify,
-      categories: options.categories,
-      modules: options.modules,
-      solver: { backend: solver.backend, model: solver.model },
-      judge: { backend: judge.backend, model: judge.model },
-      verifier: { backend: verifier.backend, model: verifier.model },
-    },
-    solve: { candidates: [] },
-    judge: { selectedIndex: 0, confidence: 0 },
-  };
-  
-  yield { type: 'stage_start', stage: 'solve' };
-  stages.push('solve');
-  
-  const modules = selectModules({
-    k,
-    categories: options.categories,
-    modules: options.modules,
-  });
-  
-  const members: EnsembleMember[] = modules.map((module, i) => ({
-    id: `solver-${i}-${module.category}`,
-    request: {
-      backend: solver.backend,
-      model: solver.model,
-      prompt,
-      context,
-      systemPrompt: buildDeepSolverSystemPrompt({ module }),
-      reasoning: solverReasoning,
-      sandbox: 'read-only' as const,
-      cwd,
-    },
-  }));
-  
-  const ensemblePromise = runEnsemble(members, (event: EnsembleEvent) => {
-    const toolEvent = makeToolEvent(event.memberId, event.message);
-    if (toolEvent) pushEvent(toolEvent);
-    
-    if (event.message.type === 'done') {
-      pushEvent({
-        type: 'solver_complete',
-        stage: 'solve',
-        source: event.memberId,
-        usage: event.message.usage,
+
+  // Run the main logic in the background
+  (async () => {
+    try {
+      const defaults = await getDefaults();
+      const globalConfig = await loadGlobalConfig();
+      
+      const base = resolveBackendModel({
+        explicitBackend: options.backend,
+        explicitModel: options.model,
+        fallbackBackend: defaults.backend,
+        globalConfig,
       });
-    }
-  });
-
-  let finished = false;
-  ensemblePromise.finally(() => {
-    finished = true;
-    if (resolveNextEvent) {
-      resolveNextEvent();
-      resolveNextEvent = null;
-    }
-  }).catch(() => {});
-
-  while (!finished || pendingEvents.length > 0) {
-    if (pendingEvents.length === 0 && !finished) {
-      await new Promise<void>(resolve => { 
-        if (finished || pendingEvents.length > 0) {
-          resolve();
-        } else {
-          resolveNextEvent = resolve; 
+      
+      const solver = resolveBackendModel({
+        explicitBackend: options.solverBackend,
+        explicitModel: options.solverModel,
+        fallbackBackend: base.backend,
+        fallbackModel: base.model,
+        globalConfig,
+      });
+      
+      const judge = resolveBackendModel({
+        explicitBackend: options.judgeBackend,
+        explicitModel: options.judgeModel,
+        fallbackBackend: base.backend,
+        fallbackModel: base.model,
+        globalConfig,
+      });
+      
+      const verifier = resolveBackendModel({
+        explicitBackend: options.verifierBackend,
+        explicitModel: options.verifierModel,
+        fallbackBackend: base.backend,
+        fallbackModel: base.model,
+        globalConfig,
+      });
+      
+      if (!solver.model) {
+        throw new Error(`Unable to resolve model for solver backend '${solver.backend}'. Specify --solver-model or set MODEL in config.`);
+      }
+      if (!judge.model) {
+        throw new Error(`Unable to resolve model for judge backend '${judge.backend}'. Specify --judge-model or set MODEL in config.`);
+      }
+      
+      const trace: DeepThinkTrace = {
+        prompt,
+        context,
+        options: {
+          backend: base.backend,
+          model: base.model,
+          k,
+          verify,
+          categories: options.categories,
+          modules: options.modules,
+          solver: { backend: solver.backend, model: solver.model },
+          judge: { backend: judge.backend, model: judge.model },
+          verifier: { backend: verifier.backend, model: verifier.model },
+        },
+        solve: { candidates: [] },
+        judge: { selectedIndex: 0, confidence: 0 },
+      };
+      
+      queue.push({ type: 'stage_start', stage: 'solve' });
+      stages.push('solve');
+      
+      const modules = selectModules({
+        k,
+        categories: options.categories,
+        modules: options.modules,
+      });
+      
+      const members: EnsembleMember[] = modules.map((module, i) => ({
+        id: `solver-${i}-${module.category}`,
+        request: {
+          backend: solver.backend,
+          model: solver.model,
+          prompt,
+          context,
+          systemPrompt: buildDeepSolverSystemPrompt({ module }),
+          reasoning: solverReasoning,
+          sandbox: 'read-only' as const,
+          cwd,
+        },
+      }));
+      
+      const ensembleResult = await runEnsemble(members, (event: EnsembleEvent) => {
+        const toolEvent = makeToolEvent(event.memberId, event.message);
+        if (toolEvent) queue.push(toolEvent);
+        
+        if (event.message.type === 'done') {
+          queue.push({
+            type: 'solver_complete',
+            stage: 'solve',
+            source: event.memberId,
+            usage: event.message.usage,
+          });
         }
       });
-    }
-    while (pendingEvents.length > 0) {
-      yield pendingEvents.shift()!;
-    }
-  }
 
-  const ensembleResult = await ensemblePromise;
-  usages.push(ensembleResult.totalUsage);
-  
-  yield { type: 'ensemble_complete', usage: ensembleResult.totalUsage };
-  
-  const solverErrors = ensembleResult.outputs.flatMap(o => o.backendErrors ?? []);
-  if (solverErrors.length > 0) {
-    yield { type: 'error', stage: 'solve', content: solverErrors[0] };
-    return;
-  }
-  
-  if (ensembleResult.successful.length === 0) {
-    const exceptionErrors = ensembleResult.outputs
-      .filter(o => o.error)
-      .map(o => o.error!);
-    yield { 
-      type: 'error', 
-      stage: 'solve', 
-      content: exceptionErrors[0] ?? 'All solvers failed to produce output',
-    };
-    return;
-  }
-  
-  for (let i = 0; i < ensembleResult.outputs.length; i++) {
-    const output = ensembleResult.outputs[i];
-    const module = modules[i];
-    trace.solve.candidates.push({
-      id: output.id,
-      module: {
-        id: module.id,
-        category: module.category,
-        name: module.name,
-      },
-      response: output.text,
-      usage: output.usage,
-    });
-  }
-  
-  const judgeResult = await runJudge({
-    backend: judge.backend,
-    model: judge.model,
-    systemPrompt: JUDGE_SYSTEM_PROMPT,
-    reasoning: judgeReasoning,
-    sandbox: 'read-only',
-    cwd,
-    candidates: ensembleResult.successful,
-    originalTask: prompt,
-    onMessage: (msg: Message) => {
-      const toolEvent = makeToolEvent('judge', msg);
-      if (toolEvent) pendingEvents.push(toolEvent);
-    },
-  });
-  usages.push(judgeResult.usage);
-  
-  while (pendingEvents.length > 0) {
-    yield pendingEvents.shift()!;
-  }
-  
-  trace.judge.selectedIndex = judgeResult.decision.selectedIndex;
-  trace.judge.confidence = judgeResult.decision.confidence;
-  trace.judge.reasoning = judgeResult.decision.reasoning;
-  
-  for (let i = 0; i < ensembleResult.successful.length; i++) {
-    yield {
-      type: 'candidate',
-      stage: 'solve',
-      content: `Candidate ${i + 1}: ${truncate(ensembleResult.successful[i], 200)}`,
-    };
-  }
-  
-  yield {
-    type: 'selected',
-    stage: 'solve',
-    content: judgeResult.selected,
-    confidence: judgeResult.decision.confidence,
-  };
-  
-  yield {
-    type: 'stage_complete',
-    stage: 'solve',
-    confidence: judgeResult.decision.confidence,
-    usage: ensembleResult.totalUsage,
-  };
-  
-  let finalAnswer = judgeResult.selected;
-  let wasRevised = false;
-  
-  // Verify if judge confidence is low (< 0.7)
-  const shouldVerify = verify && judgeResult.decision.confidence < 0.7;
-  
-  if (shouldVerify) {
-    if (!verifier.model) {
-      throw new Error(`Unable to resolve model for verifier backend '${verifier.backend}'. Specify --verifier-model or set MODEL in config.`);
-    }
-    
-    yield { type: 'stage_start', stage: 'verify' };
-    stages.push('verify');
-    
-    const verifyResult = await runVerification({
-      backend: verifier.backend,
-      model: verifier.model,
-      systemPrompt: VERIFIER_SYSTEM_PROMPT,
-      reasoning: verifyReasoning,
-      sandbox: 'full',
-      cwd,
-      type: 'reasoning',
-      draft: finalAnswer,
-      originalTask: prompt,
-      onMessage: (msg: Message) => {
-        const toolEvent = makeToolEvent('verifier', msg);
-        if (toolEvent) pendingEvents.push(toolEvent);
-      },
-    });
-    usages.push(verifyResult.usage);
-    
-    while (pendingEvents.length > 0) {
-      yield pendingEvents.shift()!;
-    }
-    
-    trace.verify = {
-      checks: verifyResult.checks.map(c => ({
-        id: c.id,
-        question: c.question,
-        targetClaim: c.targetClaim,
-      })),
-      results: verifyResult.results.map(r => ({
-        checkId: r.checkId,
-        answer: r.answer,
-        verdict: r.contradictsDraft ? 'contradicts' : (r.confidence >= 0.7 ? 'supports' : 'uncertain'),
-        confidence: r.confidence,
-      })),
-    };
-    
-    if (verifyResult.revision && !verifyResult.revision.unchanged) {
-      finalAnswer = verifyResult.revision.revised;
-      wasRevised = true;
+      usages.push(ensembleResult.totalUsage);
+      queue.push({ type: 'ensemble_complete', usage: ensembleResult.totalUsage });
       
-      trace.verify.revision = {
-        changes: verifyResult.revision.changes,
-        revised: verifyResult.revision.revised,
+      const solverErrors = ensembleResult.outputs.flatMap(o => o.backendErrors ?? []);
+      if (solverErrors.length > 0) {
+        queue.push({ type: 'error', stage: 'solve', content: solverErrors[0] });
+        queue.done();
+        return;
+      }
+      
+      if (ensembleResult.successful.length === 0) {
+        const exceptionErrors = ensembleResult.outputs
+          .filter(o => o.error)
+          .map(o => o.error!);
+        queue.push({ 
+          type: 'error', 
+          stage: 'solve', 
+          content: exceptionErrors[0] ?? 'All solvers failed to produce output',
+        });
+        queue.done();
+        return;
+      }
+      
+      for (let i = 0; i < ensembleResult.outputs.length; i++) {
+        const output = ensembleResult.outputs[i];
+        const module = modules[i];
+        trace.solve.candidates.push({
+          id: output.id,
+          module: {
+            id: module.id,
+            category: module.category,
+            name: module.name,
+          },
+          response: output.text,
+          usage: output.usage,
+        });
+      }
+      
+      const judgeResult = await runJudge({
+        backend: judge.backend,
+        model: judge.model,
+        systemPrompt: JUDGE_SYSTEM_PROMPT,
+        reasoning: judgeReasoning,
+        sandbox: 'read-only',
+        cwd,
+        candidates: ensembleResult.successful,
+        originalTask: prompt,
+        onMessage: (msg: Message) => {
+          const toolEvent = makeToolEvent('judge', msg);
+          if (toolEvent) queue.push(toolEvent);
+        },
+      });
+      usages.push(judgeResult.usage);
+      
+      trace.judge.selectedIndex = judgeResult.decision.selectedIndex;
+      trace.judge.confidence = judgeResult.decision.confidence;
+      trace.judge.reasoning = judgeResult.decision.reasoning;
+      
+      for (let i = 0; i < ensembleResult.successful.length; i++) {
+        queue.push({
+          type: 'candidate',
+          stage: 'solve',
+          content: `Candidate ${i + 1}: ${truncate(ensembleResult.successful[i], 200)}`,
+        });
+      }
+      
+      queue.push({
+        type: 'selected',
+        stage: 'solve',
+        content: judgeResult.selected,
+        confidence: judgeResult.decision.confidence,
+      });
+      
+      queue.push({
+        type: 'stage_complete',
+        stage: 'solve',
+        confidence: judgeResult.decision.confidence,
+        usage: ensembleResult.totalUsage,
+      });
+      
+      let finalAnswer = judgeResult.selected;
+      let wasRevised = false;
+      
+      // Verify if judge confidence is low (< 0.7)
+      const shouldVerify = verify && judgeResult.decision.confidence < 0.7;
+      
+      if (shouldVerify) {
+        if (!verifier.model) {
+          throw new Error(`Unable to resolve model for verifier backend '${verifier.backend}'. Specify --verifier-model or set MODEL in config.`);
+        }
+        
+        queue.push({ type: 'stage_start', stage: 'verify' });
+        stages.push('verify');
+        
+        const verifyResult = await runVerification({
+          backend: verifier.backend,
+          model: verifier.model,
+          systemPrompt: VERIFIER_SYSTEM_PROMPT,
+          reasoning: verifyReasoning,
+          sandbox: 'full',
+          cwd,
+          type: 'reasoning',
+          draft: finalAnswer,
+          originalTask: prompt,
+          onMessage: (msg: Message) => {
+            const toolEvent = makeToolEvent('verifier', msg);
+            if (toolEvent) queue.push(toolEvent);
+          },
+        });
+        usages.push(verifyResult.usage);
+        
+        trace.verify = {
+          checks: verifyResult.checks.map(c => ({
+            id: c.id,
+            question: c.question,
+            targetClaim: c.targetClaim,
+          })),
+          results: verifyResult.results.map(r => ({
+            checkId: r.checkId,
+            answer: r.answer,
+            verdict: r.contradictsDraft ? 'contradicts' : (r.confidence >= 0.7 ? 'supports' : 'uncertain'),
+            confidence: r.confidence,
+          })),
+        };
+        
+        if (verifyResult.revision && !verifyResult.revision.unchanged) {
+          finalAnswer = verifyResult.revision.revised;
+          wasRevised = true;
+          
+          trace.verify.revision = {
+            changes: verifyResult.revision.changes,
+            revised: verifyResult.revision.revised,
+          };
+          
+          queue.push({
+            type: 'verified',
+            stage: 'verify',
+            content: `Revised: ${verifyResult.revision.changes.join(', ')}`,
+          });
+        }
+        
+        queue.push({
+          type: 'stage_complete',
+          stage: 'verify',
+        });
+      }
+      
+      const totalUsage = combineUsage(usages);
+      
+      const result: DeepThinkResult = {
+        answer: finalAnswer,
+        confidence: judgeResult.decision.confidence,
+        candidates: ensembleResult.successful,
+        wasRevised,
+        usage: totalUsage,
+        stages,
+        trace,
       };
       
-      yield {
-        type: 'verified',
-        stage: 'verify',
-        content: `Revised: ${verifyResult.revision.changes.join(', ')}`,
-      };
+      queue.push({
+        type: 'complete',
+        result,
+      });
+      queue.done();
+    } catch (e) {
+      queue.fail(e instanceof Error ? e : new Error(String(e)));
     }
-    
-    yield {
-      type: 'stage_complete',
-      stage: 'verify',
-    };
-  }
-  
-  const totalUsage = combineUsage(usages);
-  
-  const result: DeepThinkResult = {
-    answer: finalAnswer,
-    confidence: judgeResult.decision.confidence,
-    candidates: ensembleResult.successful,
-    wasRevised,
-    usage: totalUsage,
-    stages,
-    trace,
-  };
-  
-  yield {
-    type: 'complete',
-    result,
-  };
+  })();
+
+  yield* queue;
 }
 
 function truncate(text: string, maxLen: number): string {
