@@ -250,13 +250,13 @@ export async function* runDeepThink(
       resolveNextEvent();
       resolveNextEvent = null;
     }
-  });
+  }).catch(() => {}); // Prevent unhandled rejection from the finally branch
 
   while (!finished || pendingEvents.length > 0) {
     if (pendingEvents.length === 0 && !finished) {
       await new Promise<void>(resolve => { 
-        // Re-check finished inside the promise constructor to close the race window
-        if (finished) {
+        // Re-check finished/pending inside the promise constructor to close the race window
+        if (finished || pendingEvents.length > 0) {
           resolve();
         } else {
           resolveNextEvent = resolve; 
