@@ -81,9 +81,12 @@ export function parseConfigFile(content: string): GlobalConfig {
         case 'SESSION':
           config.session = value;
           break;
-        case 'NOTIFY':
-          config.notify = value.toLowerCase() === 'true';
+        case 'NOTIFY': {
+          const lval = value.toLowerCase();
+          if (lval === 'true') config.notify = true;
+          if (lval === 'false') config.notify = false;
           break;
+        }
       }
     }
   }

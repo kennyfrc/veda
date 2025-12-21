@@ -117,7 +117,7 @@ export async function handleRun(
   }
 
   // Notify on completion
-  if (options.notify || globalConfig.notify) {
+  if (options.notify ?? globalConfig.notify ?? true) {
     const { notify } = await import('../util/notify');
     notify({ title: 'Veda', message: 'Response complete' });
   }

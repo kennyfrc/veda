@@ -65,7 +65,7 @@ export async function handleDeep(
 }
 
 function handleEvent(event: DeepThinkEvent, options: CliOptions, globalNotify?: boolean): void {
-  const shouldNotify = options.notify || globalNotify;
+  const shouldNotify = options.notify ?? globalNotify ?? true;
 
   switch (event.type) {
     case 'ensemble_complete':
