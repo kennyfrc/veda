@@ -10,12 +10,10 @@ export async function handleRun(
   prompt: string,
   options: CliOptions
 ): Promise<void> {
-  // Get defaults and global config
   const defaults = await getDefaults();
   const globalConfig = await loadGlobalConfig();
   
-  // Resolve backend and model together (supports model aliases)
-  // This enables `-m opus` (without -b) to auto-select claude-code backend
+  // supports model aliases: `-m opus` auto-selects claude-code backend
   const resolved = resolveBackendModel({
     explicitBackend: options.backend,
     explicitModel: options.model,
@@ -25,17 +23,15 @@ export async function handleRun(
   
   const backendName = resolved.backend;
   
-  // Check backend availability
   if (!await isBackendAvailable(backendName)) {
     console.error(`Backend '${backendName}' is not available. Is it installed?`);
     process.exit(1);
   }
   
-  // Resolve agent config with the resolved backend/model
   const config = await resolveAgentConfig(
     {
       persona: options.persona,
-      model: resolved.model,  // Use resolved model (may be from alias)
+      model: resolved.model,
       reasoning: options.reasoning,
       sandbox: options.sandbox,
       backend: backendName,
@@ -44,25 +40,21 @@ export async function handleRun(
     globalConfig
   );
   
-  // Build context from selection (unless --no-sel)
   let context: string | undefined;
   if (!options.noSel) {
     const contextStore = new ContextStore({ sessionId: options.session });
     const entries = await contextStore.list();
     
     if (entries.length > 0) {
-      // serialize() is best-effort and non-throwing
       context = await contextStore.serialize();
     }
   }
   
-  // Add ad-hoc files if provided
   if (options.files && options.files.length > 0) {
     const adhocContext = await buildAdhocContext(options.files);
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
   
-  // Run the prompt using core/llm primitive
   const response = await runLlm({
     backend: backendName,
     prompt,
@@ -73,7 +65,6 @@ export async function handleRun(
     sandbox: config.sandbox,
   });
   
-  // Save thread ID for resume
   if (response.sessionId) {
     const conversationStore = new ConversationStore({ sessionId: options.session });
     await conversationStore.save({
@@ -82,7 +73,6 @@ export async function handleRun(
     });
   }
   
-  // Check for backend errors
   if (response.errors.length > 0) {
     if (options.json) {
       console.log(JSON.stringify({
@@ -99,7 +89,6 @@ export async function handleRun(
     process.exit(1);
   }
   
-  // Output
   if (options.output) {
     await Bun.write(options.output, response.text);
     console.error(`Response saved to ${options.output}`);
@@ -116,7 +105,6 @@ export async function handleRun(
     console.log(response.text);
   }
 
-  // Notify on completion
   if (options.notify ?? globalConfig.notify ?? true) {
     const { notify } = await import('../util/notify');
     notify({ title: 'Veda', message: 'Response complete' });
@@ -124,8 +112,7 @@ export async function handleRun(
 }
 
 /**
- * Build context from ad-hoc files.
- * Uses the same format as ContextStore.serialize().
+ * Build context from ad-hoc files using the same format as ContextStore.serialize().
  */
 async function buildAdhocContext(files: string[]): Promise<string> {
   const cwd = process.cwd();

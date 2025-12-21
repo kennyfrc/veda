@@ -1,4 +1,4 @@
-// Core LLM primitive: plain data types + functions, no hidden state.
+// LLM primitives: stateless data types and functions.
 
 import type { Message, UsageStats } from '../backend';
 import {

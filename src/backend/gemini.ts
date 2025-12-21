@@ -118,7 +118,7 @@ export class GeminiBackend implements Backend {
           const errorObj = e.error as { message?: string; type?: string } | undefined;
           let errorMsg = errorObj?.message ?? 'Unknown error';
           
-          // Gemini wraps errors as: [API Error: {"error":{"message":"{nested json}"}}]
+          // Gemini wraps errors: [API Error: {"error":{"message":"{nested json}"}}]
           const jsonMatch = errorMsg.match(/\[API Error: (.+)\]$/);
           if (jsonMatch) {
             try {

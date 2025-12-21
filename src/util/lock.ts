@@ -1,8 +1,8 @@
 import { dirname } from 'path';
 import { mkdir } from 'fs/promises';
 
-const LOCK_TIMEOUT_MS = 5000; // 5 seconds
-const LOCK_STALE_MS = 30000; // 30 seconds - locks older than this are considered stale
+const LOCK_TIMEOUT_MS = 5000;
+const LOCK_STALE_MS = 30000; // Locks older than this are considered stale
 
 export interface LockOptions {
   timeout?: number;
@@ -16,35 +16,25 @@ export class LockError extends Error {
   }
 }
 
-/**
- * Get lockfile path for a given file
- */
 function getLockPath(filePath: string): string {
   return `${filePath}.lock`;
 }
 
-/**
- * Check if a lock is stale (older than threshold)
- */
 async function isLockStale(lockPath: string, staleThreshold: number): Promise<boolean> {
   try {
     const file = Bun.file(lockPath);
-    const stat = await file.exists() ? { mtime: new Date() } : null;
-    if (!stat) return true;
+    if (!await file.exists()) return true;
     
-    // Read the lock content to get creation time
     const content = await file.text();
     const lockTime = parseInt(content, 10);
-    if (isNaN(lockTime)) return true;
-    
-    return Date.now() - lockTime > staleThreshold;
+    return isNaN(lockTime) || (Date.now() - lockTime > staleThreshold);
   } catch {
     return true;
   }
 }
 
 /**
- * Attempt to acquire a lock on the given file path
+ * Acquire a lock on the given file path, retrying until timeout.
  */
 export async function acquireLock(
   filePath: string,
@@ -54,30 +44,23 @@ export async function acquireLock(
   const lockPath = getLockPath(filePath);
   const startTime = Date.now();
 
-  // Ensure parent directory exists
   await mkdir(dirname(lockPath), { recursive: true });
 
   while (true) {
-    // Check for stale lock
     if (await isLockStale(lockPath, staleThreshold)) {
       try {
-        // Try to create the lock file atomically
         const lockContent = String(Date.now());
         const file = Bun.file(lockPath);
         
-        // Check if file exists
         if (await file.exists()) {
-          // Stale lock - remove and retry
           await file.delete();
         }
         
-        // Create lock
         await Bun.write(lockPath, lockContent);
         
-        // Verify we own the lock
+        // Double-check ownership
         const verifyContent = await Bun.file(lockPath).text();
         if (verifyContent === lockContent) {
-          // We got the lock
           return async () => {
             try {
               await Bun.file(lockPath).delete();
@@ -87,22 +70,20 @@ export async function acquireLock(
           };
         }
       } catch {
-        // Lock acquisition failed, will retry
+        // Retry
       }
     }
 
-    // Check timeout
     if (Date.now() - startTime > timeout) {
       throw new LockError(`Failed to acquire lock on ${filePath} within ${timeout}ms`);
     }
 
-    // Wait before retrying
     await new Promise(resolve => setTimeout(resolve, 50));
   }
 }
 
 /**
- * Execute a function while holding a lock on the given file
+ * Execute a function with a file lock.
  */
 export async function withLock<T>(
   filePath: string,

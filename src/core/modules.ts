@@ -1,6 +1,3 @@
-// Reasoning modules for solver diversity (8 categories × 4 modules = 32).
-// Each solver gets different cognitive strategy for diverse solutions.
-
 export type ModuleCategory =
   | 'analytical'
   | 'creative'
@@ -25,7 +22,6 @@ export interface SelectModulesOptions {
 }
 
 export const REASONING_MODULES: ReasoningModule[] = [
-  // ANALYTICAL - Examine the problem rigorously
   {
     id: 'critical_thinking',
     category: 'analytical',
@@ -51,7 +47,6 @@ export const REASONING_MODULES: ReasoningModule[] = [
     prompt: 'Cut through complexity to identify the core issue that needs to be addressed. What is the real problem here?',
   },
 
-  // CREATIVE - Generate novel approaches
   {
     id: 'creative_thinking',
     category: 'creative',
@@ -77,7 +72,6 @@ export const REASONING_MODULES: ReasoningModule[] = [
     prompt: 'Consider alternative perspectives and viewpoints. How would different stakeholders or experts see this problem?',
   },
 
-  // SYSTEMATIC - Structure the approach
   {
     id: 'problem_decomposition',
     category: 'systematic',
@@ -103,7 +97,6 @@ export const REASONING_MODULES: ReasoningModule[] = [
     prompt: 'Consider this problem as part of a larger system. Identify interconnections, feedback loops, and dependencies.',
   },
 
-  // STRATEGIC - Plan and iterate
   {
     id: 'iterative_solving',
     category: 'strategic',
@@ -129,7 +122,6 @@ export const REASONING_MODULES: ReasoningModule[] = [
     prompt: 'Create a step-by-step plan before implementing. Structure your approach with clear milestones.',
   },
 
-  // EVALUATIVE - Assess risks and tradeoffs
   {
     id: 'risk_assessment',
     category: 'evaluative',
@@ -155,7 +147,6 @@ export const REASONING_MODULES: ReasoningModule[] = [
     prompt: 'Consider the long-term implications of this problem and its solutions. What happens over time?',
   },
 
-  // CONTEXTUAL - Understand the environment
   {
     id: 'stakeholder_analysis',
     category: 'contextual',
@@ -181,7 +172,6 @@ export const REASONING_MODULES: ReasoningModule[] = [
     prompt: 'Are there human behavioral factors (social, cultural, psychological) that affect this problem?',
   },
 
-  // EMPIRICAL - Validate with evidence
   {
     id: 'experimental_design',
     category: 'empirical',
@@ -207,7 +197,6 @@ export const REASONING_MODULES: ReasoningModule[] = [
     prompt: 'How can progress toward solving this problem be measured? What metrics matter?',
   },
 
-  // REFLECTIVE - Meta-cognition and learning
   {
     id: 'reflective_thinking',
     category: 'reflective',
@@ -233,9 +222,6 @@ export const REASONING_MODULES: ReasoningModule[] = [
     prompt: 'Consider diverse perspectives and expertise. What would different experts contribute?',
   },
 ];
-
-
-// Indexes
 
 
 export const ALL_CATEGORIES: ModuleCategory[] = [
@@ -368,9 +354,6 @@ function selectDefault(k: number): ReasoningModule[] {
     return modules[Math.floor(Math.random() * modules.length)];
   });
 }
-
-
-// Helpers
 
 
 function normalizeId(id: string): string {

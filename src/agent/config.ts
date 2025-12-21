@@ -41,26 +41,21 @@ export function parseConfigFile(content: string): GlobalConfig {
   
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
-    
-    // Skip comments and empty lines
     if (trimmed.startsWith('#') || trimmed === '') continue;
     
-    // Parse KEY="value" or KEY=value
     const match = trimmed.match(/^([A-Z_]+)=["']?([^"']+)["']?$/);
     if (match) {
       const [, key, value] = match;
       
-      // Per-backend model keys: CLAUDE_CODE_MODEL, CODEX_MODEL, GEMINI_CLI_MODEL
       const backendModelMatch = key.match(/^(.+)_MODEL$/);
       if (backendModelMatch) {
         const prefix = backendModelMatch[1];
-        // Convert CLAUDE_CODE -> claude-code, GEMINI_CLI -> gemini-cli
+        // CLAUDE_CODE -> claude-code
         const backendId = prefix.toLowerCase().replace(/_/g, '-');
         backendModels[backendId] = value;
         continue;
       }
       
-      // Per-backend reasoning keys: CLAUDE_CODE_REASONING, CODEX_REASONING, GEMINI_CLI_REASONING
       const backendReasoningMatch = key.match(/^(.+)_REASONING$/);
       if (backendReasoningMatch) {
         const prefix = backendReasoningMatch[1];
@@ -153,110 +148,43 @@ export function parseSandboxMode(input: string): SandboxMode | undefined {
   }
 }
 
-// ============================================================================
-// Model Resolution
-// ============================================================================
-
-export interface ResolveModelOptions {
-  backend: string;
-  explicitModel?: string;      // -m flag
-  globalConfig?: GlobalConfig;
-}
-
-/**
- * Resolve model for a backend. Precedence:
- * 1. Explicit -m flag
- * 2. User config per-backend (e.g., CODEX_MODEL in config)
- * 3. Built-in default per backend
- */
 export function resolveModel(options: ResolveModelOptions): string | undefined {
   const { backend, explicitModel, globalConfig } = options;
   
-  // 1. Explicit override wins
-  if (explicitModel) {
-    return explicitModel;
-  }
+  if (explicitModel) return explicitModel;
   
-  // 2. User config per-backend
   const userOverride = globalConfig?.backendModels?.[backend];
-  if (userOverride) {
-    return userOverride;
-  }
+  if (userOverride) return userOverride;
   
-  // 3. Built-in defaults per backend
   return getBackendDefaultModel(backend);
 }
 
-// ============================================================================
-// Reasoning Resolution
-// ============================================================================
-
 export interface ResolveReasoningOptions {
   backend: string;
-  explicitReasoning?: ReasoningLevel;  // -r flag
+  explicitReasoning?: ReasoningLevel;
   globalConfig?: GlobalConfig;
 }
 
-/**
- * Resolve reasoning level for a backend. Precedence:
- * 1. Explicit -r flag
- * 2. User config per-backend (e.g., CODEX_REASONING in config)
- * 3. Built-in default per backend
- */
 export function resolveReasoning(options: ResolveReasoningOptions): ReasoningLevel {
   const { backend, explicitReasoning, globalConfig } = options;
   
-  // 1. Explicit override wins
-  if (explicitReasoning) {
-    return explicitReasoning;
-  }
+  if (explicitReasoning) return explicitReasoning;
   
-  // 2. User config per-backend
   const userOverride = globalConfig?.backendReasoning?.[backend];
-  if (userOverride) {
-    return userOverride;
-  }
+  if (userOverride) return userOverride;
   
-  // 3. Built-in defaults per backend
   return getBackendDefaultReasoning(backend);
 }
 
-// ============================================================================
-// Backend + Model Resolution (with alias support)
-// ============================================================================
-
-export interface ResolveBackendModelOptions {
-  /** Explicit backend from -b flag */
-  explicitBackend?: string;
-  /** Explicit model from -m flag (may be an alias) */
-  explicitModel?: string;
-  /** Fallback backend (e.g., defaults.backend or stage default) */
-  fallbackBackend?: string;
-  /** Fallback model (e.g., legacy -m for stage fallback) */
-  fallbackModel?: string;
-  /** Global config for per-backend overrides */
-  globalConfig?: GlobalConfig;
-}
-
 export interface ResolvedBackendModel {
-  /** Resolved backend name */
   backend: string;
-  /** Resolved model (may be undefined for unknown backends with no config) */
   model?: string;
-  /** Whether backend was inferred from a model alias */
   fromAlias: boolean;
 }
 
 /**
  * Resolve both backend and model together, with alias support.
- * 
- * Resolution algorithm:
- * 1. If explicitBackend is set → NO alias mapping (respect explicit backend choice)
- * 2. Else if explicitModel is a known alias → adopt alias's backend + model
- * 3. Determine final backend: explicitBackend ?? aliasBackend ?? fallbackBackend
- * 4. Resolve model using existing 4-level precedence via resolveModel()
- * 
- * This enables `-m opus` (without -b) to auto-select claude-code backend.
+ * Enables `-m opus` (without -b) to auto-select claude-code backend.
  */
 export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedBackendModel {
   const { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig } = opts;

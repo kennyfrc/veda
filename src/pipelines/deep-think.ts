@@ -107,12 +107,9 @@ export async function* runDeepThink(
     verifyReasoning = 'high',
   } = options;
   
-  // Get defaults and global config
   const defaults = await getDefaults();
   const globalConfig = await loadGlobalConfig();
   
-  // Resolve base backend/model first (supports alias: -m opus without -b → claude-code)
-  // This ensures deep mode has the same alias behavior as normal run mode
   const base = resolveBackendModel({
     explicitBackend: options.backend,
     explicitModel: options.model,
@@ -120,8 +117,6 @@ export async function* runDeepThink(
     globalConfig,
   });
   
-  // Resolve per-stage backend/model with alias support
-  // Each stage can have its own backend/model, falling back to resolved base values
   const solver = resolveBackendModel({
     explicitBackend: options.solverBackend,
     explicitModel: options.solverModel,
@@ -146,20 +141,17 @@ export async function* runDeepThink(
     globalConfig,
   });
   
-  // Validate that solver and judge have models resolved (always needed)
   if (!solver.model) {
     throw new Error(`Unable to resolve model for solver backend '${solver.backend}'. Specify --solver-model or set MODEL in config.`);
   }
   if (!judge.model) {
     throw new Error(`Unable to resolve model for judge backend '${judge.backend}'. Specify --judge-model or set MODEL in config.`);
   }
-  // Verifier model is validated later only if verification will actually run
   
   const usages: (UsageStats | undefined)[] = [];
   const stages: string[] = [];
   const cwd = options.cwd ?? process.cwd();
   
-  // Event queue for tool_start events from callbacks
   const pendingEvents: DeepThinkEvent[] = [];
   let resolveNextEvent: (() => void) | null = null;
   
@@ -171,7 +163,6 @@ export async function* runDeepThink(
     }
   };
   
-  // Helper to create tool_start event from message
   const makeToolEvent = (source: string, msg: Message): DeepThinkEvent | null => {
     if (msg.type !== 'tool_start' && msg.type !== 'tool_use') return null;
     return {
@@ -182,7 +173,6 @@ export async function* runDeepThink(
     };
   };
   
-  // Initialize trace data with per-stage info
   const trace: DeepThinkTrace = {
     prompt,
     context,
@@ -201,18 +191,15 @@ export async function* runDeepThink(
     judge: { selectedIndex: 0, confidence: 0 },
   };
   
-  // Stage 1: Parallel solving with cognitive diversity
   yield { type: 'stage_start', stage: 'solve' };
   stages.push('solve');
   
-  // Select reasoning modules for diverse problem-solving strategies
   const modules = selectModules({
     k,
     categories: options.categories,
     modules: options.modules,
   });
   
-  // Build ensemble members (plain data) - use solver backend/model
   const members: EnsembleMember[] = modules.map((module, i) => ({
     id: `solver-${i}-${module.category}`,
     request: {
@@ -227,7 +214,6 @@ export async function* runDeepThink(
     },
   }));
   
-  // Run ensemble with event callback
   const ensemblePromise = runEnsemble(members, (event: EnsembleEvent) => {
     const toolEvent = makeToolEvent(event.memberId, event.message);
     if (toolEvent) pushEvent(toolEvent);
@@ -242,7 +228,6 @@ export async function* runDeepThink(
     }
   });
 
-  // Yield events as they arrive until ensemble is complete
   let finished = false;
   ensemblePromise.finally(() => {
     finished = true;
@@ -250,12 +235,11 @@ export async function* runDeepThink(
       resolveNextEvent();
       resolveNextEvent = null;
     }
-  }).catch(() => {}); // Prevent unhandled rejection from the finally branch
+  }).catch(() => {});
 
   while (!finished || pendingEvents.length > 0) {
     if (pendingEvents.length === 0 && !finished) {
       await new Promise<void>(resolve => { 
-        // Re-check finished/pending inside the promise constructor to close the race window
         if (finished || pendingEvents.length > 0) {
           resolve();
         } else {
@@ -273,14 +257,12 @@ export async function* runDeepThink(
   
   yield { type: 'ensemble_complete', usage: ensembleResult.totalUsage };
   
-  // Check for backend errors from solvers
   const solverErrors = ensembleResult.outputs.flatMap(o => o.backendErrors ?? []);
   if (solverErrors.length > 0) {
     yield { type: 'error', stage: 'solve', content: solverErrors[0] };
     return;
   }
   
-  // Check if all solvers failed
   if (ensembleResult.successful.length === 0) {
     const exceptionErrors = ensembleResult.outputs
       .filter(o => o.error)
@@ -293,7 +275,6 @@ export async function* runDeepThink(
     return;
   }
   
-  // Populate trace with solver candidates and modules
   for (let i = 0; i < ensembleResult.outputs.length; i++) {
     const output = ensembleResult.outputs[i];
     const module = modules[i];
@@ -309,7 +290,6 @@ export async function* runDeepThink(
     });
   }
   
-  // Run judge to select best candidate - use judge backend/model
   const judgeResult = await runJudge({
     backend: judge.backend,
     model: judge.model,
@@ -326,17 +306,14 @@ export async function* runDeepThink(
   });
   usages.push(judgeResult.usage);
   
-  // Yield any pending tool events from judge
   while (pendingEvents.length > 0) {
     yield pendingEvents.shift()!;
   }
   
-  // Update trace with judge decision
   trace.judge.selectedIndex = judgeResult.decision.selectedIndex;
   trace.judge.confidence = judgeResult.decision.confidence;
   trace.judge.reasoning = judgeResult.decision.reasoning;
   
-  // Emit candidate events
   for (let i = 0; i < ensembleResult.successful.length; i++) {
     yield {
       type: 'candidate',
@@ -362,12 +339,10 @@ export async function* runDeepThink(
   let finalAnswer = judgeResult.selected;
   let wasRevised = false;
   
-  // Stage 2: Optional verification
-  // Trigger based on judge confidence threshold (< 0.7)
+  // Verify if judge confidence is low (< 0.7)
   const shouldVerify = verify && judgeResult.decision.confidence < 0.7;
   
   if (shouldVerify) {
-    // Validate verifier model only when verification will actually run
     if (!verifier.model) {
       throw new Error(`Unable to resolve model for verifier backend '${verifier.backend}'. Specify --verifier-model or set MODEL in config.`);
     }
@@ -375,7 +350,6 @@ export async function* runDeepThink(
     yield { type: 'stage_start', stage: 'verify' };
     stages.push('verify');
     
-    // Use verifier backend/model
     const verifyResult = await runVerification({
       backend: verifier.backend,
       model: verifier.model,
@@ -393,12 +367,10 @@ export async function* runDeepThink(
     });
     usages.push(verifyResult.usage);
     
-    // Yield any pending tool events from verifier
     while (pendingEvents.length > 0) {
       yield pendingEvents.shift()!;
     }
     
-    // Initialize verification trace
     trace.verify = {
       checks: verifyResult.checks.map(c => ({
         id: c.id,
@@ -413,12 +385,10 @@ export async function* runDeepThink(
       })),
     };
     
-    // Check if revision happened
     if (verifyResult.revision && !verifyResult.revision.unchanged) {
       finalAnswer = verifyResult.revision.revised;
       wasRevised = true;
       
-      // Add revision to trace
       trace.verify.revision = {
         changes: verifyResult.revision.changes,
         revised: verifyResult.revision.revised,
@@ -437,7 +407,6 @@ export async function* runDeepThink(
     };
   }
   
-  // Complete
   const totalUsage = combineUsage(usages);
   
   const result: DeepThinkResult = {

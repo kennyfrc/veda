@@ -1,7 +1,6 @@
 // Sandbox notices prepended to system prompts to match runtime capabilities.
 // Mismatch between notice and actual sandbox mode causes model confusion.
 
-/** No tool access */
 export const SANDBOX_NOTICE = `## Sandbox Notice
 
 You are an AI assistant running in a sandboxed environment with **no access to tools, file system, or external commands**. You cannot execute code, read files, run shell commands, or make any tool calls. Respond immediately based solely on the context provided in this conversation.
@@ -10,7 +9,6 @@ You are an AI assistant running in a sandboxed environment with **no access to t
 
 `;
 
-/** Read-only: can inspect files, encouraged to use tools */
 export const SANDBOX_NOTICE_READONLY = `## Sandbox Notice
 
 You are an AI assistant with **read-only access** to the local repository. You may:
@@ -29,7 +27,6 @@ When answering questions about the codebase, **use your read-only tools to gathe
 
 `;
 
-/** Read-only: prefers context, tools as fallback */
 export const SANDBOX_NOTICE_READONLY_CONTEXTFIRST = `## Sandbox Notice
 
 You have **read-only access** to the local repository, but prefer answering from the provided context. You may:

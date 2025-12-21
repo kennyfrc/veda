@@ -1,57 +1,32 @@
 import { DEFAULT_SESSION, isValidSessionId } from './util/paths';
 
 export interface CliOptions {
-  /** Session ID */
   session: string;
-  /** Persona name */
   persona?: string;
-  /** Backend name */
   backend?: string;
-  /** Model override */
   model?: string;
-  /** Reasoning level override */
   reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
-  /** Sandbox mode */
   sandbox?: 'read-only' | 'workspace-write' | 'full';
-  /** Output file */
   output?: string;
-  /** Skip selection for this run */
   noSel?: boolean;
-  /** Ad-hoc files (doesn't modify selection) */
   files?: string[];
-  /** Enable deep/pro mode */
   deep?: boolean;
-  /** Number of solvers for ensemble (k) */
   k?: number;
-  /** Skip verification in deep mode */
   noVerify?: boolean;
-  /** Reasoning module categories for deep mode */
   categories?: string[];
-  /** Exact reasoning module IDs for deep mode */
   modules?: string[];
-  /** Pass through JSON output */
   json?: boolean;
-  /** Trace output file (YAML) for deep mode */
   trace?: string;
-  /** Enable system notifications */
   notify?: boolean;
-  /** Show help */
   help?: boolean;
-  /** Show version */
   version?: boolean;
   
   // Per-stage overrides for deep mode
-  /** Backend for solvers in deep mode */
   solverBackend?: string;
-  /** Model for solvers in deep mode */
   solverModel?: string;
-  /** Backend for judge in deep mode */
   judgeBackend?: string;
-  /** Model for judge in deep mode */
   judgeModel?: string;
-  /** Backend for verifier in deep mode */
   verifierBackend?: string;
-  /** Model for verifier in deep mode */
   verifierModel?: string;
 }
 
@@ -82,11 +57,8 @@ const FLAGS_WITH_VALUES = new Set([
   '--verifier-backend', '--verifier-model',
 ]);
 
-/**
- * Parse CLI arguments.
- */
 export function parseArgs(argv: string[]): ParsedArgs {
-  const args = argv.slice(2); // Skip bun and script path
+  const args = argv.slice(2);
   
   const options: CliOptions = {
     session: process.env.VEDA_SESSION ?? DEFAULT_SESSION,
@@ -98,7 +70,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
   while (i < args.length) {
     const arg = args[i];
     
-    // Handle flags with values
     if (FLAGS_WITH_VALUES.has(arg)) {
       const value = args[i + 1];
       if (value === undefined) {
@@ -151,7 +122,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
         case '--trace':
           options.trace = value;
           break;
-        // Per-stage overrides for deep mode
         case '--solver-backend':
           options.solverBackend = value;
           break;
@@ -175,7 +145,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
     
-    // Handle boolean flags
     switch (arg) {
       case '--no-sel':
         options.noSel = true;
@@ -214,15 +183,13 @@ export function parseArgs(argv: string[]): ParsedArgs {
         continue;
     }
     
-    // Handle -- separator (everything after is literal prompt)
+    // Everything after -- is literal prompt
     if (arg === '--') {
       const rest = args.slice(i + 1);
       if (rest.length > 0) {
-        // Check if we already have a command in positional
         const existingCommand = positional[0] ?? 'prompt';
         
         if (existingCommand === 'resume') {
-          // veda resume -- "prompt with dashes"
           return {
             command: 'resume',
             subcommand: undefined,
@@ -231,7 +198,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
             prompt: rest.join(' '),
           };
         } else if (existingCommand === 'deep') {
-          // veda deep -- "prompt with dashes"
           return {
             command: 'deep',
             subcommand: undefined,
@@ -240,7 +206,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
             prompt: rest.join(' '),
           };
         } else {
-          // Default: treat as prompt command
           return {
             command: 'prompt',
             subcommand: undefined,
@@ -253,17 +218,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
       break;
     }
     
-    // Positional argument
     positional.push(arg);
     i++;
   }
   
-  // Validate session ID
   if (!isValidSessionId(options.session)) {
     throw new Error(`Invalid session ID: ${options.session}`);
   }
   
-  // Parse command structure
   const command = positional[0] ?? '';
   let subcommand: string | undefined;
   let commandArgs: string[] = [];
@@ -283,7 +245,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
   } else if (command === 'init') {
     // No args
   } else if (command && !command.startsWith('-')) {
-    // First positional is the prompt
     prompt = positional.join(' ');
   }
   
@@ -296,9 +257,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
   };
 }
 
-/**
- * Show help message.
- */
 export function showHelp(): void {
   console.log(`veda - AI CLI wrapper with multi-backend support
 
@@ -362,11 +320,7 @@ Examples:
 `);
 }
 
-/**
- * Show version.
- */
 export function showVersion(): void {
-  // Read version from package.json at compile time
   const pkg = require('../package.json');
   console.log(`veda ${pkg.version}`);
 }

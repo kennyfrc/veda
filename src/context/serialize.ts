@@ -1,18 +1,13 @@
 import type { ReadSliceResult } from './readSlice';
 
 export interface SerializeOptions {
-  /** Separator between file blocks (default: "----------------------------------------") */
   separator?: string;
-  /** Code fence marker (default: "```") */
   fence?: string;
 }
 
 const DEFAULT_SEPARATOR = '----------------------------------------';
 const DEFAULT_FENCE = '```';
 
-/**
- * Format a single file as a context block.
- */
 export function serializeFileContextBlock(
   result: ReadSliceResult,
   opts: SerializeOptions = {}
@@ -20,7 +15,6 @@ export function serializeFileContextBlock(
   const separator = opts.separator ?? DEFAULT_SEPARATOR;
   const fence = opts.fence ?? DEFAULT_FENCE;
 
-  // Build line info suffix
   const lineInfo = result.hasSlice
     ? ` (lines ${result.startLine}-${result.endLine})`
     : '';
@@ -33,16 +27,13 @@ ${separator}`;
 }
 
 /**
- * Serialize multiple files into a complete file_context block.
- * Returns empty string if no results provided.
+ * Serialize files into a <file_context> block.
  */
 export function serializeAllFileContextBlocks(
   results: ReadSliceResult[],
   opts: SerializeOptions = {}
 ): string {
-  if (results.length === 0) {
-    return '';
-  }
+  if (results.length === 0) return '';
 
   const blocks = results.map(r => serializeFileContextBlock(r, opts));
   const body = blocks.join('\n');

@@ -1,15 +1,10 @@
 /**
- * Verification primitive: Chain-of-Verification (CoVe) implementation.
- * Generate checks, answer them, revise if contradictions found.
- * Plain data types + functions, no hidden state.
+ * Chain-of-Verification (CoVe) implementation: generate checks, answer, revise.
+ * Stateless data types and functions.
  */
 
 import type { Message, UsageStats } from '../backend';
 import { runLlm, combineUsage, type Reasoning, type Sandbox } from './llm';
-
-// ============================================================================
-// Data Types
-// ============================================================================
 
 export type VerificationType = 'factual' | 'code' | 'reasoning';
 
@@ -39,10 +34,6 @@ export interface VerificationResult {
   revision?: Revision;
   usage: UsageStats;
 }
-
-// ============================================================================
-// Prompt Formatters
-// ============================================================================
 
 export function formatGenerateChecksPrompt(
   type: VerificationType,
@@ -182,14 +173,11 @@ Your revised response here
 
 <conflicts>
 Any unresolved conflicts (or "none")
-</conflicts>`;
+    </conflicts>`;
 }
 
-// ============================================================================
-// Parsers
-// ============================================================================
-
 export function parseChecks(text: string): Check[] {
+
   const checks: Check[] = [];
   const checkRegex = /<check id="(\d+)">\s*<question>([\s\S]*?)<\/question>\s*(?:<claim>([\s\S]*?)<\/claim>)?\s*<\/check>/g;
 
@@ -272,14 +260,6 @@ export function parseRevision(originalDraft: string, text: string): Revision {
   };
 }
 
-// ============================================================================
-// Main Functions
-// ============================================================================
-
-/**
- * Run full verification: generate checks, answer them, revise if needed.
- * @param onMessage Optional callback for streaming events
- */
 export async function runVerification(args: {
   backend: string;
   model?: string;
@@ -295,7 +275,6 @@ export async function runVerification(args: {
   const { backend, model, systemPrompt, reasoning, sandbox, cwd, type, draft, originalTask, onMessage } = args;
   const usages: (UsageStats | undefined)[] = [];
 
-  // Step 1: Generate checks
   const generatePrompt = formatGenerateChecksPrompt(type, draft, originalTask);
   const generateResponse = await runLlm({
     backend,
@@ -319,7 +298,6 @@ export async function runVerification(args: {
     };
   }
 
-  // Step 2: Answer checks (batched)
   const answerPrompt = formatAnswerChecksPrompt(checks);
   const answerResponse = await runLlm({
     backend,
@@ -335,7 +313,6 @@ export async function runVerification(args: {
 
   const results = parseCheckResults(answerResponse.text, checks);
 
-  // Step 3: Check for contradictions and revise if needed
   const contradictions = results.filter(r => r.contradictsDraft);
 
   if (contradictions.length === 0) {
@@ -346,7 +323,6 @@ export async function runVerification(args: {
     };
   }
 
-  // Step 4: Revise
   const revisionPrompt = formatRevisionPrompt(draft, contradictions);
   const revisionResponse = await runLlm({
     backend,
