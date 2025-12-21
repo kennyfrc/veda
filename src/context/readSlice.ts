@@ -1,5 +1,9 @@
 import { relative } from 'path';
+import { createReadStream } from 'fs';
+import { createInterface } from 'readline';
 import type { FileSlice } from './slice';
+import type { Result } from '../util/result';
+import { ok, err } from '../util/result';
 
 export interface ReadSliceResult {
   absolutePath: string;
@@ -18,19 +22,18 @@ export interface ReadSliceOptions {
 }
 
 /**
- * Read file content with optional slice. Returns null if unreadable.
+ * Read file content with optional slice. Returns a Result.
+ * Uses streaming line reader for memory efficiency when slicing.
  */
-export async function readSliceText(opts: ReadSliceOptions): Promise<ReadSliceResult | null> {
+export async function readSliceText(opts: ReadSliceOptions): Promise<Result<ReadSliceResult>> {
   const { cwd, slice, displayPath: providedDisplayPath } = opts;
   const absolutePath = slice.path;
 
   try {
     const file = Bun.file(absolutePath);
-    if (!await file.exists()) return null;
-
-    const rawContent = await file.text();
-    const allLines = rawContent.split('\n');
-    const totalLines = allLines.length;
+    if (!await file.exists()) {
+      return err(new Error(`File not found: ${absolutePath}`));
+    }
 
     let displayPath = providedDisplayPath;
     if (!displayPath) {
@@ -38,23 +41,49 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<ReadSliceRe
       displayPath = rel.startsWith('..') ? absolutePath : rel;
     }
 
+    // Optimization: if no slice is requested, use the optimized file.text()
     if (!slice.hasSlice) {
-      return {
+      const content = await file.text();
+      const lineCount = content.split('\n').length;
+      return ok({
         absolutePath,
         displayPath,
-        content: rawContent,
+        content,
         startLine: 1,
-        endLine: totalLines,
-        lineCount: totalLines,
+        endLine: lineCount,
+        lineCount,
         hasSlice: false,
-      };
+      });
     }
 
+    // Memory-efficient slicing using line iterator
     const startLine = Math.max(1, slice.start ?? 1);
-    const endLine = Math.min(totalLines, slice.end ?? totalLines);
+    const endLine = slice.end ?? Infinity;
+    
+    const lines: string[] = [];
+    let currentLine = 1;
+    let actualEndLine = 0;
 
-    if (startLine > totalLines) {
-      return {
+    const rl = createInterface({
+      input: createReadStream(absolutePath),
+      crlfDelay: Infinity
+    });
+
+    for await (const line of rl) {
+      if (currentLine >= startLine && currentLine <= endLine) {
+        lines.push(line);
+        actualEndLine = currentLine;
+      }
+      if (currentLine >= endLine) {
+        currentLine++; 
+        break;
+      }
+      currentLine++;
+    }
+
+    // If startLine was beyond the end of the file
+    if (currentLine < startLine) {
+      return ok({
         absolutePath,
         displayPath,
         content: '',
@@ -62,22 +91,22 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<ReadSliceRe
         endLine: startLine,
         lineCount: 0,
         hasSlice: true,
-      };
+      });
     }
 
-    const slicedLines = allLines.slice(startLine - 1, endLine);
-    const content = slicedLines.join('\n');
-
-    return {
+    const content = lines.join('\n');
+    const result = ok({
       absolutePath,
       displayPath,
       content,
       startLine,
-      endLine,
-      lineCount: slicedLines.length,
+      endLine: actualEndLine || startLine,
+      lineCount: lines.length,
       hasSlice: true,
-    };
-  } catch {
-    return null;
+    });
+    return result;
+    return result;
+  } catch (e) {
+    return err(e instanceof Error ? e : new Error(String(e)));
   }
 }
