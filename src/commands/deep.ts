@@ -190,18 +190,21 @@ function formatToolStart(toolName?: string, toolInput?: unknown): string {
 async function buildContext(store: ContextStore): Promise<string> {
   const cwd = process.cwd();
   const entries = await store.list();
-  const parts: string[] = [];
   
-  for (const entry of entries) {
-    const result = await readSliceText({
+  const results = await Promise.all(
+    entries.map(entry => readSliceText({
       cwd,
       slice: entry.slice,
-    });
+    }))
+  );
+
+  const parts: string[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const res = results[i];
     
-    if (result) {
-      // entry.original already includes slice suffix (e.g., "file.ts:10-20")
-      // so we use it directly for the header
-      parts.push(`## ${entry.original}\n\`\`\`\n${result.content}\n\`\`\``);
+    if (res.ok) {
+      parts.push(`## ${entry.original}\n\`\`\`\n${res.value.content}\n\`\`\``);
     }
   }
   
@@ -210,21 +213,25 @@ async function buildContext(store: ContextStore): Promise<string> {
 
 async function buildAdhocContext(files: string[]): Promise<string> {
   const cwd = process.cwd();
-  const parts: string[] = [];
   
-  for (const path of files) {
-    const slice = parseSlice(path);
-    const absolutePath = resolve(cwd, slice.path);
+  const results = await Promise.all(
+    files.map(path => {
+      const slice = parseSlice(path);
+      const absolutePath = resolve(cwd, slice.path);
+      return readSliceText({
+        cwd,
+        slice: { ...slice, path: absolutePath },
+      });
+    })
+  );
+
+  const parts: string[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const path = files[i];
+    const res = results[i];
     
-    const result = await readSliceText({
-      cwd,
-      slice: { ...slice, path: absolutePath },
-    });
-    
-    if (result) {
-      // path already includes slice suffix (e.g., "file.ts:10-20")
-      // so we use it directly for the header
-      parts.push(`## ${path}\n\`\`\`\n${result.content}\n\`\`\``);
+    if (res.ok) {
+      parts.push(`## ${path}\n\`\`\`\n${res.value.content}\n\`\`\``);
     }
   }
   

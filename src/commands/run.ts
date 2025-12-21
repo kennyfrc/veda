@@ -122,13 +122,13 @@ async function buildAdhocContext(files: string[]): Promise<string> {
     const slice = parseSlice(path);
     const absolutePath = resolve(cwd, slice.path);
     
-    const result = await readSliceText({
+    const res = await readSliceText({
       cwd,
       slice: { ...slice, path: absolutePath },
     });
     
-    if (result) {
-      results.push(result);
+    if (res.ok) {
+      results.push(res.value);
     }
   }
   

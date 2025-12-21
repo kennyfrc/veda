@@ -164,16 +164,18 @@ export class ContextStore {
    */
   async tokens(): Promise<number> {
     const entries = await this.list();
-    let totalTokens = 0;
     
-    for (const entry of entries) {
-      const result = await readSliceText({
+    const results = await Promise.all(
+      entries.map(entry => readSliceText({
         cwd: this.cwd,
         slice: entry.slice,
-      });
-      
-      if (result) {
-        totalTokens += estimateTokensByScript(result.content).tokens;
+      }))
+    );
+    
+    let totalTokens = 0;
+    for (const res of results) {
+      if (res.ok) {
+        totalTokens += estimateTokensByScript(res.value.content).tokens;
       }
     }
     
@@ -182,19 +184,24 @@ export class ContextStore {
 
   async tokenDetails(): Promise<TokenInfo[]> {
     const entries = await this.list();
-    const details: TokenInfo[] = [];
     
-    for (const entry of entries) {
-      const result = await readSliceText({
-        cwd: this.cwd,
-        slice: entry.slice,
-      });
-      
-      if (result) {
+    const results = await Promise.all(
+      entries.map(async (entry) => {
+        const res = await readSliceText({
+          cwd: this.cwd,
+          slice: entry.slice,
+        });
+        return { entry, res };
+      })
+    );
+    
+    const details: TokenInfo[] = [];
+    for (const { entry, res } of results) {
+      if (res.ok) {
         details.push({
           path: formatSlice(entry.slice),
-          tokens: estimateTokensByScript(result.content).tokens,
-          lines: result.lineCount,
+          tokens: estimateTokensByScript(res.value.content).tokens,
+          lines: res.value.lineCount,
         });
       }
     }
@@ -209,16 +216,18 @@ export class ContextStore {
     const entries = await this.list();
     if (entries.length === 0) return '';
     
-    const results = [];
-    for (const entry of entries) {
-      const result = await readSliceText({
+    const results = await Promise.all(
+      entries.map(entry => readSliceText({
         cwd: this.cwd,
         slice: entry.slice,
-      });
-      if (result) results.push(result);
-    }
+      }))
+    );
     
-    return serializeAllFileContextBlocks(results);
+    const successfulResults = results
+      .filter((res): res is { ok: true, value: any } => res.ok)
+      .map(res => res.value);
+    
+    return serializeAllFileContextBlocks(successfulResults);
   }
 
   private async ensureSessionDir(): Promise<void> {
