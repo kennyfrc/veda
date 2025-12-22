@@ -3,7 +3,7 @@ import { runDeepThink, type DeepThinkEvent, type DeepThinkResult } from '../pipe
 import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
-import { loadGlobalConfig } from '../agent';
+import { loadGlobalConfig, resolveBackendModel } from '../agent';
 
 export async function handleDeep(
   prompt: string,
@@ -16,22 +16,47 @@ export async function handleDeep(
   if (!options.noSel) {
     const contextStore = new ContextStore({ sessionId: options.session });
     const entries = await contextStore.list();
-    
+
     if (entries.length > 0) {
       context = await buildContext(contextStore);
     }
   }
-  
+
   // Add ad-hoc files if provided
   if (options.files && options.files.length > 0) {
     const adhocContext = await buildAdhocContext(options.files);
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
-  
+
   console.error('[deep] Starting deep thinking mode...\n');
-  
+
+  // Resolve backend/model for notifications upfront
+  // These values are used for notifications throughout the pipeline
+  const base = resolveBackendModel({
+    explicitBackend: options.backend,
+    explicitModel: options.model,
+    fallbackBackend: options.backend ?? globalConfig.backend,
+    globalConfig,
+  });
+
+  const solver = resolveBackendModel({
+    explicitBackend: options.solverBackend,
+    explicitModel: options.solverModel,
+    fallbackBackend: base.backend,
+    fallbackModel: base.model,
+    globalConfig,
+  });
+
+  const judge = resolveBackendModel({
+    explicitBackend: options.judgeBackend,
+    explicitModel: options.judgeModel,
+    fallbackBackend: base.backend,
+    fallbackModel: base.model,
+    globalConfig,
+  });
+
   let finalResult: DeepThinkResult | undefined;
-  
+
   // Run the pipeline
   for await (const event of runDeepThink(prompt, {
     backend: options.backend,
@@ -50,28 +75,37 @@ export async function handleDeep(
     verifierBackend: options.verifierBackend,
     verifierModel: options.verifierModel,
   })) {
-    handleEvent(event, options, prompt, globalConfig.notify);
-    
+    handleEvent(event, options, prompt, globalConfig.notify, solver.backend, solver.model, judge.backend, judge.model);
+
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
       finalResult = event.result;
     }
   }
-  
+
   // Write trace if requested
   if (options.trace && finalResult?.trace) {
     await writeTrace(options.trace, finalResult);
   }
 }
 
-function handleEvent(event: DeepThinkEvent, options: CliOptions, prompt: string, globalNotify?: boolean): void {
+function handleEvent(
+  event: DeepThinkEvent,
+  options: CliOptions,
+  prompt: string,
+  globalNotify?: boolean,
+  solverBackend?: string,
+  solverModel?: string,
+  judgeBackend?: string,
+  judgeModel?: string
+): void {
   const shouldNotify = options.notify ?? globalNotify ?? true;
 
   switch (event.type) {
     case 'ensemble_complete':
       if (shouldNotify) {
-        import('../util/notify').then(({ notify, formatNotifyMessage }) => 
-          notify({ title: 'Veda Deep', message: `Solvers complete: ${formatNotifyMessage(prompt)}`, session: options.session }));
+        import('../util/notify').then(({ notify, formatNotifyMessage }) =>
+          notify({ title: 'Veda Deep', message: `Solvers complete: ${formatNotifyMessage(prompt)}`, session: options.session, backend: solverBackend, model: solverModel }));
       }
       break;
 
@@ -79,10 +113,10 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions, prompt: string,
       // ID format: solver-${i}-${category}
       const parts = event.source?.split('-') || [];
       const name = parts.length >= 3 ? parts.slice(2).join('-') : (event.source || 'unknown');
-      
+
       if (shouldNotify) {
-        import('../util/notify').then(({ notify, formatNotifyMessage }) => 
-          notify({ title: 'Veda Deep', message: `Solver '${name}' complete: ${formatNotifyMessage(prompt)}`, session: options.session }));
+        import('../util/notify').then(({ notify, formatNotifyMessage }) =>
+          notify({ title: 'Veda Deep', message: `Solver '${name}' complete: ${formatNotifyMessage(prompt)}`, session: options.session, backend: solverBackend, model: solverModel }));
       }
       if (event.usage) {
         const tokens = event.usage.inputTokens + event.usage.outputTokens;
@@ -96,25 +130,27 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions, prompt: string,
     case 'stage_start':
       console.error(`[${event.stage}] Starting...`);
       break;
-    
+
     case 'tool_start':
       // Show tool execution progress
       console.error(`  [${event.source}] → ${formatToolStart(event.content, event.toolInput)}`);
       break;
-    
+
     case 'candidate':
       console.error(`  ${event.content}`);
       break;
-    
+
     case 'selected':
       console.error(`\n[${event.stage}] Selected answer (confidence: ${((event.confidence ?? 0) * 100).toFixed(0)}%)`);
       break;
-    
+
     case 'stage_complete':
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) => {
           const msg = event.stage === 'solve' ? 'Judge complete' : 'Verifier complete';
-          notify({ title: 'Veda Deep', message: `${msg}: ${formatNotifyMessage(prompt)}`, session: options.session });
+          const backend = event.stage === 'solve' ? judgeBackend : undefined;
+          const model = event.stage === 'solve' ? judgeModel : undefined;
+          notify({ title: 'Veda Deep', message: `${msg}: ${formatNotifyMessage(prompt)}`, session: options.session, backend, model });
         });
       }
       if (event.usage) {
@@ -123,20 +159,20 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions, prompt: string,
         console.error(`[${event.stage}] Complete`);
       }
       break;
-    
+
     case 'verified':
       console.error(`[verify] ${event.content}`);
       break;
-    
+
     case 'error':
       console.error(`Error: ${event.content}`);
       process.exit(1);
       break;
-    
+
     case 'complete':
       if (shouldNotify) {
-        import('../util/notify').then(({ notify, formatNotifyMessage }) => 
-          notify({ title: 'Veda Deep', message: `Complete: ${formatNotifyMessage(prompt)}`, session: options.session }));
+        import('../util/notify').then(({ notify, formatNotifyMessage }) =>
+          notify({ title: 'Veda Deep', message: `Complete: ${formatNotifyMessage(prompt)}`, session: options.session, backend: solverBackend, model: solverModel }));
       }
       if (event.result) {
         console.error(`\n[complete] Stages: ${event.result.stages.join(' → ')}`);
@@ -146,7 +182,7 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions, prompt: string,
         }
         console.error(`[complete] Total tokens: ${event.result.usage.inputTokens + event.result.usage.outputTokens}`);
         console.error('');
-        
+
         // Output final answer
         if (options.output) {
           Bun.write(options.output, event.result.answer);
