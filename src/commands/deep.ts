@@ -105,7 +105,7 @@ function handleEvent(
     case 'ensemble_complete':
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
-          notify({ title: 'Veda Deep', message: `Solvers complete: ${formatNotifyMessage(prompt)}`, session: options.session, backend: solverBackend, model: solverModel }));
+          notify({ title: 'Veda Deep', message: `Solvers complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
       }
       break;
 
@@ -116,7 +116,7 @@ function handleEvent(
 
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
-          notify({ title: 'Veda Deep', message: `Solver '${name}' complete: ${formatNotifyMessage(prompt)}`, session: options.session, backend: solverBackend, model: solverModel }));
+          notify({ title: 'Veda Deep', message: `Solver '${name}' complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
       }
       if (event.usage) {
         const tokens = event.usage.inputTokens + event.usage.outputTokens;
@@ -150,7 +150,7 @@ function handleEvent(
           const msg = event.stage === 'solve' ? 'Judge complete' : 'Verifier complete';
           const backend = event.stage === 'solve' ? judgeBackend : undefined;
           const model = event.stage === 'solve' ? judgeModel : undefined;
-          notify({ title: 'Veda Deep', message: `${msg}: ${formatNotifyMessage(prompt)}`, session: options.session, backend, model });
+          notify({ title: 'Veda Deep', message: `${msg}: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model });
         });
       }
       if (event.usage) {
@@ -172,7 +172,7 @@ function handleEvent(
     case 'complete':
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
-          notify({ title: 'Veda Deep', message: `Complete: ${formatNotifyMessage(prompt)}`, session: options.session, backend: solverBackend, model: solverModel }));
+          notify({ title: 'Veda Deep', message: `Complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
       }
       if (event.result) {
         console.error(`\n[complete] Stages: ${event.result.stages.join(' → ')}`);

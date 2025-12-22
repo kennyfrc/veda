@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { DEFAULT_SESSION } from './paths';
 
 // Human-readable names for backend IDs
 const BACKEND_DISPLAY_NAMES: Record<string, string> = {
@@ -11,7 +10,7 @@ const BACKEND_DISPLAY_NAMES: Record<string, string> = {
 export interface NotifyOptions {
   title: string;
   message: string;
-  session?: string;
+  subtitle?: string;  // Displayed below title (e.g., session name)
   backend?: string;   // Backend ID (e.g., 'codex', 'claude-code')
   model?: string;     // Model name (e.g., 'gpt-5.2', 'opus')
 }
@@ -53,18 +52,20 @@ export function formatBackendModel(backend?: string, model?: string): string | u
 export function notify(options: NotifyOptions): void {
   if (process.platform !== 'darwin') return;
 
-  const { title, message, session, backend, model } = options;
+  const { title, message, subtitle, backend, model } = options;
 
-  // Build display title: base title + backend/model + session
+  // Build display title: base title + backend/model
   const backendModel = formatBackendModel(backend, model);
-  const sessionSuffix = (session && session !== DEFAULT_SESSION) ? ` [${session}]` : '';
   const backendSuffix = backendModel ? ` - ${backendModel}` : '';
-  const displayTitle = `${title}${backendSuffix}${sessionSuffix}`;
+  const displayTitle = `${title}${backendSuffix}`;
 
   const escapedTitle = displayTitle.replace(/"/g, '\\"');
   const escapedMessage = message.replace(/"/g, '\\"');
 
-  const script = `display notification "${escapedMessage}" with title "${escapedTitle}"`;
+  // Build subtitle if provided
+  const subtitlePart = subtitle ? ` subtitle "${subtitle.replace(/"/g, '\\"')}"` : '';
+
+  const script = `display notification "${escapedMessage}" with title "${escapedTitle}"${subtitlePart}`;
 
   // Send notification
   spawn('osascript', ['-e', script], {
