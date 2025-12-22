@@ -1,8 +1,26 @@
 import { spawn } from 'node:child_process';
+import { DEFAULT_SESSION } from './paths';
 
 export interface NotifyOptions {
   title: string;
   message: string;
+  session?: string;
+}
+
+/**
+ * Truncate a string to a maximum length, appending ellipsis if truncated.
+ */
+export function truncate(str: string, maxLength: number = 50): string {
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength - 3) + '...';
+}
+
+/**
+ * Format the notification message from a prompt.
+ */
+export function formatNotifyMessage(prompt: string | undefined): string {
+  if (!prompt) return 'Response complete';
+  return truncate(prompt);
 }
 
 /**
@@ -12,8 +30,14 @@ export interface NotifyOptions {
 export function notify(options: NotifyOptions): void {
   if (process.platform !== 'darwin') return;
 
-  const { title, message } = options;
-  const escapedTitle = title.replace(/"/g, '\\"');
+  const { title, message, session } = options;
+
+  // Format title: Append session if it's not the default one
+  const displayTitle = (session && session !== DEFAULT_SESSION)
+    ? `${title} [${session}]`
+    : title;
+
+  const escapedTitle = displayTitle.replace(/"/g, '\\"');
   const escapedMessage = message.replace(/"/g, '\\"');
   
   const script = `display notification "${escapedMessage}" with title "${escapedTitle}"`;

@@ -106,8 +106,8 @@ export async function handleRun(
   }
 
   if (options.notify ?? globalConfig.notify ?? true) {
-    const { notify } = await import('../util/notify');
-    notify({ title: 'Veda', message: 'Response complete' });
+    const { notify, formatNotifyMessage } = await import('../util/notify');
+    notify({ title: 'Veda', message: formatNotifyMessage(prompt), session: options.session });
   }
 }
 

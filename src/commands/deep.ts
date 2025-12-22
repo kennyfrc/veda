@@ -50,7 +50,7 @@ export async function handleDeep(
     verifierBackend: options.verifierBackend,
     verifierModel: options.verifierModel,
   })) {
-    handleEvent(event, options, globalConfig.notify);
+    handleEvent(event, options, prompt, globalConfig.notify);
     
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
@@ -64,14 +64,14 @@ export async function handleDeep(
   }
 }
 
-function handleEvent(event: DeepThinkEvent, options: CliOptions, globalNotify?: boolean): void {
+function handleEvent(event: DeepThinkEvent, options: CliOptions, prompt: string, globalNotify?: boolean): void {
   const shouldNotify = options.notify ?? globalNotify ?? true;
 
   switch (event.type) {
     case 'ensemble_complete':
       if (shouldNotify) {
-        import('../util/notify').then(({ notify }) => 
-          notify({ title: 'Veda Deep', message: 'Solvers complete' }));
+        import('../util/notify').then(({ notify, formatNotifyMessage }) => 
+          notify({ title: 'Veda Deep', message: `Solvers complete: ${formatNotifyMessage(prompt)}`, session: options.session }));
       }
       break;
 
@@ -81,8 +81,8 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions, globalNotify?: 
       const name = parts.length >= 3 ? parts.slice(2).join('-') : (event.source || 'unknown');
       
       if (shouldNotify) {
-        import('../util/notify').then(({ notify }) => 
-          notify({ title: 'Veda Deep', message: `Solver '${name}' complete` }));
+        import('../util/notify').then(({ notify, formatNotifyMessage }) => 
+          notify({ title: 'Veda Deep', message: `Solver '${name}' complete: ${formatNotifyMessage(prompt)}`, session: options.session }));
       }
       if (event.usage) {
         const tokens = event.usage.inputTokens + event.usage.outputTokens;
@@ -112,9 +112,9 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions, globalNotify?: 
     
     case 'stage_complete':
       if (shouldNotify) {
-        import('../util/notify').then(({ notify }) => {
+        import('../util/notify').then(({ notify, formatNotifyMessage }) => {
           const msg = event.stage === 'solve' ? 'Judge complete' : 'Verifier complete';
-          notify({ title: 'Veda Deep', message: msg });
+          notify({ title: 'Veda Deep', message: `${msg}: ${formatNotifyMessage(prompt)}`, session: options.session });
         });
       }
       if (event.usage) {
@@ -135,8 +135,8 @@ function handleEvent(event: DeepThinkEvent, options: CliOptions, globalNotify?: 
     
     case 'complete':
       if (shouldNotify) {
-        import('../util/notify').then(({ notify }) => 
-          notify({ title: 'Veda Deep', message: 'Deep thinking complete' }));
+        import('../util/notify').then(({ notify, formatNotifyMessage }) => 
+          notify({ title: 'Veda Deep', message: `Complete: ${formatNotifyMessage(prompt)}`, session: options.session }));
       }
       if (event.result) {
         console.error(`\n[complete] Stages: ${event.result.stages.join(' → ')}`);
