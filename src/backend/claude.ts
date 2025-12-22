@@ -1,6 +1,6 @@
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
 import type { SandboxMode } from '../agent/config';
-import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
+import { spawnCliWithRetry, commandExists, parseNdjsonStream } from './util/spawn';
 
 function toClaudePermissionMode(sandbox: SandboxMode): string {
   switch (sandbox) {
@@ -32,7 +32,7 @@ export class ClaudeBackend implements Backend {
     input += prompt;
     args.push(input);
     
-    const { stdout, process } = spawnCli({ command: this.command, args, cwd });
+    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
     yield* this.parseStream(stdout);
     await process.exited;
   }
@@ -46,7 +46,7 @@ export class ClaudeBackend implements Backend {
     args.push('--print', '--output-format', 'stream-json', '--verbose');
     args.push(prompt ?? '--continue');
     
-    const { stdout, process } = spawnCli({ command: this.command, args, cwd });
+    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
     yield* this.parseStream(stdout);
     await process.exited;
   }

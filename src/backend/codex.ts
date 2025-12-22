@@ -1,5 +1,5 @@
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
-import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
+import { spawnCliWithRetry, commandExists, parseNdjsonStream } from './util/spawn';
 import { toCodexSandbox } from '../agent';
 
 export class CodexBackend implements Backend {
@@ -33,7 +33,7 @@ export class CodexBackend implements Backend {
     input += prompt;
     args.push('-'); // stdin avoids arg length limits
     
-    const { stdout, process } = spawnCli({
+    const { stdout, process } = await spawnCliWithRetry({
       command: this.command,
       args,
       cwd,
@@ -51,7 +51,7 @@ export class CodexBackend implements Backend {
     const args: string[] = ['exec', '--json', 'resume', sessionId];
     if (prompt) args.push('--', prompt);
     
-    const { stdout, process } = spawnCli({ command: this.command, args, cwd });
+    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
     yield* this.parseStream(stdout);
     await process.exited;
   }

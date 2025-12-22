@@ -1,4 +1,87 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect, mock } from 'bun:test';
+
+// Import the backends to test their normalizeEvent methods
+// We'll test via the class instances since normalizeEvent is private
+
+import { isSpawnEnoent, computeBackoffMs, sleep } from '../../src/backend/util/spawn';
+
+describe('spawn retry utilities', () => {
+  describe('isSpawnEnoent', () => {
+    it('detects ENOENT from error code', () => {
+      expect(isSpawnEnoent({ code: 'ENOENT' })).toBe(true);
+    });
+    
+    it('detects ENOENT from error message', () => {
+      expect(isSpawnEnoent({ message: 'Executable not found in $PATH: "gemini"' })).toBe(true);
+      expect(isSpawnEnoent({ message: 'some error with ENOENT in it' })).toBe(true);
+    });
+    
+    it('returns false for non-ENOENT errors', () => {
+      expect(isSpawnEnoent({ code: 'ECONNREFUSED' })).toBe(false);
+      expect(isSpawnEnoent({ message: 'Connection refused' })).toBe(false);
+      expect(isSpawnEnoent({ message: 'Unknown error' })).toBe(false);
+    });
+    
+    it('handles null/undefined gracefully', () => {
+      expect(isSpawnEnoent(null)).toBe(false);
+      expect(isSpawnEnoent(undefined)).toBe(false);
+    });
+    
+    it('handles non-objects gracefully', () => {
+      expect(isSpawnEnoent('string error')).toBe(false);
+      expect(isSpawnEnoent(123)).toBe(false);
+    });
+  });
+  
+  describe('computeBackoffMs', () => {
+    it('computes exponential backoff', () => {
+      // Attempt 0: 250ms * 2^0 = 250ms
+      expect(computeBackoffMs(0, { jitter: false })).toBe(250);
+      // Attempt 1: 250ms * 2^1 = 500ms
+      expect(computeBackoffMs(1, { jitter: false })).toBe(500);
+      // Attempt 2: 250ms * 2^2 = 1000ms
+      expect(computeBackoffMs(2, { jitter: false })).toBe(1000);
+      // Attempt 3: 250ms * 2^3 = 2000ms (capped)
+      expect(computeBackoffMs(3, { jitter: false })).toBe(2000);
+      // Attempt 4: still capped at 2000ms
+      expect(computeBackoffMs(4, { jitter: false })).toBe(2000);
+    });
+    
+    it('applies jitter when enabled', () => {
+      // Run multiple times to check for jitter range
+      const delays: number[] = [];
+      for (let i = 0; i < 100; i++) {
+        delays.push(computeBackoffMs(0, { jitter: true }));
+      }
+      // With jitter ±20%, should range from 200 to 300
+      const min = Math.min(...delays);
+      const max = Math.max(...delays);
+      expect(min).toBeGreaterThanOrEqual(200);
+      expect(max).toBeLessThanOrEqual(300);
+    });
+    
+    it('respects custom base delay', () => {
+      expect(computeBackoffMs(0, { baseDelayMs: 100, jitter: false })).toBe(100);
+      expect(computeBackoffMs(1, { baseDelayMs: 100, jitter: false })).toBe(200);
+    });
+    
+    it('respects max delay cap', () => {
+      // With base 500 and max 600, attempt 2 would be 2000 but capped to 600
+      expect(computeBackoffMs(2, { baseDelayMs: 500, maxDelayMs: 600, jitter: false })).toBe(600);
+    });
+  });
+  
+  describe('sleep', () => {
+    it('resolves after specified time', async () => {
+      const start = Date.now();
+      await sleep(50);
+      const elapsed = Date.now() - start;
+      // Allow some tolerance
+      expect(elapsed).toBeGreaterThanOrEqual(40);
+      expect(elapsed).toBeLessThan(100);
+    });
+  });
+});
 
 // Import the backends to test their normalizeEvent methods
 // We'll test via the class instances since normalizeEvent is private

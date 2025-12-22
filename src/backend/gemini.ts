@@ -1,6 +1,6 @@
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
 import type { SandboxMode } from '../agent/config';
-import { spawnCli, commandExists, parseNdjsonStream } from './util/spawn';
+import { spawnCliWithRetry, commandExists, parseNdjsonStream } from './util/spawn';
 
 function toGeminiApprovalMode(sandbox: SandboxMode): string {
   switch (sandbox) {
@@ -30,7 +30,7 @@ export class GeminiBackend implements Backend {
     input += prompt;
     args.push(input);
     
-    const { stdout, process } = spawnCli({ command: this.command, args, cwd });
+    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
     yield* this.parseStream(stdout);
     await process.exited;
   }
@@ -42,7 +42,7 @@ export class GeminiBackend implements Backend {
     if (config.sandbox) args.push('--approval-mode', toGeminiApprovalMode(config.sandbox));
     if (prompt) args.push(prompt);
     
-    const { stdout, process } = spawnCli({ command: this.command, args, cwd });
+    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
     yield* this.parseStream(stdout);
     await process.exited;
   }
