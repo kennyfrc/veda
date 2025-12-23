@@ -1,6 +1,6 @@
 // DeepThink: parallel solvers → judge aggregation → optional verification.
 
-import { getDefaults, loadGlobalConfig, resolveBackendModel } from '../agent';
+import { loadGlobalConfig, resolveBackendModel } from '../agent';
 import { AsyncQueue } from '../util';
 import type { Message, UsageStats } from '../backend';
 import {
@@ -27,7 +27,7 @@ export interface DeepThinkOptions {
   categories?: string[];
   modules?: string[];
   cwd?: string;
-  solverBackend?: string;
+  solverBackends?: string[];  // Array of backends for parallel solvers (supports randomization)
   solverModel?: string;
   judgeBackend?: string;
   judgeModel?: string;
@@ -56,6 +56,7 @@ export interface DeepThinkTrace {
     categories?: string[];
     modules?: string[];
     solver?: { backend: string; model?: string };
+    solverBackends?: string[];  // Randomized backends used
     judge?: { backend: string; model?: string };
     verifier?: { backend: string; model?: string };
   };
@@ -126,24 +127,35 @@ export async function* runDeepThink(
   // Run the main logic in the background
   (async () => {
     try {
-      const defaults = await getDefaults();
       const globalConfig = await loadGlobalConfig();
-      
+
       const base = resolveBackendModel({
         explicitBackend: options.backend,
         explicitModel: options.model,
         fallbackBackend: options.backend ?? globalConfig.backend,
         globalConfig,
       });
-      
-      const solver = resolveBackendModel({
-        explicitBackend: options.solverBackend,
-        explicitModel: options.solverModel,
-        fallbackBackend: base.backend,
-        fallbackModel: base.model,
-        globalConfig,
-      });
-      
+
+      // Determine solver backends (supports randomization)
+      // If solverBackends is provided, use it; otherwise use single backend
+      const solverBackends = options.solverBackends ?? [base.backend];
+
+      // Pre-resolve models for each distinct backend
+      const backendModels = new Map<string, string | undefined>();
+      for (const backend of new Set(solverBackends)) {
+        const resolved = resolveBackendModel({
+          explicitBackend: backend,
+          explicitModel: options.solverModel,
+          fallbackBackend: base.backend,
+          fallbackModel: base.model,
+          globalConfig,
+        });
+        if (!resolved.model) {
+          throw new Error(`Unable to resolve model for solver backend '${backend}'. Specify --solver-model or set MODEL in config.`);
+        }
+        backendModels.set(backend, resolved.model);
+      }
+
       const judge = resolveBackendModel({
         explicitBackend: options.judgeBackend,
         explicitModel: options.judgeModel,
@@ -151,7 +163,7 @@ export async function* runDeepThink(
         fallbackModel: base.model,
         globalConfig,
       });
-      
+
       const verifier = resolveBackendModel({
         explicitBackend: options.verifierBackend,
         explicitModel: options.verifierModel,
@@ -159,10 +171,7 @@ export async function* runDeepThink(
         fallbackModel: base.model,
         globalConfig,
       });
-      
-      if (!solver.model) {
-        throw new Error(`Unable to resolve model for solver backend '${solver.backend}'. Specify --solver-model or set MODEL in config.`);
-      }
+
       if (!judge.model) {
         throw new Error(`Unable to resolve model for judge backend '${judge.backend}'. Specify --judge-model or set MODEL in config.`);
       }
@@ -177,36 +186,41 @@ export async function* runDeepThink(
           verify,
           categories: options.categories,
           modules: options.modules,
-          solver: { backend: solver.backend, model: solver.model },
+          solver: { backend: solverBackends[0], model: backendModels.get(solverBackends[0]) },
+          solverBackends: solverBackends,
           judge: { backend: judge.backend, model: judge.model },
           verifier: { backend: verifier.backend, model: verifier.model },
         },
         solve: { candidates: [] },
         judge: { selectedIndex: 0, confidence: 0 },
       };
-      
+
       queue.push({ type: 'stage_start', stage: 'solve' });
       stages.push('solve');
-      
+
       const modules = selectModules({
         k,
         categories: options.categories,
         modules: options.modules,
       });
-      
-      const members: EnsembleMember[] = modules.map((module, i) => ({
-        id: `solver-${i}-${module.category}`,
-        request: {
-          backend: solver.backend,
-          model: solver.model,
-          prompt,
-          context,
-          systemPrompt: buildDeepSolverSystemPrompt({ module }),
-          reasoning: solverReasoning,
-          sandbox: 'read-only' as const,
-          cwd,
-        },
-      }));
+
+      const members: EnsembleMember[] = modules.map((module, i) => {
+        const backend = solverBackends[i % solverBackends.length];
+        const model = backendModels.get(backend);
+        return {
+          id: `solver-${i}-${module.category}`,
+          request: {
+            backend,
+            model,
+            prompt,
+            context,
+            systemPrompt: buildDeepSolverSystemPrompt({ module }),
+            reasoning: solverReasoning,
+            sandbox: 'read-only' as const,
+            cwd,
+          },
+        };
+      });
       
       const ensembleResult = await runEnsemble(members, (event: EnsembleEvent) => {
         const toolEvent = makeToolEvent(event.memberId, event.message);

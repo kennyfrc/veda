@@ -28,6 +28,10 @@ export interface CliOptions {
   judgeModel?: string;
   verifierBackend?: string;
   verifierModel?: string;
+
+  // Randomization options for deep mode
+  randomizeSolvers?: boolean;
+  solverBackends?: string[];
 }
 
 export interface ParsedArgs {
@@ -55,6 +59,8 @@ const FLAGS_WITH_VALUES = new Set([
   '--solver-backend', '--solver-model',
   '--judge-backend', '--judge-model',
   '--verifier-backend', '--verifier-model',
+  // Randomization options for deep mode
+  '--solver-backends',
 ]);
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -140,11 +146,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
         case '--verifier-model':
           options.verifierModel = value;
           break;
+        case '--solver-backends':
+          options.solverBackends = value.split(',').map(s => s.trim());
+          break;
       }
       i += 2;
       continue;
     }
-    
+
     switch (arg) {
       case '--no-sel':
         options.noSel = true;
@@ -157,6 +166,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
         continue;
       case '--no-verify':
         options.noVerify = true;
+        i++;
+        continue;
+      case '--randomize-solvers':
+        options.randomizeSolvers = true;
         i++;
         continue;
       case '--json':
@@ -298,6 +311,10 @@ Deep Mode Stage Overrides:
   --judge-model <name>      Model for judge (default: -m value)
   --verifier-backend <name> Backend for verifier (default: -b value)
   --verifier-model <name>   Model for verifier (default: -m value)
+
+Deep Mode Randomization:
+  --randomize-solvers       Randomize solver backends for diversity (deterministic)
+  --solver-backends <list>  Comma-separated backends to use with --randomize-solvers
 
 Selection Commands:
   sel add <files...>      Add files to selection (supports globs)

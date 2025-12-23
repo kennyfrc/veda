@@ -4,6 +4,106 @@ import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
 import { loadGlobalConfig, resolveBackendModel } from '../agent';
+import { getAvailableBackends } from '../backend';
+
+/**
+ * Simple non-cryptographic hash for determinism.
+ * Returns a 32-bit integer hash of the string.
+ */
+function hashString(str: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0; // Ensure positive 32-bit integer
+}
+
+/**
+ * Seeded pseudo-random number generator (Mulberry32).
+ * Simple and deterministic, sufficient for this use case.
+ * Produces uniform distribution regardless of modulus.
+ */
+function createSeededRandom(seed: number): () => number {
+  return () => {
+    // Mulberry32 PRNG
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Select solver backends deterministically based on prompt and options.
+ * 
+ * Precedence:
+ * 1. If options.solverBackend is set, use it for all solvers.
+ * 2. If options.randomizeSolvers is true:
+ *    - Use options.solverBackends if provided, otherwise use available backends.
+ *    - Distribute k backends deterministically across the solvers.
+ * 3. Otherwise, use solver backend resolved from options.
+ */
+export async function selectSolverBackends(options: {
+  k: number;
+  randomizeSolvers?: boolean;
+  solverBackend?: string;
+  solverBackends?: string[];
+}): Promise<{ backends: string[]; mode: 'fixed' | 'randomized' }> {
+  const { k, randomizeSolvers, solverBackend, solverBackends } = options;
+
+  // Precedence 1: Explicit single backend override
+  if (solverBackend) {
+    return {
+      backends: Array(k).fill(solverBackend),
+      mode: 'fixed',
+    };
+  }
+
+  // Precedence 2: Randomized distribution
+  if (randomizeSolvers) {
+    // Get candidate backends
+    let candidates: string[];
+    if (solverBackends && solverBackends.length > 0) {
+      // Use explicit list (sorted for determinism)
+      candidates = [...solverBackends].sort();
+    } else {
+      // Use available backends (sorted for determinism)
+      candidates = (await getAvailableBackends()).sort();
+    }
+
+    if (candidates.length === 0) {
+      throw new Error('No backends available for randomization. Install/configure at least one backend or use --solver-backend.');
+    }
+
+    // Deterministic selection
+    // Sort candidates to ensure consistent order regardless of registration
+    candidates.sort();
+    const seed = hashString(JSON.stringify({ k, candidates }));
+    const random = createSeededRandom(seed);
+
+    // Distribute k backends across candidates deterministically
+    // Uses seeded random to pick indices
+    const selected: string[] = [];
+    for (let i = 0; i < k; i++) {
+      const idx = Math.floor(random() * candidates.length);
+      selected.push(candidates[idx]);
+    }
+
+    return {
+      backends: selected,
+      mode: 'randomized',
+    };
+  }
+
+  // Precedence 3: Fixed single backend (default behavior)
+  // Fallback to 'codex' if nothing specified
+  const fallbackBackend = solverBackend ?? 'codex';
+  return {
+    backends: Array(k).fill(fallbackBackend),
+    mode: 'fixed',
+  };
+}
 
 export async function handleDeep(
   prompt: string,
@@ -39,13 +139,22 @@ export async function handleDeep(
     globalConfig,
   });
 
-  const solver = resolveBackendModel({
-    explicitBackend: options.solverBackend,
-    explicitModel: options.solverModel,
-    fallbackBackend: base.backend,
-    fallbackModel: base.model,
-    globalConfig,
+  // Handle solver backend selection (potentially randomized)
+  const solverBackendsResult = await selectSolverBackends({
+    k: options.k ?? 4,
+    randomizeSolvers: options.randomizeSolvers,
+    solverBackend: options.solverBackend,
+    solverBackends: options.solverBackends,
   });
+
+  // Log randomization mode
+  if (solverBackendsResult.mode === 'randomized') {
+    console.error(`[deep] Randomized solver backends: ${solverBackendsResult.backends.join(', ')}`);
+  }
+
+  // Resolve single backend for notifications (use first if randomized)
+  const solverBackendForNotification = solverBackendsResult.backends[0] ?? base.backend;
+  const solverModelForNotification = options.solverModel ?? base.model;
 
   const judge = resolveBackendModel({
     explicitBackend: options.judgeBackend,
@@ -68,14 +177,14 @@ export async function handleDeep(
     modules: options.modules,
     cwd: process.cwd(),
     // Per-stage overrides
-    solverBackend: options.solverBackend,
+    solverBackends: solverBackendsResult.backends,
     solverModel: options.solverModel,
     judgeBackend: options.judgeBackend,
     judgeModel: options.judgeModel,
     verifierBackend: options.verifierBackend,
     verifierModel: options.verifierModel,
   })) {
-    handleEvent(event, options, prompt, globalConfig.notify, solver.backend, solver.model, judge.backend, judge.model);
+    handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model);
 
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
