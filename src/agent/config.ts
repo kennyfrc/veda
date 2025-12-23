@@ -152,6 +152,12 @@ export function parseSandboxMode(input: string): SandboxMode | undefined {
   }
 }
 
+export interface ResolveModelOptions {
+  backend: string;
+  explicitModel?: string;
+  globalConfig?: GlobalConfig;
+}
+
 export function resolveModel(options: ResolveModelOptions): string | undefined {
   const { backend, explicitModel, globalConfig } = options;
   
@@ -199,6 +205,14 @@ export interface ResolvedBackendModel {
  * Resolve both backend and model together, with alias support.
  * Enables `-m opus` (without -b) to auto-select claude-code backend.
  */
+export interface ResolveBackendModelOptions {
+  explicitBackend?: string;
+  explicitModel?: string;
+  fallbackBackend?: string;
+  fallbackModel?: string;
+  globalConfig?: GlobalConfig;
+}
+
 export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedBackendModel {
   const { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig } = opts;
   

@@ -22,8 +22,8 @@ export class CodexBackend implements Backend {
     
     if (cwd) {
       args.push('--cd', cwd);
-      args.push('--skip-git-repo-check');
     }
+    args.push('--skip-git-repo-check');
     
     args.push('--json');
     
@@ -49,6 +49,7 @@ export class CodexBackend implements Backend {
     const { sessionId, prompt, cwd } = options;
     
     const args: string[] = ['exec', '--json', 'resume', sessionId];
+    args.push('--skip-git-repo-check');
     if (prompt) args.push('--', prompt);
     
     const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });

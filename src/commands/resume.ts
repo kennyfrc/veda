@@ -48,6 +48,7 @@ export async function handleResume(
       sessionId: threadInfo.threadId,
       prompt,
       config,
+      cwd: process.cwd(),
     })
   );
   

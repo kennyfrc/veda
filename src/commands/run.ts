@@ -63,6 +63,7 @@ export async function handleRun(
     model: config.model,
     reasoning: config.reasoning,
     sandbox: config.sandbox,
+    cwd: process.cwd(),
   });
   
   if (response.sessionId) {
