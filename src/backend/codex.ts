@@ -48,8 +48,7 @@ export class CodexBackend implements Backend {
   async *resume(options: ResumeOptions): AsyncIterable<Message> {
     const { sessionId, prompt, cwd } = options;
     
-    const args: string[] = ['exec', '--json', 'resume', sessionId];
-    args.push('--skip-git-repo-check');
+    const args: string[] = ['exec', '--json', '--skip-git-repo-check', 'resume', sessionId];
     if (prompt) args.push('--', prompt);
     
     const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
