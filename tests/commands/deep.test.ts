@@ -10,29 +10,34 @@ import { resolve } from 'path';
 
 const TEST_BASE = join(tmpdir(), 'veda-deep-test-' + process.pid + '-' + Date.now());
 
-/** 
+/**
  * Simulates buildAdhocContext from deep.ts
  * This is a copy of the fixed logic to test it independently
  */
 async function buildAdhocContext(files: string[], cwd: string): Promise<string> {
+  const results = await Promise.all(
+    files.map(path => {
+      const slice = parseSlice(path);
+      const absolutePath = resolve(cwd, slice.path);
+      return readSliceText({
+        cwd,
+        slice: { ...slice, path: absolutePath },
+      });
+    })
+  );
+
   const parts: string[] = [];
-  
-  for (const path of files) {
-    const slice = parseSlice(path);
-    const absolutePath = resolve(cwd, slice.path);
-    
-    const result = await readSliceText({
-      cwd,
-      slice: { ...slice, path: absolutePath },
-    });
-    
-    if (result) {
+  for (let i = 0; i < files.length; i++) {
+    const path = files[i];
+    const res = results[i];
+
+    if (res.ok) {
       // path already includes slice suffix (e.g., "file.ts:10-20")
       // so we use it directly for the header
-      parts.push(`## ${path}\n\`\`\`\n${result.content}\n\`\`\``);
+      parts.push(`## ${path}\n\`\`\`\n${res.value.content}\n\`\`\``);
     }
   }
-  
+
   return parts.join('\n\n');
 }
 
