@@ -164,6 +164,68 @@ describe('selectSolverBackends logic verification', () => {
     expect(result.mode).toBe('fixed');
     expect(result.backends).toEqual(['claude-code', 'claude-code', 'claude-code', 'claude-code']);
   });
+
+  test('CRITICAL BUG: selectSolverBackends inherits baseBackend when no override', async () => {
+    const { selectSolverBackends } = await import('../../src/commands/deep');
+    
+    // This is the bug: when no solverBackend, randomizeSolvers, or solverBackends are set,
+    // selectSolverBackends should use baseBackend instead of hardcoded 'codex'
+    const result = await selectSolverBackends({
+      k: 5,
+      randomizeSolvers: undefined,
+      solverBackend: undefined,
+      solverBackends: undefined,
+      baseBackend: 'gemini-cli',  // Pass base backend from resolveBackendModel
+    });
+    
+    expect(result.mode).toBe('fixed');
+    expect(result.backends.length).toBe(5);
+    
+    // All solvers should use the base backend
+    expect(result.backends).toEqual(['gemini-cli', 'gemini-cli', 'gemini-cli', 'gemini-cli', 'gemini-cli']);
+    
+    // NEGATIVE ASSERT: Should NOT fall back to codex
+    expect(result.backends.every(b => b !== 'codex')).toBe(true);
+  });
+
+  test('selectSolverBackends: override takes precedence over baseBackend', async () => {
+    const { selectSolverBackends } = await import('../../src/commands/deep');
+    
+    const result = await selectSolverBackends({
+      k: 5,
+      randomizeSolvers: undefined,
+      solverBackend: 'claude-code',  // Explicit override
+      solverBackends: undefined,
+      baseBackend: 'gemini-cli',  // Should be ignored
+    });
+    
+    expect(result.mode).toBe('fixed');
+    expect(result.backends).toEqual(['claude-code', 'claude-code', 'claude-code', 'claude-code', 'claude-code']);
+  });
+
+  test('selectSolverBackends: baseBackend with k=1', async () => {
+    const { selectSolverBackends } = await import('../../src/commands/deep');
+    
+    const result = await selectSolverBackends({
+      k: 1,
+      baseBackend: 'claude-code',
+    });
+    
+    expect(result.backends).toEqual(['claude-code']);
+  });
+
+  test('selectSolverBackends: baseBackend=codex maintains backward compatibility', async () => {
+    const { selectSolverBackends } = await import('../../src/commands/deep');
+    
+    // When baseBackend is codex, should still use it (no regression)
+    const result = await selectSolverBackends({
+      k: 5,
+      baseBackend: 'codex',
+    });
+    
+    expect(result.mode).toBe('fixed');
+    expect(result.backends).toEqual(['codex', 'codex', 'codex', 'codex', 'codex']);
+  });
 });
 
 describe('Backend registry', () => {

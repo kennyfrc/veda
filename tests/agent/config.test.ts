@@ -432,4 +432,68 @@ describe('resolveBackendModel', () => {
       expect(result.fromAlias).toBe(true);
     });
   });
+
+  describe('edge cases', () => {
+    test('handles alias with leading/trailing whitespace', () => {
+      const result = resolveBackendModel({
+        explicitModel: '  gemini-pro  ',
+      });
+      expect(result.backend).toBe('gemini-cli');
+      expect(result.model).toBe('gemini-3-pro-preview');
+      expect(result.fromAlias).toBe(true);
+    });
+
+    test('handles alias with internal whitespace in mixed case', () => {
+      const result = resolveBackendModel({
+        explicitModel: '  GEMINI-PRO  ',
+      });
+      expect(result.backend).toBe('gemini-cli');
+      expect(result.model).toBe('gemini-3-pro-preview');
+      expect(result.fromAlias).toBe(true);
+    });
+
+    test('handles empty string model - uses backend default', () => {
+      const result = resolveBackendModel({
+        explicitModel: '',
+        fallbackBackend: 'codex',
+      });
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('gpt-5.2'); // Backend default
+    });
+
+    test('handles unknown model alias - treats as literal model', () => {
+      const result = resolveBackendModel({
+        explicitModel: 'unknown-model',
+      });
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('unknown-model');
+      expect(result.fromAlias).toBe(false);
+    });
+  });
+
+  describe('CRITICAL: mismatched backend and alias', () => {
+    test('explicit codex backend with gemini-pro alias treats as literal model', () => {
+      // This documents the current behavior: when backend is explicit and
+      // differs from alias backend, the model is treated as literal
+      const result = resolveBackendModel({
+        explicitBackend: 'codex',
+        explicitModel: 'gemini-pro', // Alias for gemini-cli
+      });
+      
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('gemini-pro'); // NOT gemini-3-pro-preview
+      expect(result.fromAlias).toBe(false);
+    });
+
+    test('explicit claude-code backend with gpt alias treats as literal model', () => {
+      const result = resolveBackendModel({
+        explicitBackend: 'claude-code',
+        explicitModel: 'gpt', // Alias for codex
+      });
+      
+      expect(result.backend).toBe('claude-code');
+      expect(result.model).toBe('gpt'); // NOT gpt-5.2
+      expect(result.fromAlias).toBe(false);
+    });
+  });
 });

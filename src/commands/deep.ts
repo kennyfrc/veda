@@ -35,22 +35,23 @@ function createSeededRandom(seed: number): () => number {
 }
 
 /**
- * Select solver backends deterministically based on prompt and options.
- * 
+ * Select solver backends deterministically based on options.
+ *
  * Precedence:
  * 1. If options.solverBackend is set, use it for all solvers.
  * 2. If options.randomizeSolvers is true:
  *    - Use options.solverBackends if provided, otherwise use available backends.
  *    - Distribute k backends deterministically across the solvers.
- * 3. Otherwise, use solver backend resolved from options.
+ * 3. Otherwise, use baseBackend (inherited from resolved base backend), or fallback to 'codex'.
  */
 export async function selectSolverBackends(options: {
   k: number;
   randomizeSolvers?: boolean;
   solverBackend?: string;
   solverBackends?: string[];
+  baseBackend?: string;
 }): Promise<{ backends: string[]; mode: 'fixed' | 'randomized' }> {
-  const { k, randomizeSolvers, solverBackend, solverBackends } = options;
+  const { k, randomizeSolvers, solverBackend, solverBackends, baseBackend } = options;
 
   // Precedence 1: Explicit single backend override
   if (solverBackend) {
@@ -97,8 +98,8 @@ export async function selectSolverBackends(options: {
   }
 
   // Precedence 3: Fixed single backend (default behavior)
-  // Fallback to 'codex' if nothing specified
-  const fallbackBackend = solverBackend ?? 'codex';
+  // Use baseBackend if nothing specified, fallback to 'codex'
+  const fallbackBackend = solverBackend ?? baseBackend ?? 'codex';
   return {
     backends: Array(k).fill(fallbackBackend),
     mode: 'fixed',
@@ -145,6 +146,7 @@ export async function handleDeep(
     randomizeSolvers: options.randomizeSolvers,
     solverBackend: options.solverBackend,
     solverBackends: options.solverBackends,
+    baseBackend: base.backend,
   });
 
   // Log randomization mode
@@ -168,8 +170,8 @@ export async function handleDeep(
 
   // Run the pipeline
   for await (const event of runDeepThink(prompt, {
-    backend: options.backend,
-    model: options.model,  // Pass model override (if any)
+    backend: base.backend,  // Pass resolved backend to avoid duplicate resolution
+    model: base.model,  // Pass resolved model to avoid duplicate resolution
     k: options.k,
     verify: !options.noVerify,
     context,
