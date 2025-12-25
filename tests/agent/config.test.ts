@@ -222,7 +222,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('claude-code');
       expect(result.model).toBe('opus');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'opus' });
     });
 
     test('resolves sonnet alias to claude-code backend', () => {
@@ -231,7 +231,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('claude-code');
       expect(result.model).toBe('sonnet');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'sonnet' });
     });
 
     test('resolves gpt alias to codex backend', () => {
@@ -240,7 +240,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('codex');
       expect(result.model).toBe('gpt-5.2');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'gpt' });
     });
 
     test('resolves gemini-pro alias to gemini-cli backend', () => {
@@ -249,7 +249,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('gemini-cli');
       expect(result.model).toBe('gemini-3-pro-preview');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'gemini-pro' });
     });
 
     test('resolves gemini-flash alias to gemini-cli backend', () => {
@@ -258,7 +258,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('gemini-cli');
       expect(result.model).toBe('gemini-3-flash-preview');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'gemini-flash' });
     });
   });
 
@@ -270,7 +270,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('codex');
       expect(result.model).toBe('opus');
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'explicit' });
     });
 
     test('treats sonnet as literal model when backend is explicit', () => {
@@ -280,7 +280,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('gemini-cli');
       expect(result.model).toBe('sonnet');
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'explicit' });
     });
   });
 
@@ -292,7 +292,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('codex');
       expect(result.model).toBe('gpt-4o');
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'explicit' });
     });
 
     test('defaults to codex when no fallback and unknown model', () => {
@@ -301,7 +301,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('codex');
       expect(result.model).toBe('some-custom-model');
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'explicit' });
     });
   });
 
@@ -313,6 +313,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('claude-code');
       expect(result.model).toBe('haiku');
+      expect(result.source).toEqual({ kind: 'fallback' });
     });
 
     test('resolves fallback model alias when no backend specified', () => {
@@ -321,7 +322,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('claude-code');
       expect(result.model).toBe('opus');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'opus' });
     });
 
     test('does not resolve fallback model alias when backend is specified', () => {
@@ -331,7 +332,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('codex');
       expect(result.model).toBe('opus');
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'fallback' });
     });
   });
 
@@ -342,7 +343,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('claude-code');
       expect(result.model).toBe('opus');
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'default' });
     });
 
     test('uses explicit backend default model', () => {
@@ -351,7 +352,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('gemini-cli');
       expect(result.model).toBe('gemini-3-pro-preview');
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'explicit' });
     });
   });
 
@@ -388,7 +389,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('claude-code');
       expect(result.model).toBe('opus');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'opus' });
     });
   });
 
@@ -420,7 +421,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('claude-code');
       expect(result.model).toBe('opus');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'opus' });
     });
 
     test('handles mixed case alias', () => {
@@ -429,7 +430,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('claude-code');
       expect(result.model).toBe('sonnet');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'sonnet' });
     });
   });
 
@@ -440,7 +441,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('gemini-cli');
       expect(result.model).toBe('gemini-3-pro-preview');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'gemini-pro' });
     });
 
     test('handles alias with internal whitespace in mixed case', () => {
@@ -449,7 +450,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('gemini-cli');
       expect(result.model).toBe('gemini-3-pro-preview');
-      expect(result.fromAlias).toBe(true);
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'gemini-pro' });
     });
 
     test('handles empty string model - uses backend default', () => {
@@ -467,7 +468,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('codex');
       expect(result.model).toBe('unknown-model');
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'explicit' });
     });
   });
 
@@ -479,10 +480,10 @@ describe('resolveBackendModel', () => {
         explicitBackend: 'codex',
         explicitModel: 'gemini-pro', // Alias for gemini-cli
       });
-      
+
       expect(result.backend).toBe('codex');
       expect(result.model).toBe('gemini-pro'); // NOT gemini-3-pro-preview
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'explicit' });
     });
 
     test('explicit claude-code backend with gpt alias treats as literal model', () => {
@@ -490,10 +491,10 @@ describe('resolveBackendModel', () => {
         explicitBackend: 'claude-code',
         explicitModel: 'gpt', // Alias for codex
       });
-      
+
       expect(result.backend).toBe('claude-code');
       expect(result.model).toBe('gpt'); // NOT gpt-5.2
-      expect(result.fromAlias).toBe(false);
+      expect(result.source).toEqual({ kind: 'explicit' });
     });
   });
 });

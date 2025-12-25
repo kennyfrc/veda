@@ -6,9 +6,7 @@ describe('parseSlice', () => {
     const result = parseSlice('main.ts');
     expect(result).toEqual({
       path: 'main.ts',
-      start: undefined,
-      end: undefined,
-      hasSlice: false,
+      sliceType: 'full',
     });
   });
 
@@ -16,9 +14,9 @@ describe('parseSlice', () => {
     const result = parseSlice('main.ts:10-20');
     expect(result).toEqual({
       path: 'main.ts',
-      start: 10,
-      end: 20,
-      hasSlice: true,
+      sliceType: 'range',
+      startLine: 10,
+      endLine: 20,
     });
   });
 
@@ -26,9 +24,8 @@ describe('parseSlice', () => {
     const result = parseSlice('main.ts:15-');
     expect(result).toEqual({
       path: 'main.ts',
-      start: 15,
-      end: undefined,
-      hasSlice: true,
+      sliceType: 'infinite-range',
+      startLine: 15,
     });
   });
 
@@ -36,9 +33,8 @@ describe('parseSlice', () => {
     const result = parseSlice('main.ts:8');
     expect(result).toEqual({
       path: 'main.ts',
-      start: 8,
-      end: 8,
-      hasSlice: true,
+      sliceType: 'single-line',
+      startLine: 8,
     });
   });
 
@@ -46,63 +42,63 @@ describe('parseSlice', () => {
     const result = parseSlice('/Users/test/main.ts:1-10');
     expect(result).toEqual({
       path: '/Users/test/main.ts',
-      start: 1,
-      end: 10,
-      hasSlice: true,
+      sliceType: 'range',
+      startLine: 1,
+      endLine: 10,
     });
   });
 
   test('handles paths with colons in directory names', () => {
     // Edge case: path has colon but no valid slice suffix
     const result = parseSlice('C:/Users/main.ts');
-    expect(result.hasSlice).toBe(false);
+    expect(result.sliceType).toBe('full');
     expect(result.path).toBe('C:/Users/main.ts');
   });
 
   test('rejects line number 0 (lines are 1-indexed)', () => {
     const result = parseSlice('file.ts:0');
-    expect(result.hasSlice).toBe(false);
+    expect(result.sliceType).toBe('full');
     expect(result.path).toBe('file.ts:0');
   });
 
   test('rejects line number 0 in range', () => {
     const result = parseSlice('file.ts:0-10');
-    expect(result.hasSlice).toBe(false);
+    expect(result.sliceType).toBe('full');
     expect(result.path).toBe('file.ts:0-10');
   });
 
   test('rejects end < start', () => {
     const result = parseSlice('file.ts:20-10');
-    expect(result.hasSlice).toBe(false);
+    expect(result.sliceType).toBe('full');
     expect(result.path).toBe('file.ts:20-10');
   });
 
   test('accepts end == start (single line via range)', () => {
     const result = parseSlice('file.ts:5-5');
-    expect(result.hasSlice).toBe(true);
-    expect(result.start).toBe(5);
-    expect(result.end).toBe(5);
+    expect(result.sliceType).toBe('range');
+    expect(result.startLine).toBe(5);
+    expect(result.endLine).toBe(5);
   });
 });
 
 describe('formatSlice', () => {
   test('formats file without slice', () => {
-    const result = formatSlice({ path: 'main.ts', hasSlice: false });
+    const result = formatSlice({ path: 'main.ts', sliceType: 'full' });
     expect(result).toBe('main.ts');
   });
 
   test('formats file with range slice', () => {
-    const result = formatSlice({ path: 'main.ts', start: 10, end: 20, hasSlice: true });
+    const result = formatSlice({ path: 'main.ts', sliceType: 'range', startLine: 10, endLine: 20 });
     expect(result).toBe('main.ts:10-20');
   });
 
   test('formats file with open-ended slice', () => {
-    const result = formatSlice({ path: 'main.ts', start: 15, end: undefined, hasSlice: true });
+    const result = formatSlice({ path: 'main.ts', sliceType: 'infinite-range', startLine: 15 });
     expect(result).toBe('main.ts:15-');
   });
 
   test('formats file with single line slice', () => {
-    const result = formatSlice({ path: 'main.ts', start: 8, end: 8, hasSlice: true });
+    const result = formatSlice({ path: 'main.ts', sliceType: 'single-line', startLine: 8 });
     expect(result).toBe('main.ts:8');
   });
 

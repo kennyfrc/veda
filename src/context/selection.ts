@@ -50,22 +50,22 @@ export async function writeSelectionFile(path: string, entries: SelectionEntry[]
 export async function resolvePattern(pattern: string, cwd: string = process.cwd()): Promise<string[]> {
   const slice = parseSlice(pattern);
   const basePath = slice.path;
-  
+
   const isGlob = basePath.includes('*') || basePath.includes('?') || basePath.includes('[');
-  
+
   if (isGlob) {
     const glob = new Bun.Glob(basePath);
     const matches: string[] = [];
-    
+
     for await (const match of glob.scan({ cwd, absolute: true })) {
-      matches.push(slice.hasSlice ? formatSlice({ ...slice, path: match }) : match);
+      matches.push(slice.sliceType === 'full' ? match : formatSlice({ ...slice, path: match }));
     }
-    
+
     return matches;
   }
-  
+
   const absolutePath = isAbsolute(basePath) ? basePath : resolve(cwd, basePath);
-  return [slice.hasSlice ? formatSlice({ ...slice, path: absolutePath }) : absolutePath];
+  return [slice.sliceType === 'full' ? absolutePath : formatSlice({ ...slice, path: absolutePath })];
 }
 
 export async function fileExists(path: string): Promise<boolean> {

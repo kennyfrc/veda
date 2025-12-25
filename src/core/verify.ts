@@ -14,10 +14,13 @@ export interface Check {
   targetClaim?: string;
 }
 
+/** Verdict of a verification check: explicit domain meaning */
+export type CheckVerdict = 'supports' | 'contradicts' | 'uncertain';
+
 export interface CheckResult {
   checkId: string;
   answer: string;
-  contradictsDraft: boolean;
+  verdict: CheckVerdict;
   confidence: number;
 }
 
@@ -25,7 +28,14 @@ export interface Revision {
   revised: string;
   changes: string[];
   conflicts: string[];
-  unchanged: boolean;
+}
+
+/**
+ * Derive whether a revision is unchanged by comparing to the original draft.
+ * Follows pragmatic principle: derive data, don't store it.
+ */
+export function isUnchanged(revision: Revision, originalDraft: string): boolean {
+  return revision.revised === originalDraft;
 }
 
 export interface VerificationResult {
@@ -202,13 +212,19 @@ export function parseCheckResults(text: string, checks: Check[]): CheckResult[] 
   while ((match = resultRegex.exec(text)) !== null) {
     const id = match[1];
     const answer = match[2].trim();
-    const verdict = match[3].trim().toLowerCase();
+    const verdictStr = match[3].trim().toLowerCase();
     const confLevel = match[4]?.trim().toLowerCase() ?? 'medium';
+
+    // Parse verdict as direct domain value, avoiding boolean blindness
+    const verdict: CheckVerdict =
+      verdictStr === 'contradicts' ? 'contradicts' :
+      verdictStr === 'supports' ? 'supports' :
+      'uncertain';
 
     parsed.set(id, {
       checkId: id,
       answer,
-      contradictsDraft: verdict === 'contradicts',
+      verdict,
       confidence: confLevel === 'high' ? 0.9 : confLevel === 'medium' ? 0.7 : 0.5,
     });
   }
@@ -219,11 +235,11 @@ export function parseCheckResults(text: string, checks: Check[]): CheckResult[] 
     if (result) {
       results.push(result);
     } else {
-      // Fallback: assume uncertain/supports if check result missing
+      // Fallback: assume uncertain if check result missing
       results.push({
         checkId: check.id,
         answer: 'Unable to parse result for this check',
-        contradictsDraft: false,
+        verdict: 'uncertain',
         confidence: 0.5,
       });
     }
@@ -256,7 +272,6 @@ export function parseRevision(originalDraft: string, text: string): Revision {
     revised,
     changes,
     conflicts,
-    unchanged: revised === originalDraft,
   };
 }
 
@@ -313,7 +328,7 @@ export async function runVerification(args: {
 
   const results = parseCheckResults(answerResponse.text, checks);
 
-  const contradictions = results.filter(r => r.contradictsDraft);
+  const contradictions = results.filter(r => r.verdict === 'contradicts');
 
   if (contradictions.length === 0) {
     return {

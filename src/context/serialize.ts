@@ -15,9 +15,9 @@ export function serializeFileContextBlock(
   const separator = opts.separator ?? DEFAULT_SEPARATOR;
   const fence = opts.fence ?? DEFAULT_FENCE;
 
-  const lineInfo = result.hasSlice
-    ? ` (lines ${result.startLine}-${result.endLine})`
-    : '';
+  const lineInfo = result.sliceType === 'full'
+    ? ''
+    : ` (lines ${result.startLine}-${result.endLine})`;
 
   return `File: ${result.displayPath}${lineInfo}
 ${fence}

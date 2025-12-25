@@ -139,14 +139,14 @@ export class ContextStore {
         
         for (const pattern of toRemove) {
           const patternSlice = parseSlice(pattern);
-          
-          if (patternSlice.hasSlice) {
-            if (formatSlice(entry.slice) === pattern) {
+
+          if (patternSlice.sliceType === 'full') {
+            if (entry.slice.path === patternSlice.path) {
               shouldRemove = true;
               break;
             }
           } else {
-            if (entry.slice.path === patternSlice.path) {
+            if (formatSlice(entry.slice) === pattern) {
               shouldRemove = true;
               break;
             }

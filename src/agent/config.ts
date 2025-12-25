@@ -195,10 +195,17 @@ export function resolveReasoning(options: ResolveReasoningOptions): ReasoningLev
   return getBackendDefaultReasoning(backend);
 }
 
+/** Source of model resolution - captures provenance for debugging */
+export type ModelSource =
+  | { kind: 'explicit' }
+  | { kind: 'alias'; aliasName: string }
+  | { kind: 'fallback' }
+  | { kind: 'default' };
+
 export interface ResolvedBackendModel {
   backend: string;
   model?: string;
-  fromAlias: boolean;
+  source: ModelSource;
 }
 
 /**

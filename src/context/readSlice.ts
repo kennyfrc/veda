@@ -12,7 +12,7 @@ export interface ReadSliceResult {
   startLine: number;
   endLine: number;
   lineCount: number;
-  hasSlice: boolean;
+  sliceType: 'full' | 'single-line' | 'range' | 'infinite-range';
 }
 
 export interface ReadSliceOptions {
@@ -42,7 +42,7 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<Result<Read
     }
 
     // Optimization: if no slice is requested, use the optimized file.text()
-    if (!slice.hasSlice) {
+    if (slice.sliceType === 'full') {
       const content = await file.text();
       const lineCount = content.split('\n').length;
       return ok({
@@ -52,14 +52,14 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<Result<Read
         startLine: 1,
         endLine: lineCount,
         lineCount,
-        hasSlice: false,
+        sliceType: 'full',
       });
     }
 
     // Memory-efficient slicing using line iterator
-    const startLine = Math.max(1, slice.start ?? 1);
-    const endLine = slice.end ?? Infinity;
-    
+    const startLine = Math.max(1, slice.startLine ?? 1);
+    const endLine = slice.sliceType === 'single-line' ? startLine : (slice.endLine ?? Infinity);
+
     const lines: string[] = [];
     let currentLine = 1;
     let actualEndLine = 0;
@@ -75,7 +75,7 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<Result<Read
         actualEndLine = currentLine;
       }
       if (currentLine >= endLine) {
-        currentLine++; 
+        currentLine++;
         break;
       }
       currentLine++;
@@ -90,7 +90,7 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<Result<Read
         startLine,
         endLine: startLine,
         lineCount: 0,
-        hasSlice: true,
+        sliceType: slice.sliceType,
       });
     }
 
@@ -102,7 +102,7 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<Result<Read
       startLine,
       endLine: actualEndLine || startLine,
       lineCount: lines.length,
-      hasSlice: true,
+      sliceType: slice.sliceType,
     });
     return result;
     return result;

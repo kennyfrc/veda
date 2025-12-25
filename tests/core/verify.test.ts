@@ -6,6 +6,7 @@ import {
   parseChecks,
   parseCheckResults,
   parseRevision,
+  isUnchanged,
 } from '../../src/core/verify';
 
 describe('verify', () => {
@@ -61,10 +62,10 @@ describe('verify', () => {
       
       expect(results).toHaveLength(2);
       expect(results[0].checkId).toBe('1');
-      expect(results[0].contradictsDraft).toBe(false);
+      expect(results[0].verdict).toBe('supports');
       expect(results[0].confidence).toBe(0.9); // high
       expect(results[1].checkId).toBe('2');
-      expect(results[1].contradictsDraft).toBe(true);
+      expect(results[1].verdict).toBe('contradicts');
       expect(results[1].confidence).toBe(0.7); // medium
     });
 
@@ -74,7 +75,7 @@ describe('verify', () => {
       const results = parseCheckResults(text, checks);
       
       expect(results).toHaveLength(1);
-      expect(results[0].contradictsDraft).toBe(false);
+      expect(results[0].verdict).toBe('uncertain');
       expect(results[0].confidence).toBe(0.5);
     });
   });
@@ -101,7 +102,7 @@ none
       expect(revision.revised).toBe('Updated draft with fixes');
       expect(revision.changes).toEqual(['Fixed typo', 'Added error handling']);
       expect(revision.conflicts).toEqual([]);
-      expect(revision.unchanged).toBe(false);
+      expect(isUnchanged(revision, original)).toBe(false);
     });
 
     it('returns unchanged when revision matches original', () => {
@@ -110,7 +111,7 @@ none
       
       const revision = parseRevision(original, text);
       
-      expect(revision.unchanged).toBe(true);
+      expect(isUnchanged(revision, original)).toBe(true);
     });
 
     it('falls back to original when no revised tag', () => {
@@ -120,7 +121,17 @@ none
       const revision = parseRevision(original, text);
       
       expect(revision.revised).toBe('Original draft');
-      expect(revision.unchanged).toBe(true);
+      expect(isUnchanged(revision, original)).toBe(true);
+    });
+
+    it('detects changed revision', () => {
+      const original = 'Original draft';
+      const text = `<revised>Revised draft</revised><changes>Tweaked</changes><conflicts>none</conflicts>`;
+      
+      const revision = parseRevision(original, text);
+      
+      expect(revision.revised).toBe('Revised draft');
+      expect(isUnchanged(revision, original)).toBe(false);
     });
   });
 

@@ -43,6 +43,7 @@ export {
 export type {
   VerificationType,
   Check,
+  CheckVerdict,
   CheckResult,
   Revision,
   VerificationResult,
@@ -55,6 +56,7 @@ export {
   parseChecks,
   parseCheckResults,
   parseRevision,
+  isUnchanged,
   runVerification,
 } from './verify';
 

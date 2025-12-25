@@ -5,7 +5,7 @@
  */
 
 import { resolveModelAlias as resolveModelAliasImpl, normalizeModelName } from './model-aliases';
-import type { ResolvedBackendModel } from './config';
+import type { ResolvedBackendModel, ModelSource } from './config';
 
 /**
  * Resolved alias target with normalized name.
@@ -144,8 +144,6 @@ export function resolveBackendModelExtracted(
     useAlias = false;
   }
 
-  const fromAlias = !!useAlias;
-
   // Determine backend
   const backend = determineBackend(
     explicitBackend,
@@ -166,5 +164,20 @@ export function resolveBackendModelExtracted(
   // Final model resolution using the provided resolveModel function
   const model = resolveModelFn(backend, modelForResolution);
 
-  return { backend, model, fromAlias };
+  // Determine source based on actual resolution outcome
+  let source: ModelSource;
+  if (useAlias) {
+    // Alias was used - normalize the aliasName for consistency
+    source = { kind: 'alias', aliasName: normalizeModelName(preferredModel!) };
+  } else if (explicitModel || explicitBackend) {
+    source = { kind: 'explicit' };
+  } else if (fallbackModel) {
+    // A fallback model was explicitly specified
+    source = { kind: 'fallback' };
+  } else {
+    // Using backend's built-in default model
+    source = { kind: 'default' };
+  }
+
+  return { backend, model, source };
 }

@@ -9,11 +9,16 @@ import {
   runVerification,
   combineUsage,
   selectModules,
+  isUnchanged,
   type EnsembleMember,
   type EnsembleEvent,
   type Reasoning,
 } from '../core';
-import { buildDeepSolverSystemPrompt, JUDGE_SYSTEM_PROMPT, VERIFIER_SYSTEM_PROMPT } from './prompts';
+import {
+  buildDeepSolverSystemPrompt,
+  JUDGE_SYSTEM_PROMPT,
+  VERIFIER_SYSTEM_PROMPT,
+} from './prompts';
 
 export interface DeepThinkOptions {
   backend?: string;
@@ -352,12 +357,12 @@ export async function* runDeepThink(
           results: verifyResult.results.map(r => ({
             checkId: r.checkId,
             answer: r.answer,
-            verdict: r.contradictsDraft ? 'contradicts' : (r.confidence >= 0.7 ? 'supports' : 'uncertain'),
+            verdict: r.verdict,
             confidence: r.confidence,
           })),
         };
         
-        if (verifyResult.revision && !verifyResult.revision.unchanged) {
+        if (verifyResult.revision && !isUnchanged(verifyResult.revision, finalAnswer)) {
           finalAnswer = verifyResult.revision.revised;
           wasRevised = true;
           

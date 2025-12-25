@@ -100,14 +100,14 @@ describe('ContextStore', () => {
   test('add with slice', async () => {
     const store = createTestStore();
     const result = await store.add(['a.ts:1-3']);
-    
+
     expect(result.added).toBe(1);
-    
+
     const entries = await store.list();
     expect(entries.length).toBe(1);
-    expect(entries[0].slice.hasSlice).toBe(true);
-    expect(entries[0].slice.start).toBe(1);
-    expect(entries[0].slice.end).toBe(3);
+    expect(entries[0].slice.sliceType).toBe('range');
+    expect(entries[0].slice.startLine).toBe(1);
+    expect(entries[0].slice.endLine).toBe(3);
   });
 
   test('add same file with different slices', async () => {
@@ -150,15 +150,15 @@ describe('ContextStore', () => {
 
   test('remove specific slice only', async () => {
     const store = createTestStore();
-    
+
     await store.add(['a.ts:1-3', 'a.ts:4-5']);
     const result = await store.remove(['a.ts:1-3']);
-    
+
     expect(result.removed).toBe(1); // Only the specific slice
-    
+
     const entries = await store.list();
     expect(entries.length).toBe(1);
-    expect(entries[0].slice.start).toBe(4);
+    expect(entries[0].slice.startLine).toBe(4);
   });
 
   test('clear removes all', async () => {
