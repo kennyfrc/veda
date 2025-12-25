@@ -41,7 +41,6 @@ export interface DeepThinkResult {
   candidates: string[];
   wasRevised: boolean;
   usage: UsageStats;
-  stages: string[];
   trace?: DeepThinkTrace;
 }
 
@@ -111,7 +110,6 @@ export async function* runDeepThink(
   
   const queue = new AsyncQueue<DeepThinkEvent>();
   const usages: (UsageStats | undefined)[] = [];
-  const stages: string[] = [];
   const cwd = options.cwd ?? process.cwd();
 
   const makeToolEvent = (source: string, msg: Message): DeepThinkEvent | null => {
@@ -196,7 +194,6 @@ export async function* runDeepThink(
       };
 
       queue.push({ type: 'stage_start', stage: 'solve' });
-      stages.push('solve');
 
       const modules = selectModules({
         k,
@@ -328,7 +325,6 @@ export async function* runDeepThink(
         }
         
         queue.push({ type: 'stage_start', stage: 'verify' });
-        stages.push('verify');
         
         const verifyResult = await runVerification({
           backend: verifier.backend,
@@ -391,7 +387,6 @@ export async function* runDeepThink(
         candidates: ensembleResult.successful,
         wasRevised,
         usage: totalUsage,
-        stages,
         trace,
       };
       
@@ -411,4 +406,28 @@ export async function* runDeepThink(
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen - 3) + '...';
+}
+
+/**
+ * Derive the list of completed stages from a DeepThinkTrace.
+ * This prevents storing redundant data in the result.
+ *
+ * @param trace The trace object (may be undefined)
+ * @returns Array of stage names in execution order
+ *
+ * @example
+ * getDeepThinkStages({ solve: {...}, judge: {...} }) // → ['solve']
+ * getDeepThinkStages({ solve: {...}, judge: {...}, verify: {...} }) // → ['solve', 'verify']
+ */
+export function getDeepThinkStages(trace?: DeepThinkTrace): string[] {
+  if (!trace) {
+    return [];
+  }
+
+  const stages: string[] = ['solve'];
+  if (trace.verify) {
+    stages.push('verify');
+  }
+
+  return stages;
 }

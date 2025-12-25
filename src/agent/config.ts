@@ -1,6 +1,6 @@
 import { getConfigPath } from '../util/paths';
 import { getBackendDefaultModel, getBackendDefaultReasoning } from '../backend/defaults';
-import { resolveModelAlias } from './model-aliases';
+import { resolveBackendModelExtracted, tryResolveAliasTarget } from './config-extract';
 
 export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
 export type SandboxMode = 'read-only' | 'workspace-write' | 'full';
@@ -160,21 +160,21 @@ export interface ResolveModelOptions {
 
 export function resolveModel(options: ResolveModelOptions): string | undefined {
   const { backend, explicitModel, globalConfig } = options;
-  
+
   if (explicitModel) return explicitModel;
-  
+
   const userOverride = globalConfig?.backendModels?.[backend];
   if (userOverride) return userOverride;
 
   if (globalConfig?.model) {
-    const alias = resolveModelAlias(globalConfig.model);
+    const alias = tryResolveAliasTarget(globalConfig.model);
     // If it's an alias, only use it if it matches the current backend.
     // If it's not an alias, we treat it as a literal model name for the current backend.
     if (!alias || alias.backend === backend) {
       return globalConfig.model;
     }
   }
-  
+
   return getBackendDefaultModel(backend);
 }
 
@@ -215,75 +215,9 @@ export interface ResolveBackendModelOptions {
 
 export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedBackendModel {
   const { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig } = opts;
-  
-  let backend: string;
-  let modelForResolution: string | undefined;
-  let fromAlias = false;
 
-  // Potential model to use for resolution if nothing else is provided
-  const preferredModel = explicitModel ?? fallbackModel ?? globalConfig?.model;
-  
-  // Try to resolve alias if model is provided
-  const aliasTarget = preferredModel ? resolveModelAlias(preferredModel) : undefined;
-
-  if (explicitBackend) {
-    // Explicit backend provided
-    backend = explicitBackend;
-    
-    if (aliasTarget && aliasTarget.backend === explicitBackend) {
-      // Model is an alias for this specific backend
-      modelForResolution = aliasTarget.model;
-      fromAlias = true;
-    } else {
-      // Treat preferredModel as a literal model name for this backend
-      modelForResolution = preferredModel;
-    }
-  } else if (explicitModel) {
-    // No explicit backend - check if model is an alias
-    if (aliasTarget) {
-      // Alias matched - use alias's backend and model
-      backend = aliasTarget.backend;
-      modelForResolution = aliasTarget.model;
-      fromAlias = true;
-    } else {
-      // Not an alias - use fallback backend with explicit model
-      backend = fallbackBackend ?? 'codex';
-      modelForResolution = explicitModel;
-    }
-  } else if (fallbackModel) {
-    // No explicit model but have fallback - check if fallback is an alias
-    if (aliasTarget && !fallbackBackend) {
-      // Fallback model is an alias and no backend specified
-      backend = aliasTarget.backend;
-      modelForResolution = aliasTarget.model;
-      fromAlias = true;
-    } else {
-      // Use fallback backend with fallback model
-      backend = fallbackBackend ?? 'codex';
-      modelForResolution = fallbackModel;
-    }
-  } else if (globalConfig?.model) {
-    // Use global config model as fallback
-    if (aliasTarget && !fallbackBackend) {
-      backend = aliasTarget.backend;
-      modelForResolution = aliasTarget.model;
-      fromAlias = true;
-    } else {
-      backend = fallbackBackend ?? 'codex';
-      modelForResolution = globalConfig.model;
-    }
-  } else {
-    // No model specified at all - use fallback backend
-    backend = fallbackBackend ?? 'codex';
-    modelForResolution = undefined;
-  }
-  
-  // Step 4: Resolve final model using precedence logic in resolveModel
-  const model = resolveModel({
-    backend,
-    explicitModel: modelForResolution,
-    globalConfig,
-  });
-  
-  return { backend, model, fromAlias };
+  return resolveBackendModelExtracted(
+    { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig },
+    (backend, model) => resolveModel({ backend, explicitModel: model, globalConfig })
+  );
 }

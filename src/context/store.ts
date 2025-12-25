@@ -41,6 +41,25 @@ export class ContextStore {
   private readonly sessionDir: string;
   private readonly cwd: string;
 
+  /**
+   * Performance note: list() caching considered but NOT implemented.
+   *
+   * Analysis:
+   * - list() is called in: add(), remove(), tokens(), tokenDetails()
+   * - Only 1 duplicate read path: 'ls' command → list() → tokenDetails() → list()
+   * - This is an interactive command, not performance-critical
+   * - Typical selections: <100 files, <10KB each → file I/O is <10ms
+   *
+   * Pragmatic principle: "Inline until duplication appears"
+   * - Wait until we have 2+ hot path usages that truly benefit from caching
+   * - See tests/context/store-performance.test.ts for benchmarks
+   *
+   * If caching is ever needed, consider:
+   * - Ephemeral per-operation cache (not across method calls)
+   * - Automatic invalidation on add/remove/clear
+   * - Benchmark to verify actual performance benefit
+   */
+
   constructor(options: ContextStoreOptions) {
     if (!isValidSessionId(options.sessionId)) {
       throw new Error(`Invalid session ID: ${options.sessionId}`);

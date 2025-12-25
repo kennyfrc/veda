@@ -1,5 +1,6 @@
 export {
   runDeepThink,
+  getDeepThinkStages,
   type DeepThinkOptions,
   type DeepThinkResult,
   type DeepThinkEvent,

@@ -1,5 +1,5 @@
 import { ContextStore, readSliceText, parseSlice } from '../context';
-import { runDeepThink, type DeepThinkEvent, type DeepThinkResult } from '../pipelines';
+import { runDeepThink, getDeepThinkStages, type DeepThinkEvent, type DeepThinkResult } from '../pipelines';
 import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
@@ -286,7 +286,8 @@ function handleEvent(
           notify({ title: 'Veda Deep', message: `Complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
       }
       if (event.result) {
-        console.error(`\n[complete] Stages: ${event.result.stages.join(' → ')}`);
+        const stages = getDeepThinkStages(event.result.trace);
+        console.error(`\n[complete] Stages: ${stages.join(' → ')}`);
         console.error(`[complete] Confidence: ${(event.result.confidence * 100).toFixed(0)}%`);
         if (event.result.wasRevised) {
           console.error('[complete] Answer was revised by verification');
@@ -390,9 +391,10 @@ async function buildAdhocContext(files: string[]): Promise<string> {
  */
 async function writeTrace(path: string, result: DeepThinkResult): Promise<void> {
   if (!result.trace) return;
-  
+
   const trace = result.trace;
-  
+  const stages = getDeepThinkStages(trace);
+
   // Build YAML-friendly trace document
   const doc = {
     trace_version: 1,
@@ -400,7 +402,7 @@ async function writeTrace(path: string, result: DeepThinkResult): Promise<void> 
       timestamp: new Date().toISOString(),
       confidence: result.confidence,
       was_revised: result.wasRevised,
-      stages: result.stages,
+      stages: stages,
     },
     prompt: trace.prompt,
     ...(trace.context && { context: trace.context }),
@@ -433,7 +435,7 @@ async function writeTrace(path: string, result: DeepThinkResult): Promise<void> 
       total_tokens: result.usage.inputTokens + result.usage.outputTokens,
     },
   };
-  
+
   try {
     const yaml = yamlStringify(doc, {
       lineWidth: 120,
