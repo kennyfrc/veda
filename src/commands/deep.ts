@@ -4,54 +4,30 @@ import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
 import { loadGlobalConfig, resolveBackendModel } from '../agent';
-import { getAvailableBackends } from '../backend';
-
-/**
- * Simple non-cryptographic hash for determinism.
- * Returns a 32-bit integer hash of the string.
- */
-function hashString(str: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    hash ^= str.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0; // Ensure positive 32-bit integer
-}
-
-/**
- * Seeded pseudo-random number generator (Mulberry32).
- * Simple and deterministic, sufficient for this use case.
- * Produces uniform distribution regardless of modulus.
- */
-function createSeededRandom(seed: number): () => number {
-  return () => {
-    // Mulberry32 PRNG
-    let t = seed += 0x6D2B79F5;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /**
  * Select solver backends deterministically based on options.
  *
  * Precedence:
  * 1. If options.solverBackend is set, use it for all solvers.
- * 2. If options.randomizeSolvers is true:
+ * 2. If options.distributeSolvers is true:
  *    - Use options.solverBackends if provided, otherwise use available backends.
- *    - Distribute k backends deterministically across the solvers.
+ *    - Distribute k backends in round-robin order (even distribution).
  * 3. Otherwise, use baseBackend (inherited from resolved base backend), or fallback to 'codex'.
  */
 export async function selectSolverBackends(options: {
   k: number;
-  randomizeSolvers?: boolean;
+  distributeSolvers?: boolean;
   solverBackend?: string;
   solverBackends?: string[];
   baseBackend?: string;
-}): Promise<{ backends: string[]; mode: 'fixed' | 'randomized' }> {
-  const { k, randomizeSolvers, solverBackend, solverBackends, baseBackend } = options;
+}): Promise<{ backends: string[]; mode: 'fixed' | 'distributed' }> {
+  const { k, distributeSolvers, solverBackend, solverBackends, baseBackend } = options;
+
+  // Validate k bounds (defensive, in addition to CLI validation)
+  if (k < 1 || k > 8) {
+    throw new Error(`k must be between 1 and 8, got ${k}`);
+  }
 
   // Precedence 1: Explicit single backend override
   if (solverBackend) {
@@ -61,49 +37,86 @@ export async function selectSolverBackends(options: {
     };
   }
 
-  // Precedence 2: Randomized distribution
-  if (randomizeSolvers) {
-    // Get candidate backends
-    let candidates: string[];
-    if (solverBackends && solverBackends.length > 0) {
-      // Use explicit list (sorted for determinism)
-      candidates = [...solverBackends].sort();
-    } else {
-      // Use available backends (sorted for determinism)
-      candidates = (await getAvailableBackends()).sort();
-    }
+  // Precedence 2: Round-robin distribution
+  if (distributeSolvers) {
+    const candidates = await resolveCandidates(solverBackends);
 
-    if (candidates.length === 0) {
-      throw new Error('No backends available for randomization. Install/configure at least one backend or use --solver-backend.');
-    }
-
-    // Deterministic selection
-    // Sort candidates to ensure consistent order regardless of registration
-    candidates.sort();
-    const seed = hashString(JSON.stringify({ k, candidates }));
-    const random = createSeededRandom(seed);
-
-    // Distribute k backends across candidates deterministically
-    // Uses seeded random to pick indices
+    // Round-robin distribution: cycle through candidates k times
     const selected: string[] = [];
+    const n = candidates.length;
     for (let i = 0; i < k; i++) {
-      const idx = Math.floor(random() * candidates.length);
-      selected.push(candidates[idx]);
+      selected.push(candidates[i % n]);
     }
 
     return {
       backends: selected,
-      mode: 'randomized',
+      mode: 'distributed',
     };
   }
 
   // Precedence 3: Fixed single backend (default behavior)
   // Use baseBackend if nothing specified, fallback to 'codex'
-  const fallbackBackend = solverBackend ?? baseBackend ?? 'codex';
+  const fallbackBackend = baseBackend ?? 'codex';
   return {
     backends: Array(k).fill(fallbackBackend),
     mode: 'fixed',
   };
+}
+
+/**
+ * Resolve candidate backends for distribution.
+ *
+ * Uses explicit user list if provided, otherwise gets available backends.
+ * Performs validation against registered backends and normalizes names.
+ */
+async function resolveCandidates(userBackends?: string[]): Promise<string[]> {
+  const { listBackends, getAvailableBackends } = await import('../backend');
+  const registeredBackends = listBackends();
+
+  let candidates: string[];
+
+  if (userBackends && userBackends.length > 0) {
+    // User provided explicit list
+    candidates = userBackends
+      .map(name => name.trim())
+      .filter(name => name.length > 0)
+      .map(name => name.toLowerCase());
+
+    // Deduplicate
+    candidates = Array.from(new Set(candidates));
+
+    // Sort for determinism
+    candidates.sort();
+
+    // Validate: check if flag resolved to empty after filtering
+    if (candidates.length === 0) {
+      throw new Error('No backends specified in --solver-backends. Provide at least one backend or remove the flag.');
+    }
+
+    // Validate: check against registered backends (case-insensitive)
+    const registeredLower = registeredBackends.map(b => b.toLowerCase());
+    const unknown = candidates.filter(c => !registeredLower.includes(c));
+    if (unknown.length > 0) {
+      throw new Error(`Unknown backend(s): ${unknown.join(', ')}. Available: ${registeredBackends.join(', ')}`);
+    }
+
+    // Optional: warn about unavailable backends (but don't throw)
+    const available = await getAvailableBackends();
+    const unavailable = candidates.filter(c => !available.includes(c));
+    if (unavailable.length > 0) {
+      console.error(`[warning] Backend(s) ${unavailable.join(', ')} are registered but not available. Check configuration.`);
+    }
+  } else {
+    // Use available backends from registry
+    candidates = await getAvailableBackends();
+    candidates.sort();
+
+    if (candidates.length === 0) {
+      throw new Error('No backends available for distribution. Install/configure at least one backend or use --solver-backend.');
+    }
+  }
+
+  return candidates;
 }
 
 export async function handleDeep(
@@ -140,18 +153,21 @@ export async function handleDeep(
     globalConfig,
   });
 
-  // Handle solver backend selection (potentially randomized)
+  // Handle solver backend selection (potentially distributed)
   const solverBackendsResult = await selectSolverBackends({
     k: options.k ?? 4,
-    randomizeSolvers: options.randomizeSolvers,
+    distributeSolvers: options.distributeSolvers,
     solverBackend: options.solverBackend,
     solverBackends: options.solverBackends,
     baseBackend: base.backend,
   });
 
-  // Log randomization mode
-  if (solverBackendsResult.mode === 'randomized') {
-    console.error(`[deep] Randomized solver backends: ${solverBackendsResult.backends.join(', ')}`);
+  // Log distribution mode (only when multiple backends)
+  if (solverBackendsResult.mode === 'distributed') {
+    const uniqueBackends = new Set(solverBackendsResult.backends);
+    if (uniqueBackends.size > 1) {
+      console.error(`[deep] Distributed solver backends (round-robin): ${solverBackendsResult.backends.join(', ')}`);
+    }
   }
 
   // Resolve single backend for notifications (use first if randomized)

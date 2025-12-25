@@ -29,8 +29,8 @@ export interface CliOptions {
   verifierBackend?: string;
   verifierModel?: string;
 
-  // Randomization options for deep mode
-  randomizeSolvers?: boolean;
+  // Distribution options for deep mode
+  distributeSolvers?: boolean;
   solverBackends?: string[];
 }
 
@@ -168,8 +168,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.noVerify = true;
         i++;
         continue;
-      case '--randomize-solvers':
-        options.randomizeSolvers = true;
+      case '--distribute-solvers':
+        options.distributeSolvers = true;
         i++;
         continue;
       case '--json':
@@ -312,9 +312,9 @@ Deep Mode Stage Overrides:
   --verifier-backend <name> Backend for verifier (default: -b value)
   --verifier-model <name>   Model for verifier (default: -m value)
 
-Deep Mode Randomization:
-  --randomize-solvers       Randomize solver backends for diversity (deterministic)
-  --solver-backends <list>  Comma-separated backends to use with --randomize-solvers
+Deep Mode Backends:
+  --distribute-solvers      Distribute solver backends evenly (round-robin)
+  --solver-backends <list>  Comma-separated backends for --distribute-solvers
 
 Selection Commands:
   sel add <files...>      Add files to selection (supports globs)

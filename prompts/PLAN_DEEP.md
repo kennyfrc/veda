@@ -95,6 +95,10 @@ veda -S deep-auth-strategy deep --trace /tmp/deep-trace.yaml "What's the best wa
 # More solvers for complex questions
 veda -S deep-cache-design deep --trace /tmp/deep-trace.yaml -k 5 "Design a caching layer for this API"
 
+# Distribute solvers across multiple backends (for diversity across providers)
+veda -S deep-architecture deep --trace /tmp/deep-trace.yaml -k 6 --distribute-solvers "Compare microservices vs monolith for this app"
+veda -S deep-architecture deep --trace /tmp/deep-trace.yaml -k 6 --distribute-solvers --solver-backends claude-code,gemini-cli,codex "Custom backends"
+
 # Skip verification for faster results
 veda -S deep-api-design deep --trace /tmp/deep-trace.yaml --no-verify "Compare REST vs GraphQL for this use case"
 ```
@@ -105,6 +109,9 @@ veda -S deep-api-design deep --trace /tmp/deep-trace.yaml --no-verify "Compare R
 |------|-------------|---------|
 | `--trace file` | Save full trace to YAML file (recommended: always use) | none |
 | `-k N` | Number of parallel solvers | 4 |
+| `--distribute-solvers` | Distribute solvers evenly across backends (round-robin) | single backend |
+| `--solver-backends LIST` | Comma-separated backends for `--distribute-solvers` | all available |
+| `--solver-backend NAME` | Force all solvers to use this backend | base backend |
 | `--categories` | Reasoning categories to use (comma-separated) | random sampling |
 | `--modules` | Exact module IDs to use (overrides k and categories) | none |
 | `--no-verify` | Skip Chain-of-Verification | verification enabled |

@@ -96,6 +96,15 @@ veda deep --solver-model opus --judge-model gpt "..."
 veda deep --solver-backend claude-code --verifier-backend codex "..."
 ```
 
+**Distribute solvers across multiple backends:**
+```bash
+# Even distribution: 2 solvers per backend (k=6, 3 backends)
+veda deep -k 6 --distribute-solvers "Complex problem"
+veda deep -k 6 --distribute-solvers --solver-backends claude-code,gemini-cli,codex "Custom backends"
+```
+
+Order is deterministic: explicit `--solver-backends` is normalized (trim/lowercase/dedup) and sorted before round-robin.
+
 ### Use Personas
 
 ```bash
