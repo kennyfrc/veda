@@ -5,7 +5,7 @@ import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
 import { loadGlobalConfig, resolveBackendModel } from '../agent/config';
-import { formatUsageStats } from '../util';
+import { formatUsageStats, c } from '../util';
 
 /**
  * Select solver backends deterministically based on options.
@@ -121,7 +121,7 @@ async function resolveCandidates(userBackends?: string[]): Promise<string[]> {
     const available = await getAvailableBackends();
     const unavailable = candidates.filter(c => !available.includes(c));
     if (unavailable.length > 0) {
-      console.error(`[warning] Backend(s) ${unavailable.join(', ')} are registered but not available. Check configuration.`);
+      console.error(`${c.yellow('[warning]')} Backend(s) ${unavailable.join(', ')} are registered but not available. Check configuration.`);
     }
   } else {
     // Use available backends from registry
@@ -159,7 +159,7 @@ export async function handleDeep(
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
 
-  console.error('[deep] Starting deep thinking mode...\n');
+  console.error(c.cyan('[deep]') + ' Starting deep thinking mode...\n');
 
   // Resolve backend/model for notifications upfront
   // These values are used for notifications throughout the pipeline
@@ -184,7 +184,7 @@ export async function handleDeep(
   if (solverBackendsResult.mode === 'distributed') {
     const uniqueBackends = new Set(solverBackendsResult.backends);
     if (uniqueBackends.size > 1) {
-      console.error(`[deep] Distributed solver backends (round-robin): ${solverBackendsResult.backends.join(', ')}`);
+      console.error(c.cyan('[deep]') + ` Distributed solver backends (round-robin): ${solverBackendsResult.backends.join(', ')}`);
     }
   }
 
@@ -256,7 +256,7 @@ export async function handleDeep(
     // Log warning if backend doesn't support sessions
     const stageName = finalResult?.wasRevised ? 'verifier' : 'judge';
     const backendName = finalResult?.sessionBackend ?? options.backend ?? 'unknown';
-    console.error(`[warn] Backend '${backendName}' (${stageName}) does not support resumability (no sessionId returned)`);  }
+    console.error(`${c.yellow('[warn]')} Backend '${backendName}' (${stageName}) does not support resumability (no sessionId returned)`);  }
 }
 
 async function handleEvent(
@@ -273,9 +273,9 @@ async function handleEvent(
 ): Promise<void> {
   const shouldNotify = options.notify ?? globalNotify ?? true;
   
-  // Format bracket prefixes for judge and verifier
-  const judgeBracket = judgeBackend && judgeModel ? `[judge-${judgeBackend}-${judgeModel}]` : '[judge]';
-  const verifierBracket = verifierBackend && verifierModel ? `[verifier-${verifierBackend}-${verifierModel}]` : '[verifier]';
+  // Format bracket prefixes for judge and verifier (cyan for stage headers)
+  const judgeBracket = c.cyan(judgeBackend && judgeModel ? `[judge-${judgeBackend}-${judgeModel}]` : '[judge]');
+  const verifierBracket = c.cyan(verifierBackend && verifierModel ? `[verifier-${verifierBackend}-${verifierModel}]` : '[verifier]');
 
   switch (event.type) {
     case 'ensemble_complete':
@@ -287,7 +287,7 @@ async function handleEvent(
 
     case 'solver_complete': {
       // Use MemberMeta index/backend/model for bracket prefix
-      const bracketPrefix = event.member ? `[solve-${event.member.index}-${event.member.backend}-${event.member.model}]` : '[solve]';
+      const bracketPrefix = c.dim(event.member ? `[solve-${event.member.index}-${event.member.backend}-${event.member.model}]` : '[solve]');
 
       // Use MemberMeta module if available, otherwise fall back to parsing old ID format
       const module = event.member?.module ?? (
@@ -307,9 +307,9 @@ async function handleEvent(
           notify({ title: 'Veda Deep', message: `Solver '${module}' complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model }));
       }
       if (event.usage) {
-        console.error(`  ${bracketPrefix} Solver '${module}' complete (${formatUsageStats(event.usage)})`);
+        console.error(`  ${bracketPrefix} ${c.dim(`Solver '${module}' complete (${formatUsageStats(event.usage)})`)}`);
       } else {
-        console.error(`  ${bracketPrefix} Solver '${module}' complete`);
+        console.error(`  ${bracketPrefix} ${c.dim(`Solver '${module}' complete`)}`);
       }
       break;
     }
@@ -318,17 +318,17 @@ async function handleEvent(
       if (event.stage === 'verify') {
         console.error(`${verifierBracket} Starting...`);
       } else {
-        console.error(`[${event.stage}] Starting...`);
+        console.error(`${c.cyan(`[${event.stage}]`)} Starting...`);
       }
       break;
 
     case 'tool_start':
-      // Show tool execution progress
-      console.error(`  [${event.source}] → ${formatToolStart(event.content, event.toolInput)}`);
+      // Show tool execution progress (dimmed as noise)
+      console.error(c.dim(`  [${event.source}] → ${formatToolStart(event.content, event.toolInput)}`));
       break;
 
     case 'candidate':
-      console.error(`  ${event.content}`);
+      console.error(c.dim(`  ${event.content}`));
       break;
 
     case 'selected': {
@@ -361,7 +361,7 @@ async function handleEvent(
       break;
 
     case 'error':
-      console.error(`Error: ${event.content}`);
+      console.error(`${c.red('Error:')} ${event.content}`);
       process.exit(1);
       break;
 
@@ -372,12 +372,12 @@ async function handleEvent(
       }
       if (event.result) {
         const stages = getDeepThinkStages(event.result.trace);
-        console.error(`\n[complete] Stages: ${stages.join(' → ')}`);
-        console.error(`[complete] Confidence: ${(event.result.confidence * 100).toFixed(0)}%`);
+        console.error(`\n${c.green('[complete]')} Stages: ${stages.join(' → ')}`);
+        console.error(`${c.green('[complete]')} Confidence: ${(event.result.confidence * 100).toFixed(0)}%`);
         if (event.result.wasRevised) {
-          console.error('[complete] Answer was revised by verification');
+          console.error(`${c.green('[complete]')} Answer was revised by verification`);
         }
-        console.error(`[complete] ${formatUsageStats(event.result.usage)}`);
+        console.error(`${c.green('[complete]')} ${formatUsageStats(event.result.usage)}`);
         console.error('');
 
         // Output final answer
@@ -540,8 +540,8 @@ async function writeTrace(path: string, result: DeepThinkResult): Promise<void> 
       collectionStyle: 'block',
     });
     await Bun.write(path, yaml);
-    console.error(`[trace] Saved to ${path}`);
+    console.error(`${c.dim('[trace]')} Saved to ${path}`);
   } catch (error) {
-    console.error(`[trace] Warning: failed to write trace to ${path}: ${error instanceof Error ? error.message : error}`);
+    console.error(`${c.yellow('[trace]')} Warning: failed to write trace to ${path}: ${error instanceof Error ? error.message : error}`);
   }
 }

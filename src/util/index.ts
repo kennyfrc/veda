@@ -18,3 +18,4 @@ export type { Result } from './result';
 export { ok, err, isOk, isErr } from './result';
 export { AsyncQueue } from './queue';
 export { formatUsageStats } from './format';
+export { c } from './colors';
