@@ -192,6 +192,7 @@ export async function handleDeep(
     model: base.model,  // Pass resolved model to avoid duplicate resolution
     k: options.k,
     verify: !options.noVerify,
+    forceVerify: options.forceVerify,
     context,
     categories: options.categories,
     modules: options.modules,

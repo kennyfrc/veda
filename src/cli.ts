@@ -13,6 +13,7 @@ export interface CliOptions {
   deep?: boolean;
   k?: number;
   noVerify?: boolean;
+  forceVerify?: boolean;
   categories?: string[];
   modules?: string[];
   json?: boolean;
@@ -166,6 +167,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.noVerify = true;
         i++;
         continue;
+      case '--force-verify':
+        options.forceVerify = true;
+        i++;
+        continue;
       case '--distribute-solvers':
         options.distributeSolvers = true;
         i++;
@@ -297,6 +302,7 @@ Options:
   --categories <list>     Reasoning categories (comma-separated)
   --modules <list>        Exact reasoning modules (comma-separated)
   --no-verify             Skip verification in deep mode
+  --force-verify          Run verification even with high confidence (≥70%)
   --trace <file>          Save trace to YAML file (deep mode)
   --json                  Output raw JSON
   --help, -h              Show help

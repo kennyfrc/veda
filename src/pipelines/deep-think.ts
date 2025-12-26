@@ -56,6 +56,7 @@ export interface DeepThinkOptions {
   model?: string;
   k?: number;
   verify?: boolean;
+  forceVerify?: boolean;
   context?: string;
   solverReasoning?: Reasoning;
   judgeReasoning?: Reasoning;
@@ -146,6 +147,7 @@ export interface DeepThinkTrace {
     model?: string;
     k: number;
     verify: boolean;
+    forceVerify?: boolean;
     categories?: string[];
     modules?: string[];
     solver?: { backend: string; model?: string };
@@ -235,11 +237,13 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   judge: JudgeOptions;
   verifier: VerifierOptions | null;
   verifyEnabled: boolean;  // User enabled verification (may not run if confidence high)
+  forceVerify: boolean;  // Force verification regardless of confidence
   traceOptions: {
     backend: string;
     model?: string;
     k: number;
     verify: boolean;
+    forceVerify?: boolean;
     categories?: string[];
     modules?: string[];
     solver: { backend: string; model?: string };
@@ -331,6 +335,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   // Step 4: Resolve verifier config (if enabled)
   let verifierConfig: VerifierOptions | null = null;
   const verifyEnabled = options.verify ?? true;
+  const forceVerify = options.forceVerify ?? false;
 
   if (verifyEnabled) {
     // If --verifier-model is specified, let it auto-resolve the backend
@@ -369,6 +374,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     model: base.model,
     k: solverConfig.k,
     verify: verifyEnabled,
+    forceVerify,
     categories: solverConfig.categories,
     modules: solverConfig.modules,
     solver: {
@@ -386,7 +392,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     } : undefined,
   };
 
-  return { solver: solverConfig, judge: judgeConfig, verifier: verifierConfig, verifyEnabled, traceOptions };
+  return { solver: solverConfig, judge: judgeConfig, verifier: verifierConfig, verifyEnabled, forceVerify, traceOptions };
 }
 
 export async function runSolverEnsemble(
@@ -565,10 +571,11 @@ export async function* runDeepThink(
   (async () => {
     try {
       // Step 1: Expand options into configured structs
-      const { solver, judge, verifier, verifyEnabled, traceOptions } = await expandDeepThinkOptions(options);
+      const { solver, judge, verifier, verifyEnabled, forceVerify, traceOptions } = await expandDeepThinkOptions(options);
 
       // Step 2: Build trace with expanded options
       const trace: DeepThinkTrace = {
+        trace_version: 2,  // Bumped from 1 to 2 for new ID format
         prompt,
         context: solver.context,
         options: traceOptions,
@@ -772,7 +779,7 @@ export async function* runDeepThink(
       let lastSessionId = judgeResult.sessionId;
       let lastBackend = judge.backend;
 
-      const shouldVerify = verifyEnabled && verifier !== null && judgeResult.decision.confidence < 0.7;
+      const shouldVerify = verifyEnabled && verifier !== null && (judgeResult.decision.confidence < 0.7 || forceVerify);
 
       if (shouldVerify && verifier) {
         queue.push({ type: 'stage_start', stage: 'verify' });
