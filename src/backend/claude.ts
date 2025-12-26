@@ -1,5 +1,5 @@
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
-import type { SandboxMode } from '../agent/config';
+import type { SandboxMode, ReasoningLevel } from '../agent/config';
 import { spawnCliWithRetry, commandExists, parseNdjsonStream } from './util/spawn';
 
 function toClaudePermissionMode(sandbox: SandboxMode): string {
@@ -10,6 +10,20 @@ function toClaudePermissionMode(sandbox: SandboxMode): string {
   }
 }
 
+/**
+ * Map veda reasoning levels to Claude's MAX_THINKING_TOKENS.
+ * Literal interpretation: 8k-1 = 7999, 16k-1 = 15999, 32k-1 = 31999, 64k-1 = 63999
+ */
+function toClaudeReasoningTokens(reasoning: ReasoningLevel): string {
+  switch (reasoning) {
+    case 'minimal': return '0';
+    case 'low': return '7999';      // 8k-1
+    case 'medium': return '15999';  // 16k-1
+    case 'high': return '31999';    // 32k-1
+    case 'xhigh': return '63999';   // 64k-1
+  }
+}
+
 export class ClaudeBackend implements Backend {
   readonly name = 'claude-code';
   readonly command = 'claude';
@@ -17,36 +31,44 @@ export class ClaudeBackend implements Backend {
 
   async *run(options: RunOptions): AsyncIterable<Message> {
     const { prompt, context, config, cwd } = options;
-    
+
     const args: string[] = [];
     if (config.model) args.push('--model', config.model);
     if (config.sandbox) args.push('--permission-mode', toClaudePermissionMode(config.sandbox));
-    
+
     args.push('--print');
     args.push('--output-format', 'stream-json');
     args.push('--verbose');
-    
+
     let input = '';
     if (config.systemPrompt) input += `<system_instructions>\n${config.systemPrompt}\n</system_instructions>\n\n`;
     if (context) input += `${context}\n\n`;
     input += prompt;
     args.push(input);
-    
-    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
+
+    const env = {
+      MAX_THINKING_TOKENS: toClaudeReasoningTokens(config.reasoning),
+    };
+
+    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd, env });
     yield* this.parseStream(stdout);
     await process.exited;
   }
 
   async *resume(options: ResumeOptions): AsyncIterable<Message> {
     const { sessionId, prompt, config, cwd } = options;
-    
+
     const args: string[] = ['--resume', sessionId];
     if (config.sandbox) args.push('--permission-mode', toClaudePermissionMode(config.sandbox));
-    
+
     args.push('--print', '--output-format', 'stream-json', '--verbose');
     args.push(prompt ?? '--continue');
-    
-    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
+
+    const env = {
+      MAX_THINKING_TOKENS: toClaudeReasoningTokens(config.reasoning),
+    };
+
+    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd, env });
     yield* this.parseStream(stdout);
     await process.exited;
   }

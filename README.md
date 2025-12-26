@@ -54,6 +54,11 @@ veda -b claude-code "..."  # Anthropic Claude Code
 veda -b gemini-cli "..."   # Google Gemini CLI
 ```
 
+**Note on reasoning configuration:**
+- **Codex:** Uses native `model_reasoning_effort` flag. The `--reasoning` flag works as expected.
+- **Claude Code:** Maps `--reasoning` levels to the `MAX_THINKING_TOKENS` environment variable automatically.
+- **Gemini CLI:** Does not expose user-configurable reasoning. The `--reasoning` flag will emit a warning and be ignored.
+
 ### Use Model Aliases
 
 Model aliases auto-select the correct backend:
@@ -73,6 +78,8 @@ veda -m gemini-flash "..."  # Uses gemini-cli with gemini-3-flash-preview
 ```
 
 When you specify both `-b` and `-m`, the model is passed literally (no alias resolution).
+
+**Note:** The `--reasoning` flag (`-r`) is fully supported by the Codex backend, automatically configured for the Claude backend (mapped to `MAX_THINKING_TOKENS`), and ignored by the Gemini backend with a warning.
 
 ### Resume Conversations
 
@@ -294,13 +301,19 @@ PERSONA="navigator-chat"
 
 # Per-backend model and reasoning settings
 CODEX_MODEL="gpt-5.2"
-CODEX_REASONING="medium"
+CODEX_REASONING="medium"     # Uses native -c model_reasoning_effort flag
 
 CLAUDE_CODE_MODEL="opus"
-CLAUDE_CODE_REASONING="medium"
+# CLAUDE_CODE_REASONING is mapped to MAX_THINKING_TOKENS env variable:
+#   minimal → 0 (disabled)
+#   low → 7999 (8k-1 tokens)
+#   medium → 15999 (16k-1 tokens)
+#   high → 31999 (32k-1 tokens)
+#   xhigh → 63999 (64k-1 tokens)
 
 GEMINI_CLI_MODEL="gemini-3-pro-preview"
-GEMINI_CLI_REASONING="medium"
+# No user-configurable reasoning available (CLI manages internally)
+# The --reasoning flag will be ignored with a warning
 ```
 
 ## Development

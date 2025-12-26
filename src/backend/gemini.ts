@@ -1,6 +1,20 @@
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
-import type { SandboxMode } from '../agent/config';
+import type { SandboxMode, ReasoningLevel } from '../agent/config';
 import { spawnCliWithRetry, commandExists, parseNdjsonStream } from './util/spawn';
+
+/**
+ * Warn users when they try to use configurable reasoning with Gemini-CLI.
+ * Gemini-CLI does not expose user-configurable reasoning levels via CLI flags.
+ */
+function maybeWarnAboutReasoning(reasoning: ReasoningLevel): void {
+  if (reasoning && reasoning !== 'medium') {
+    console.warn(
+      'Warning: Gemini-CLI does not support configurable reasoning levels via CLI flags. ' +
+      'The --reasoning flag will be ignored. ' +
+      'Consider using prompt engineering instead.'
+    );
+  }
+}
 
 function toGeminiApprovalMode(sandbox: SandboxMode): string {
   switch (sandbox) {
@@ -17,7 +31,10 @@ export class GeminiBackend implements Backend {
 
   async *run(options: RunOptions): AsyncIterable<Message> {
     const { prompt, context, config, cwd } = options;
-    
+
+    // Warn about unsupported reasoning configuration
+    maybeWarnAboutReasoning(config.reasoning);
+
     const args: string[] = [];
     if (config.model) args.push('--model', config.model);
     args.push('--output-format', 'stream-json');
@@ -37,7 +54,10 @@ export class GeminiBackend implements Backend {
 
   async *resume(options: ResumeOptions): AsyncIterable<Message> {
     const { sessionId, prompt, config, cwd } = options;
-    
+
+    // Warn about unsupported reasoning configuration
+    maybeWarnAboutReasoning(config.reasoning);
+
     const args: string[] = ['--resume', sessionId, '--output-format', 'stream-json'];
     if (config.sandbox) args.push('--approval-mode', toGeminiApprovalMode(config.sandbox));
     if (prompt) args.push(prompt);

@@ -5,6 +5,7 @@ export interface SpawnOptions {
   args: string[];
   cwd?: string;
   stdin?: string;
+  env?: Record<string, string>;
 }
 
 export interface SpawnResult {
@@ -82,12 +83,24 @@ export function sleep(ms: number): Promise<void> {
 }
 
 export function spawnCli(options: SpawnOptions): SpawnResult {
-  const proc = Bun.spawn([options.command, ...options.args], {
+  const spawnOptions: {
+    cwd?: string;
+    stdin: 'pipe' | 'ignore' | 'inherit';
+    stdout: 'pipe' | 'inherit';
+    stderr: 'pipe' | 'inherit';
+    env?: Record<string, string>;
+  } = {
     cwd: options.cwd,
     stdin: options.stdin ? 'pipe' : 'ignore',
     stdout: 'pipe',
     stderr: 'pipe',
-  });
+  };
+
+  if (options.env) {
+    spawnOptions.env = { ...process.env, ...options.env } as Record<string, string>;
+  }
+
+  const proc = Bun.spawn([options.command, ...options.args], spawnOptions);
 
   if (options.stdin && proc.stdin) {
     proc.stdin.write(options.stdin);
@@ -95,8 +108,8 @@ export function spawnCli(options: SpawnOptions): SpawnResult {
   }
 
   return {
-    stdout: proc.stdout,
-    stderr: proc.stderr,
+    stdout: proc.stdout as ReadableStream<Uint8Array>,
+    stderr: proc.stderr as ReadableStream<Uint8Array>,
     process: proc,
   };
 }
