@@ -5,7 +5,24 @@ import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
 import { loadGlobalConfig, resolveBackendModel } from '../agent/config';
-import { formatUsageStats, c } from '../util';
+import {
+  c,
+  createFormatterState,
+  formatPhaseHeader,
+  formatPhaseSummary,
+  accumulateTool,
+  formatSolverComplete,
+  formatToolStart as formatToolStartNew,
+  formatCandidateSeparator,
+  formatCandidateContent,
+  formatSelection,
+  formatRevision,
+  formatStageUsage,
+  formatFinalSeparator,
+  formatCompletionStatus,
+  formatFinalTokens,
+  type FormatterState,
+} from '../util';
 
 /**
  * Select solver backends deterministically based on options.
@@ -212,6 +229,9 @@ export async function handleDeep(
     : { backend: judge.backend, model: judge.model };
 
   let finalResult: DeepThinkResult | undefined;
+  
+  // Create formatter state for progressive disclosure output
+  const formatterState = createFormatterState();
 
   // Run the pipeline
   for await (const event of runDeepThink(prompt, {
@@ -232,7 +252,7 @@ export async function handleDeep(
     verifierBackend: options.verifierBackend,
     verifierModel: options.verifierModel,
   })) {
-    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model, verifier.backend, verifier.model);
+    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model, verifier.backend, verifier.model, formatterState);
 
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
@@ -269,77 +289,103 @@ async function handleEvent(
   judgeBackend?: string,
   judgeModel?: string,
   verifierBackend?: string,
-  verifierModel?: string
+  verifierModel?: string,
+  formatterState?: FormatterState
 ): Promise<void> {
   const shouldNotify = options.notify ?? globalNotify ?? true;
-  
-  // Format bracket prefixes for judge and verifier (cyan for stage headers)
-  const judgeBracket = c.cyan(judgeBackend && judgeModel ? `[judge-${judgeBackend}-${judgeModel}]` : '[judge]');
-  const verifierBracket = c.cyan(verifierBackend && verifierModel ? `[verifier-${verifierBackend}-${verifierModel}]` : '[verifier]');
+  const state = formatterState ?? createFormatterState();
 
   switch (event.type) {
-    case 'ensemble_complete':
+    case 'stage_start': {
+      // Emit phase header with dotted separator
+      if (event.stage === 'solve') {
+        console.error(formatPhaseHeader('solve'));
+        state.phase = 'solve';
+      } else if (event.stage === 'verify') {
+        const suffix = verifierModel ?? verifierBackend;
+        console.error(`\n${formatPhaseHeader('verify', suffix)}`);
+        state.phase = 'verify';
+      }
+      break;
+    }
+
+    case 'tool_start': {
+      // Accumulate tools for solver completion summary
+      if (event.member?.type === 'solver' && event.content) {
+        accumulateTool(state, event.member.index, event.content);
+      }
+      // For verifier, show tool execution inline (dimmed)
+      if (event.member?.type === 'verifier' && event.content) {
+        console.error(c.dim(`  → ${formatToolStartNew(event.content, event.toolInput)}`));
+      }
+      break;
+    }
+
+    case 'solver_complete': {
+      // Emit collapsed tool chain for this solver
+      const module = event.member?.module ?? 'unknown';
+      const outputTokens = event.usage?.outputTokens;
+      const solverIndex = event.member?.index ?? 0;
+      
+      console.error(formatSolverComplete(state, solverIndex, module, outputTokens));
+
+      // Notification
+      const backend = event.member?.backend ?? event.backend ?? solverBackend;
+      const model = event.member?.model ?? event.model ?? solverModel;
+      if (shouldNotify) {
+        import('../util/notify').then(({ notify, formatNotifyMessage }) =>
+          notify({ title: 'Veda Deep', message: `Solver '${module}' complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model }));
+      }
+      break;
+    }
+
+    case 'ensemble_complete': {
+      // Show ensemble summary and transition to judge phase
+      console.error(formatPhaseSummary('ensemble complete'));
+      
+      // Emit judge phase header (candidates come next)
+      const suffix = judgeModel ?? judgeBackend;
+      console.error(`\n${formatPhaseHeader('judge', suffix)}`);
+      state.phase = 'judge';
+      
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
           notify({ title: 'Veda Deep', message: `Solvers complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
       }
       break;
+    }
 
-    case 'solver_complete': {
-      // Use MemberMeta index/backend/model for bracket prefix
-      const bracketPrefix = c.dim(event.member ? `[solve-${event.member.index}-${event.member.backend}-${event.member.model}]` : '[solve]');
-
-      // Use MemberMeta module if available, otherwise fall back to parsing old ID format
-      const module = event.member?.module ?? (
-        // Legacy: try to extract module name from old ID format
-        (() => {
-          const parts = event.source?.split('-') || [];
-          return parts.length >= 3 ? parts.slice(2).join('-') : (event.source || 'unknown');
-        })()
-      );
-
-      // Use event-specific backend/model from MemberMeta preferentially
-      const backend = event.member?.backend ?? event.backend ?? solverBackend;
-      const model = event.member?.model ?? event.model ?? solverModel;
-
-      if (shouldNotify) {
-        import('../util/notify').then(({ notify, formatNotifyMessage }) =>
-          notify({ title: 'Veda Deep', message: `Solver '${module}' complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model }));
-      }
-      if (event.usage) {
-        console.error(`  ${bracketPrefix} ${c.dim(`Solver '${module}' complete (${formatUsageStats(event.usage)})`)}`);
+    case 'candidate': {
+      // Parse candidate number from content (e.g., "Candidate 1: ...")
+      const match = event.content?.match(/^Candidate (\d+): (.*)$/s);
+      if (match) {
+        const candidateIndex = parseInt(match[1], 10) - 1;
+        const content = match[2];
+        console.error(formatCandidateSeparator(candidateIndex));
+        console.error(formatCandidateContent(content));
       } else {
-        console.error(`  ${bracketPrefix} ${c.dim(`Solver '${module}' complete`)}`);
+        // Fallback: just show content
+        console.error(c.dim(`  ${event.content}`));
       }
       break;
     }
 
-    case 'stage_start':
-      if (event.stage === 'verify') {
-        console.error(`${verifierBracket} Starting...`);
-      } else {
-        console.error(`${c.cyan(`[${event.stage}]`)} Starting...`);
-      }
-      break;
-
-    case 'tool_start':
-      // Show tool execution progress (dimmed as noise)
-      console.error(c.dim(`  [${event.source}] → ${formatToolStart(event.content, event.toolInput)}`));
-      break;
-
-    case 'candidate':
-      console.error(c.dim(`  ${event.content}`));
-      break;
-
     case 'selected': {
-      const candidateNum = (event.selectedIndex ?? 0) + 1;
-      console.error(`\n${judgeBracket} Selected candidate ${candidateNum} (confidence: ${((event.confidence ?? 0) * 100).toFixed(0)}%)`);
+      console.error(formatSelection(event.selectedIndex ?? 0, event.confidence ?? 0));
       break;
     }
 
     case 'stage_complete': {
       const isJudge = event.stage === 'solve';
-      const bracket = isJudge ? judgeBracket : verifierBracket;
+      
+      if (isJudge && event.usage) {
+        console.error(formatStageUsage(event.usage.inputTokens, event.usage.outputTokens));
+      }
+      
+      if (!isJudge && event.stage === 'verify') {
+        console.error(formatPhaseSummary('complete'));
+      }
+      
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) => {
           const msg = isJudge ? 'Judge complete' : 'Verifier complete';
@@ -348,36 +394,34 @@ async function handleEvent(
           notify({ title: 'Veda Deep', message: `${msg}: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model });
         });
       }
-      if (event.usage) {
-        console.error(`${bracket} Complete (${formatUsageStats(event.usage)})`);
-      } else {
-        console.error(`${bracket} Complete`);
-      }
       break;
     }
 
-    case 'verified':
-      console.error(`${verifierBracket} ${event.content}`);
+    case 'verified': {
+      // Extract changes from content (e.g., "Revised: change1, change2")
+      const changes = event.content?.replace(/^Revised:\s*/, '') ?? '';
+      console.error(formatRevision(changes));
       break;
+    }
 
     case 'error':
       console.error(`${c.red('Error:')} ${event.content}`);
       process.exit(1);
       break;
 
-    case 'complete':
+    case 'complete': {
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
           notify({ title: 'Veda Deep', message: `Complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
       }
+      
       if (event.result) {
         const stages = getDeepThinkStages(event.result.trace);
-        console.error(`\n${c.green('[complete]')} Stages: ${stages.join(' → ')}`);
-        console.error(`${c.green('[complete]')} Confidence: ${(event.result.confidence * 100).toFixed(0)}%`);
-        if (event.result.wasRevised) {
-          console.error(`${c.green('[complete]')} Answer was revised by verification`);
-        }
-        console.error(`${c.green('[complete]')} ${formatUsageStats(event.result.usage)}`);
+        
+        // Final separator and summary
+        console.error(`\n${formatFinalSeparator()}`);
+        console.error(formatCompletionStatus(stages, event.result.confidence, event.result.wasRevised));
+        console.error(formatFinalTokens(event.result.usage.inputTokens, event.result.usage.outputTokens));
         console.error('');
 
         // Output final answer
@@ -388,7 +432,6 @@ async function handleEvent(
           console.log(JSON.stringify(event.result, null, 2));
         } else {
           // Flush stderr before writing stdout to maintain output order
-          // Write empty string to stderr and await callback to ensure buffer flushes
           await new Promise<void>((resolve) => {
             process.stderr.write('', () => resolve());
           });
@@ -396,33 +439,8 @@ async function handleEvent(
         }
       }
       break;
+    }
   }
-}
-
-/**
- * Format a tool_start event for display.
- */
-function formatToolStart(toolName?: string, toolInput?: unknown): string {
-  if (!toolName) return 'tool call';
-  
-  // Format based on tool type
-  if (toolName === 'shell' && toolInput && typeof toolInput === 'object') {
-    const input = toolInput as { command?: string };
-    const cmd = input.command ?? '';
-    // Truncate long commands
-    const displayCmd = cmd.length > 60 ? cmd.slice(0, 57) + '...' : cmd;
-    return `shell: ${displayCmd}`;
-  }
-  
-  if (toolName === 'file_change') {
-    return 'file change';
-  }
-  
-  if (toolName.startsWith('mcp:')) {
-    return toolName;
-  }
-  
-  return toolName;
 }
 
 async function buildContext(store: ContextStore): Promise<string> {
