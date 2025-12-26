@@ -14,11 +14,23 @@ For simple factual queries or quick questions, use regular `veda` instead.
 
 ---
 
-## Deep Mode is Stateless
+## Resuming Deep Mode Sessions
 
-**Important:** Deep mode does not support `resume`. Each `veda deep` call is independent - there's no conversation to continue.
+Deep mode now supports `resume` for continuing conversations. Each session's thread is preserved for follow-up.
 
-If you need follow-up discussion after getting a deep answer, start a fresh conversation with `veda -p navigator-plan`.
+```bash
+# Get initial deep answer
+veda -S deep-auth-strategy deep --trace /tmp/deep-trace.yaml "What's the best way to handle authentication?"
+
+# Resume the same session for follow-up questions
+veda -S deep-auth-strategy resume "Can you elaborate on the JWT approach?"
+veda -S deep-auth-strategy resume "What about OAuth integration options?"
+```
+
+For complex follow-up discussions that benefit from iterative refinement, consider using `veda -p navigator-chat` - it's optimized for conversational flow. Use `resume` when you need to:
+- Stay within the same session context
+- Maintain the thread for reference
+- Ask specific follow-up questions about the deep answer
 
 ---
 
@@ -269,5 +281,4 @@ Key commands:
 
 **Use a descriptive session name** (e.g., `deep-cache-design`) to keep selections organized.
 
-**Note:** Deep mode is stateless - no `resume` support. Each run is independent. Always use `--trace` for reviewability.
-. Each run is independent. Always use `--trace` for reviewability.
+**Note:** Deep mode supports `resume` for follow-up questions. Each run preserves conversation history. Always use `--trace` for reviewability.
