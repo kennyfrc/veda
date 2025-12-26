@@ -21,10 +21,6 @@ export interface ReadSliceOptions {
   displayPath?: string;
 }
 
-/**
- * Read file content with optional slice. Returns a Result.
- * Uses streaming line reader for memory efficiency when slicing.
- */
 export async function readSliceText(opts: ReadSliceOptions): Promise<Result<ReadSliceResult>> {
   const { cwd, slice, displayPath: providedDisplayPath } = opts;
   const absolutePath = slice.path;

@@ -2,7 +2,7 @@ import { dirname } from 'path';
 import { mkdir } from 'fs/promises';
 
 const LOCK_TIMEOUT_MS = 5000;
-const LOCK_STALE_MS = 30000; // Locks older than this are considered stale
+const LOCK_STALE_MS = 30000;
 
 export interface LockOptions {
   timeout?: number;
@@ -33,9 +33,6 @@ async function isLockStale(lockPath: string, staleThreshold: number): Promise<bo
   }
 }
 
-/**
- * Acquire a lock on the given file path, retrying until timeout.
- */
 export async function acquireLock(
   filePath: string,
   options: LockOptions = {}
@@ -82,9 +79,6 @@ export async function acquireLock(
   }
 }
 
-/**
- * Execute a function with a file lock.
- */
 export async function withLock<T>(
   filePath: string,
   fn: () => Promise<T>,

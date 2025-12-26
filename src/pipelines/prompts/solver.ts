@@ -31,14 +31,7 @@ Concrete steps or code if applicable (omit if not needed)
 Be thorough but concise. Focus on correctness first, then clarity.
 </conversation_rules>`;
 
-/**
- * Build a solver system prompt with reasoning module for cognitive diversity.
- * 
- * Diversity comes from the 32 reasoning modules (8 categories × 4 modules).
- * Each solver gets a different cognitive strategy.
- */
 export interface BuildSolverPromptOptions {
-  /** Reasoning module to inject for diversity */
   module: ReasoningModule;
 }
 

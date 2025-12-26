@@ -16,9 +16,9 @@ export interface ReasoningModule {
 }
 
 export interface SelectModulesOptions {
-  k: number;              // Max 8
-  categories?: string[];  // Sample from these
-  modules?: string[];     // Exact IDs (overrides k/categories)
+  k: number;
+  categories?: string[];
+  modules?: string[];
 }
 
 export const REASONING_MODULES: ReasoningModule[] = [

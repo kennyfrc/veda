@@ -1,5 +1,3 @@
-// Ensemble primitive: run multiple LLM calls in parallel.
-
 import type { Message, UsageStats } from '../backend';
 import { runLlm, combineUsage, type LlmRequest } from './llm';
 

@@ -116,9 +116,6 @@ export class ContextStore {
     return result;
   }
 
-  /**
-   * Remove files from selection. Removing a file (file.c) removes all its slices.
-   */
   async remove(patterns: string[]): Promise<RemoveResult> {
     const result: RemoveResult = { removed: 0, notFound: 0 };
     
@@ -178,10 +175,7 @@ export class ContextStore {
     });
   }
 
-  /**
-   * Get token count estimate for selection using script detection.
-   */
-  async tokens(): Promise<number> {
+    async tokens(): Promise<number> {
     const entries = await this.list();
     
     const results = await Promise.all(
@@ -228,9 +222,6 @@ export class ContextStore {
     return details;
   }
 
-  /**
-   * Serialize selection to <file_context> format. Skips unreadable files.
-   */
   async serialize(): Promise<string> {
     const entries = await this.list();
     if (entries.length === 0) return '';

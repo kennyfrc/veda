@@ -1,21 +1,14 @@
-// File slice: path:10-20, path:15-, path:8, or path (no slice)
-
-/** Explicit type for file slice state - avoids boolean blindness */
 export type SliceType = 'full' | 'single-line' | 'range' | 'infinite-range';
 
 export interface FileSlice {
   path: string;
   sliceType: SliceType;
-  startLine?: number;  // Present for single-line, range, infinite-range
-  endLine?: number;    // Present only for range
+  startLine?: number;
+  endLine?: number;
 }
 
 const SLICE_PATTERN = /^(.+?):(\d+)(?:-(\d*))?$/;
 
-/**
- * Parse a path with optional slice suffix (file:10-20, file:15-, file:8).
- * Invalid slices return the input as a full file slice.
- */
 export function parseSlice(input: string): FileSlice {
   const match = input.match(SLICE_PATTERN);
 

@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 
-// Human-readable names for backend IDs
 const BACKEND_DISPLAY_NAMES: Record<string, string> = {
   'claude-code': 'Claude',
   'codex': 'Codex',
@@ -10,22 +9,16 @@ const BACKEND_DISPLAY_NAMES: Record<string, string> = {
 export interface NotifyOptions {
   title: string;
   message: string;
-  subtitle?: string;  // Displayed below title (e.g., session name)
-  backend?: string;   // Backend ID (e.g., 'codex', 'claude-code')
-  model?: string;     // Model name (e.g., 'gpt-5.2', 'opus')
+  subtitle?: string;
+  backend?: string;
+  model?: string;
 }
 
-/**
- * Truncate a string to a maximum length, appending ellipsis if truncated.
- */
 export function truncate(str: string, maxLength: number = 50): string {
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength - 3) + '...';
 }
 
-/**
- * Format the notification message from a prompt.
- */
 export function formatNotifyMessage(prompt: string | undefined): string {
   if (!prompt) return 'Response complete';
   return truncate(prompt);

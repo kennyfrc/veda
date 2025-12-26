@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 /**
  * veda - AI CLI wrapper with multi-backend support
- *
- * Entry point for the CLI application.
  */
 
 import { parseArgs, showHelp, showVersion } from './cli';
@@ -13,7 +11,6 @@ async function main(): Promise<void> {
   try {
     const parsed = parseArgs(process.argv);
 
-    // Handle help and version first
     if (parsed.options.help) {
       showHelp();
       return;
@@ -24,24 +21,18 @@ async function main(): Promise<void> {
       return;
     }
 
-    // Read stdin and merge into prompt if available
-    // Only read stdin for commands that use prompts (prompt, deep, resume)
-    // to avoid blocking/hanging for non-prompt commands (sel, personas, init)
     const stdin = (parsed.command === 'prompt' || parsed.command === 'deep' || parsed.command === 'resume')
       ? await readStdin()
       : undefined;
 
     if (stdin) {
       if (parsed.prompt) {
-        // If prompt exists, treat stdin as context (appended after prompt)
         parsed.prompt = `${parsed.prompt}\n\n${stdin}`;
       } else {
-        // If no prompt, treat stdin as the prompt itself
         parsed.prompt = stdin;
       }
     }
 
-    // Dispatch to command handlers
     switch (parsed.command) {
       case 'sel':
       case 'selection':
@@ -74,7 +65,6 @@ async function main(): Promise<void> {
           showHelp();
           process.exit(1);
         }
-        // Check if --deep flag was set
         if (parsed.options.deep) {
           await handleDeep(parsed.prompt, parsed.options);
         } else {

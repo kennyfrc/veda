@@ -1,7 +1,6 @@
 import { join } from 'path';
 import { homedir } from 'os';
 
-/** Base configuration directory - can be overridden via VEDA_HOME env var */
 export function getVedaHome(): string {
   return process.env.VEDA_HOME ?? join(homedir(), '.config', 'veda');
 }
@@ -9,22 +8,19 @@ export function getVedaHome(): string {
 /** @deprecated Use getVedaHome() instead */
 export const VEDA_HOME = join(homedir(), '.config', 'veda');
 
-/** Get session-specific directory path */
 export function getSessionDir(sessionId: string, baseDir?: string): string {
   return join(baseDir ?? getVedaHome(), 'sessions', sessionId);
 }
 
-/** Get selection file path for a session */
 export function getSelectionPath(sessionId: string, baseDir?: string): string {
   return join(getSessionDir(sessionId, baseDir), 'selection');
 }
 
-/** Get thread ID file path for a session */
 export function getThreadPath(sessionId: string, baseDir?: string): string {
   return join(getSessionDir(sessionId, baseDir), 'thread.json');
 }
 
-/** Get legacy thread ID file path (for migration) */
+/** Legacy path for migration from old format */
 export function getLegacyThreadPath(sessionId: string, baseDir?: string): string {
   return join(getSessionDir(sessionId, baseDir), 'codex_thread_id');
 }

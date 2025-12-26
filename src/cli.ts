@@ -21,7 +21,6 @@ export interface CliOptions {
   help?: boolean;
   version?: boolean;
   
-  // Per-stage overrides for deep mode
   solverBackend?: string;
   solverModel?: string;
   judgeBackend?: string;
@@ -29,7 +28,6 @@ export interface CliOptions {
   verifierBackend?: string;
   verifierModel?: string;
 
-  // Distribution options for deep mode
   distributeSolvers?: boolean;
   solverBackends?: string[];
 }

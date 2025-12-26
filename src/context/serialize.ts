@@ -26,9 +26,6 @@ ${fence}
 ${separator}`;
 }
 
-/**
- * Serialize files into a <file_context> block.
- */
 export function serializeAllFileContextBlocks(
   results: ReadSliceResult[],
   opts: SerializeOptions = {}

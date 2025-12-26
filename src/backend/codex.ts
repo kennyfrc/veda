@@ -31,7 +31,7 @@ export class CodexBackend implements Backend {
     if (config.systemPrompt) input += `<system_instructions>\n${config.systemPrompt}\n</system_instructions>\n\n`;
     if (context) input += `${context}\n\n`;
     input += prompt;
-    args.push('-'); // stdin avoids arg length limits
+    args.push('-');
     
     const { stdout, process } = await spawnCliWithRetry({
       command: this.command,
@@ -199,7 +199,6 @@ export class CodexBackend implements Backend {
       case 'error': {
         const errorMsg = (e.message as string) ?? (e.error as string) ?? 'Unknown error';
         
-        // Filter transient errors (reconnection attempts, retries)
         if (isTransientError(errorMsg)) {
           return null;
         }
@@ -221,9 +220,8 @@ export function createCodexBackend(): CodexBackend {
   return new CodexBackend();
 }
 
-// Transient errors are recoverable and should not halt pipelines
 const TRANSIENT_ERROR_PATTERNS = [
-  /^Reconnecting\.\.\. \d+\/\d+$/,  // Stream reconnection attempts
+  /^Reconnecting\.\.\. \d+\/\d+$/,
 ];
 
 function isTransientError(message: string): boolean {

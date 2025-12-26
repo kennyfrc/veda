@@ -1,8 +1,3 @@
-/**
- * Chain-of-Verification (CoVe) implementation: generate checks, answer, revise.
- * Stateless data types and functions.
- */
-
 import type { Message, UsageStats } from '../backend';
 import { runLlm, combineUsage, type Reasoning, type Sandbox } from './llm';
 
@@ -14,7 +9,6 @@ export interface Check {
   targetClaim?: string;
 }
 
-/** Verdict of a verification check: explicit domain meaning */
 export type CheckVerdict = 'supports' | 'contradicts' | 'uncertain';
 
 export interface CheckResult {
@@ -30,10 +24,6 @@ export interface Revision {
   conflicts: string[];
 }
 
-/**
- * Derive whether a revision is unchanged by comparing to the original draft.
- * Follows pragmatic principle: derive data, don't store it.
- */
 export function isUnchanged(revision: Revision, originalDraft: string): boolean {
   return revision.revised === originalDraft;
 }
@@ -216,7 +206,6 @@ export function parseCheckResults(text: string, checks: Check[]): CheckResult[] 
     const verdictStr = match[3].trim().toLowerCase();
     const confLevel = match[4]?.trim().toLowerCase() ?? 'medium';
 
-    // Parse verdict as direct domain value, avoiding boolean blindness
     const verdict: CheckVerdict =
       verdictStr === 'contradicts' ? 'contradicts' :
       verdictStr === 'supports' ? 'supports' :
@@ -230,13 +219,11 @@ export function parseCheckResults(text: string, checks: Check[]): CheckResult[] 
     });
   }
 
-  // Return results in input order, with fallback for missing
   for (const check of checks) {
     const result = parsed.get(check.id);
     if (result) {
       results.push(result);
     } else {
-      // Fallback: assume uncertain if check result missing
       results.push({
         checkId: check.id,
         answer: 'Unable to parse result for this check',
@@ -256,14 +243,12 @@ export function parseRevision(originalDraft: string, text: string): Revision {
 
   const revised = revisedMatch?.[1]?.trim() ?? originalDraft;
 
-  // Parse changes list
   const changesText = changesMatch?.[1] ?? '';
   const changes = changesText
     .split('\n')
     .map(line => line.replace(/^[-*]\s*/, '').trim())
     .filter(line => line.length > 0);
 
-  // Parse conflicts
   const conflictsText = conflictsMatch?.[1]?.trim() ?? '';
   const conflicts = conflictsText.toLowerCase() === 'none' || !conflictsText
     ? []

@@ -1,5 +1,3 @@
-// LLM primitives: stateless data types and functions.
-
 import type { Message, UsageStats } from '../backend';
 import {
   getBackend,

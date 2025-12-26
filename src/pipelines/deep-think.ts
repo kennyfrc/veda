@@ -145,7 +145,6 @@ export async function* runDeepThink(
       // If solverBackends is provided, use it; otherwise use single backend
       const solverBackends = options.solverBackends ?? [base.backend];
 
-      // Pre-resolve models for each distinct backend
       const backendModels = new Map<string, string | undefined>();
       for (const backend of new Set(solverBackends)) {
         const resolved = resolveBackendModel({
@@ -322,11 +321,10 @@ export async function* runDeepThink(
       
       let finalAnswer = judgeResult.selected;
       let wasRevised = false;
-      let lastSessionId = judgeResult.sessionId;  // Track last stage's sessionId
-      let lastBackend = judge.backend;  // Track which backend produced last answer
+      let lastSessionId = judgeResult.sessionId;
+      let lastBackend = judge.backend;
 
-      // Verify if judge confidence is low (< 0.7)
-      const shouldVerify = verify && judgeResult.decision.confidence < 0.7;
+              const shouldVerify = verify && judgeResult.decision.confidence < 0.7;
       
       if (shouldVerify) {
         if (!verifier.model) {
@@ -370,7 +368,6 @@ export async function* runDeepThink(
           finalAnswer = verifyResult.revision.revised;
           wasRevised = true;
 
-          // Capture sessionId from verifier only if it revised the answer
           if (verifyResult.sessionId) {
             lastSessionId = verifyResult.sessionId;
             lastBackend = verifier.backend;
@@ -425,17 +422,6 @@ function truncate(text: string, maxLen: number): string {
   return text.slice(0, maxLen - 3) + '...';
 }
 
-/**
- * Derive the list of completed stages from a DeepThinkTrace.
- * This prevents storing redundant data in the result.
- *
- * @param trace The trace object (may be undefined)
- * @returns Array of stage names in execution order
- *
- * @example
- * getDeepThinkStages({ solve: {...}, judge: {...} }) // → ['solve']
- * getDeepThinkStages({ solve: {...}, judge: {...}, verify: {...} }) // → ['solve', 'verify']
- */
 export function getDeepThinkStages(trace?: DeepThinkTrace): string[] {
   if (!trace) {
     return [];

@@ -1,8 +1,3 @@
-/**
- * Judge primitive: select best candidate from multiple outputs.
- * Plain data types + functions, no hidden state.
- */
-
 import type { Message } from '../backend';
 import { runLlm, type Reasoning, type Sandbox } from './llm';
 import {
@@ -14,10 +9,6 @@ import {
   type JudgeFormat,
 } from './judge-format';
 
-// ============================================================================
-// Re-exports for backward compatibility
-// ============================================================================
-
 export type { JudgeDecision, JudgeResult, ConfidenceLevel };
 export {
   XML_JUDGE_FORMAT,
@@ -26,13 +17,6 @@ export {
   type JudgeFormat,
 } from './judge-format';
 
-// ============================================================================
-// Functions
-// ============================================================================
-
-/**
- * Format the judge prompt with shuffled candidates (backward compatibility wrapper).
- */
 export function formatJudgePrompt(
   candidates: string[],
   indexMapping: number[],
@@ -41,22 +25,14 @@ export function formatJudgePrompt(
   return XML_JUDGE_FORMAT.format(candidates, indexMapping, originalTask);
 }
 
-/**
- * Parse judge response to extract decision (backward compatibility wrapper).
- */
 export function parseJudgeDecision(
   text: string,
   indexMapping: number[],
-  _candidateCount?: number // Unused, kept for backward compatibility
+  _candidateCount?: number
 ): JudgeDecision {
   return XML_JUDGE_FORMAT.parse(text, indexMapping);
 }
 
-/**
- * Run the judge to select the best candidate.
- * @param args Judge arguments including candidates and optional format
- * @param onMessage Optional callback for streaming events
- */
 export async function runJudge(args: {
   backend: string;
   model?: string;
@@ -67,11 +43,10 @@ export async function runJudge(args: {
   candidates: string[];
   originalTask?: string;
   onMessage?: (msg: Message) => void;
-  format?: JudgeFormat; // Optional custom format
+  format?: JudgeFormat;
 }): Promise<JudgeResult> {
   const { backend, model, systemPrompt, reasoning, sandbox, cwd, candidates, originalTask, onMessage, format = XML_JUDGE_FORMAT } = args;
 
-  // Handle edge cases
   if (candidates.length === 0) {
     return {
       decision: { selectedIndex: 0, confidence: 0, confidenceLevel: 'low' },
@@ -90,7 +65,6 @@ export async function runJudge(args: {
     };
   }
 
-  // Shuffle to reduce position bias
   const { indexMapping } = shuffleCandidates(candidates);
 
   const prompt = format.format(candidates, indexMapping, originalTask);

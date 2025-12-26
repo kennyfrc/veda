@@ -1,5 +1,3 @@
-// Backend protocol: each CLI adapter normalizes output to Message events.
-
 import type { AgentConfig } from '../agent';
 
 export interface Message {

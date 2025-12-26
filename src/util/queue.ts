@@ -1,16 +1,9 @@
-/**
- * A thread-safe (in the JS sense) async queue that implements the AsyncIterable interface.
- * Useful for producer-consumer patterns where the producer is event-driven.
- */
 export class AsyncQueue<T> implements AsyncIterable<T> {
   private queue: T[] = [];
   private waiters: ((result: IteratorResult<T>) => void)[] = [];
   private closed = false;
   private error: Error | null = null;
 
-  /**
-   * Push an item into the queue.
-   */
   push(item: T): void {
     if (this.closed) return;
     
@@ -22,9 +15,6 @@ export class AsyncQueue<T> implements AsyncIterable<T> {
     }
   }
 
-  /**
-   * Mark the queue as done. No more items can be pushed.
-   */
   done(): void {
     if (this.closed) return;
     this.closed = true;
@@ -35,9 +25,6 @@ export class AsyncQueue<T> implements AsyncIterable<T> {
     }
   }
 
-  /**
-   * Close the queue with an error.
-   */
   fail(err: Error): void {
     if (this.closed) return;
     this.error = err;
@@ -65,7 +52,6 @@ export class AsyncQueue<T> implements AsyncIterable<T> {
         return;
       }
 
-      // Wait for next item or close signal
       const result = await new Promise<IteratorResult<T>>((resolve) => {
         this.waiters.push(resolve);
       });

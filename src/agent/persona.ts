@@ -1,5 +1,3 @@
-// Personas are stored in ~/.config/veda/personas/<name>/AGENTS.md
-
 import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { getPersonasDir, getPersonaDir } from '../util/paths';
@@ -70,12 +68,11 @@ export interface ResolveConfigOptions {
   model?: string;
   reasoning?: ReasoningLevel;
   sandbox?: SandboxMode;
-  backend?: string;           // Backend for model resolution
+  backend?: string;
   baseDir?: string;
   systemPrompt?: string;
 }
 
-/** Merges persona defaults with overrides */
 export async function resolveAgentConfig(
   options: ResolveConfigOptions,
   defaults: { persona: string },
@@ -96,8 +93,6 @@ export async function resolveAgentConfig(
     personaReasoning = persona.defaultReasoning;
   }
   
-  // Resolve model and reasoning based on backend
-  // Backend must be provided for proper resolution
   if (!options.backend) {
     throw new Error('Backend must be specified for agent config resolution');
   }
@@ -108,7 +103,6 @@ export async function resolveAgentConfig(
     globalConfig,
   });
   
-  // Reasoning precedence: explicit -r > persona default > backend config > backend built-in
   const reasoning = options.reasoning 
     ?? personaReasoning 
     ?? resolveReasoning({

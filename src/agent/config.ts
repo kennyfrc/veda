@@ -27,14 +27,13 @@ export interface GlobalConfig {
   model?: string;
   session?: string;
   notify?: boolean;
-  backendModels?: Record<string, string>;      // Per-backend model: CODEX_MODEL, CLAUDE_CODE_MODEL, etc.
-  backendReasoning?: Record<string, ReasoningLevel>;  // Per-backend reasoning: CODEX_REASONING, etc.
+  backendModels?: Record<string, string>;
+  backendReasoning?: Record<string, ReasoningLevel>;
 }
 
 const DEFAULT_PERSONA = 'navigator-chat';
 const DEFAULT_BACKEND = 'codex';
 
-/** Parses shell-style config (KEY="value" or KEY=value) */
 export function parseConfigFile(content: string): GlobalConfig {
   const config: GlobalConfig = {};
   const backendModels: Record<string, string> = {};
@@ -51,7 +50,6 @@ export function parseConfigFile(content: string): GlobalConfig {
       const backendModelMatch = key.match(/^(.+)_MODEL$/);
       if (backendModelMatch) {
         const prefix = backendModelMatch[1];
-        // CLAUDE_CODE -> claude-code
         const backendId = prefix.toLowerCase().replace(/_/g, '-');
         backendModels[backendId] = value;
         continue;
@@ -168,8 +166,6 @@ export function resolveModel(options: ResolveModelOptions): string | undefined {
 
   if (globalConfig?.model) {
     const alias = tryResolveAliasTarget(globalConfig.model);
-    // If it's an alias, only use it if it matches the current backend.
-    // If it's not an alias, we treat it as a literal model name for the current backend.
     if (!alias || alias.backend === backend) {
       return globalConfig.model;
     }
@@ -195,7 +191,6 @@ export function resolveReasoning(options: ResolveReasoningOptions): ReasoningLev
   return getBackendDefaultReasoning(backend);
 }
 
-/** Source of model resolution - captures provenance for debugging */
 export type ModelSource =
   | { kind: 'explicit' }
   | { kind: 'alias'; aliasName: string }

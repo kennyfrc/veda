@@ -1,7 +1,3 @@
-// Gemini CLI configuration manager for temporary thinking level overrides
-// InjectsScoped overrides into ~/.gemini/settings.json before running gemini CLI,
-// then cleans up by removing the override after execution.
-
 import {
   type ThinkingConfig,
   detectModelGeneration,
@@ -17,14 +13,9 @@ import { rename, unlink } from 'fs/promises';
 /**
  * Manages Gemini CLI settings.json lifecycle for veda's thinking configuration.
  *
- * Uses a scoped override approach:
- * 1. Read existing settings.json
- * 2. Create backup with fingerprint
- * 3. Add veda override to modelConfigs.overrides array
- * 4. Write settings.json atomically
- * 5. Execute callback (e.g., spawn gemini CLI)
- * 6. Cleanup: surgically remove veda override
- * 7. Delete backup on success, restore from backup on error
+ * Scoped override approach: inject override into modelConfigs.overrides array,
+ * write atomically, execute callback, then surgically remove the override.
+ * Enables temporary reasoning level configuration without persistent changes.
  */
 export class GeminiConfigManager {
   private geminiHome: string;
@@ -55,24 +46,20 @@ export class GeminiConfigManager {
     model: string,
     callback: () => Promise<T>
   ): Promise<T> {
-    // Check if reasoning is medium (default) - no override needed
     if (reasoning === 'medium') {
       return await callback();
     }
 
-    // Detect model generation
     const gen = detectModelGeneration(model);
     if (gen === 'UNKNOWN') {
       throw this.createError('UNKNOWN_MODEL', `Unknown model generation for: ${model}`);
     }
 
-    // Map reasoning to Gemini config
     const thinkingConfig = mapReasoningToGeminiConfig(reasoning, gen);
     if (!thinkingConfig) {
       throw this.createError('UNKNOWN_MODEL', `Failed to map reasoning to config: ${reasoning}, ${gen}`);
     }
 
-    // Generate unique override ID
     const overrideId = `veda-override-${randomUUID()}`;
     const overrideScope = `veda-session-${randomUUID()}`;
 
@@ -80,25 +67,20 @@ export class GeminiConfigManager {
     let error: Error | undefined;
 
     try {
-      // 1. Read settings.json
       const settings = await this.readSettings();
 
-      // 2. Create backup
       this.state.backupFilePath = await this.createBackup(settings);
       this.state.overrideId = overrideId;
-      this.state.originalSettings = JSON.parse(JSON.stringify(settings)); // Deep clone
+      this.state.originalSettings = JSON.parse(JSON.stringify(settings));
 
-      // 3. Inject override
       await this.injectOverride(settings, model, overrideScope, overrideId, thinkingConfig);
       this.state.hasModifiedSettings = true;
 
-      // 4. Execute callback
       result = await callback();
     } catch (e) {
       error = e instanceof Error ? e : new Error(String(e));
       throw error;
     } finally {
-      // 5. Cleanup (always runs, even if callback threw)
       await this.cleanup(!!error);
     }
 

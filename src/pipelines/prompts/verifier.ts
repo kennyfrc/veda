@@ -50,9 +50,6 @@ When existing tests are insufficient:
 Be thorough but focused. Generate questions that could actually reveal errors, not trivial checks.
 </conversation_rules>`;
 
-/**
- * Generate verification checks prompt.
- */
 export function getGenerateChecksPrompt(draft: string, originalTask: string): string {
   return `Given this solution, generate verification questions:
 
@@ -81,9 +78,6 @@ Format:
 </checks>`;
 }
 
-/**
- * Answer a verification check prompt.
- */
 export function getAnswerCheckPrompt(question: string, claim?: string): string {
   return `Answer this verification question:
 
@@ -98,9 +92,6 @@ Format:
 <confidence>high|medium|low</confidence>`;
 }
 
-/**
- * Revision prompt.
- */
 export function getRevisionPrompt(draft: string, issues: string[]): string {
   const issueList = issues.map((issue, i) => `${i + 1}. ${issue}`).join('\n');
   

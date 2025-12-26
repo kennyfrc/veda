@@ -15,23 +15,14 @@ export interface SpawnResult {
 }
 
 export interface RetryOptions {
-  /** Maximum number of retry attempts (default: 6) */
   maxAttempts?: number;
-  /** Base delay in ms for exponential backoff (default: 250) */
   baseDelayMs?: number;
-  /** Maximum delay cap in ms (default: 2000) */
   maxDelayMs?: number;
-  /** Maximum total time in ms (default: 15000) */
   maxTotalMs?: number;
-  /** Enable small random jitter to spread retries (default: true) */
   jitter?: boolean;
-  /** Optional callback on each retry attempt */
   onRetry?: (attempt: number, error: Error, delayMs: number) => void;
 }
 
-/**
- * Check if a spawn error is ENOENT (executable not found).
- */
 export function isSpawnEnoent(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
 
@@ -50,9 +41,6 @@ export function isSpawnEnoent(error: unknown): boolean {
   return false;
 }
 
-/**
- * Compute delay for exponential backoff with optional jitter.
- */
 export function computeBackoffMs(
   attempt: number,
   options: RetryOptions = {}
@@ -63,21 +51,16 @@ export function computeBackoffMs(
     jitter = true,
   } = options;
 
-  // Exponential: base * 2^attempt
   const delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
   
-  // Add jitter if enabled (±20%)
   if (jitter) {
-    const jitterFactor = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+    const jitterFactor = 0.8 + Math.random() * 0.4;
     return Math.floor(delay * jitterFactor);
   }
   
   return delay;
 }
 
-/**
- * Sleep for a given duration.
- */
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
