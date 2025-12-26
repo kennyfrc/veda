@@ -224,7 +224,7 @@ export async function handleDeep(
         explicitBackend: options.verifierBackend,
         explicitModel: options.verifierModel,
         fallbackBackend: judge.backend,
-        fallbackModel: undefined,
+        fallbackModel: judge.model,  // Verifier follows judge unless explicitly overridden
         globalConfig,
       })
     : { backend: judge.backend, model: judge.model };

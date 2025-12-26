@@ -281,23 +281,31 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     solverBackends = [base.backend];
   }
 
+  // Validate: -m/--model conflicts with multi-backend distribution
+  const uniqueSolverBackends = new Set(solverBackends);
+  if (options.model && uniqueSolverBackends.size > 1) {
+    throw new Error(
+      `Cannot use -m/--model with --distribute-solvers across multiple backends. ` +
+      `Either remove --distribute-solvers, remove -m, or use --solver-model with backend-specific models.`
+    );
+  }
+
   const backendModels = new Map<string, string>();
 
-  for (const backend of new Set(solverBackends)) {
-    // When distributing across multiple backends, each backend should use its own default model
-    // unless an explicit solver-model is provided. Don't cross-pollinate with base.model.
+  for (const backend of uniqueSolverBackends) {
+    // If -m is specified, use base.model as fallback for all solvers.
+    // Otherwise, let each backend use its own default model.
     const resolved = resolveBackendModel({
       explicitBackend: backend,
       explicitModel: options.solverModel,
-      fallbackBackend: backend,  // Use backend's own default, not base.backend
-      fallbackModel: undefined,  // Let each backend use its own default model
+      fallbackBackend: backend,
+      fallbackModel: base.model,  // Inherit from -m if specified
       globalConfig,
     });
     if (!resolved.model) {
       throw new Error(`Unable to resolve model for solver backend '${backend}'. Specify --solver-model or set MODEL in config.`);
     }
     backendModels.set(backend, resolved.model);
-    console.error(`[debug] Solver backend ${backend} -> model ${resolved.model}`);
   }
 
   const solverConfig: SolverOptions = {
@@ -332,7 +340,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     explicitBackend: options.judgeBackend,
     explicitModel: options.judgeModel,
     fallbackBackend: judgeFallbackBackend,
-    fallbackModel: undefined,  // Let judge use its backend's default model
+    fallbackModel: base.model,  // Inherit from -m if specified
     globalConfig,
   });
 
@@ -368,7 +376,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
       explicitBackend: options.verifierBackend,
       explicitModel: options.verifierModel,
       fallbackBackend: verifierFallbackBackend,
-      fallbackModel: undefined,
+      fallbackModel: judge.model,  // Verifier follows judge unless explicitly overridden
       globalConfig,
     });
 
