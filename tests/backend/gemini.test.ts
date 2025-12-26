@@ -1,96 +1,137 @@
-import { describe, expect, test, beforeEach, afterEach, spyOn } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 
-/**
- * Direct implementation of maybeWarnAboutReasoning for testing purposes.
- * Mirrors the implementation in src/backend/gemini.ts
- */
-function maybeWarnAboutReasoning(reasoning: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'): void {
-  if (reasoning && reasoning !== 'medium') {
-    console.warn(
-      'Warning: Gemini-CLI does not support configurable reasoning levels via CLI flags. ' +
-      'The --reasoning flag will be ignored. ' +
-      'Consider using prompt engineering instead.'
-    );
-  }
-}
+import {
+  detectModelGeneration,
+  mapReasoningToGeminiConfig,
+  ModelGeneration,
+  type ReasoningLevel,
+} from '../../src/backend/gemini-config-types';
 
-describe('Gemini Reasoning Warning', () => {
-  let originalWarn: typeof console.warn;
-
-  beforeEach(() => {
-    originalWarn = console.warn;
+describe('Gemini Model Generation Detection', () => {
+  test('detects GEN_3 models', () => {
+    expect(detectModelGeneration('gemini-3-pro-preview')).toBe(ModelGeneration.GEN_3);
+    expect(detectModelGeneration('gemini-3-flash-preview')).toBe(ModelGeneration.GEN_3);
+    expect(detectModelGeneration('gemini-3-something-else')).toBe(ModelGeneration.GEN_3);
   });
 
-  afterEach(() => {
-    console.warn = originalWarn;
+  test('detects GEN_2_5 models', () => {
+    expect(detectModelGeneration('gemini-2.5-pro')).toBe(ModelGeneration.GEN_2_5);
+    expect(detectModelGeneration('gemini-2.5-flash')).toBe(ModelGeneration.GEN_2_5);
+    expect(detectModelGeneration('gemini-2.5-pro-exp')).toBe(ModelGeneration.GEN_2_5);
+    expect(detectModelGeneration('gemini-2-pro')).toBe(ModelGeneration.GEN_2_5); // Future-proof
   });
 
-  test('warns when reasoning is minimal', () => {
-    const spy = spyOn(console, 'warn');
-    maybeWarnAboutReasoning('minimal');
-    expect(spy).toHaveBeenCalled();
-    const warning = spy.mock.calls[0][0] as string;
-    expect(warning).toContain('Gemini-CLI does not support configurable reasoning levels');
-  });
-
-  test('warns when reasoning is low', () => {
-    const spy = spyOn(console, 'warn');
-    maybeWarnAboutReasoning('low');
-    expect(spy).toHaveBeenCalled();
-    const warning = spy.mock.calls[0][0] as string;
-    expect(warning).toContain('Gemini-CLI does not support configurable reasoning levels');
-  });
-
-  test('does NOT warn when reasoning is medium (default)', () => {
-    const spy = spyOn(console, 'warn');
-    maybeWarnAboutReasoning('medium');
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  test('warns when reasoning is high', () => {
-    const spy = spyOn(console, 'warn');
-    maybeWarnAboutReasoning('high');
-    expect(spy).toHaveBeenCalled();
-    const warning = spy.mock.calls[0][0] as string;
-    expect(warning).toContain('Gemini-CLI does not support configurable reasoning levels');
-  });
-
-  test('warns when reasoning is xhigh', () => {
-    const spy = spyOn(console, 'warn');
-    maybeWarnAboutReasoning('xhigh');
-    expect(spy).toHaveBeenCalled();
-    const warning = spy.mock.calls[0][0] as string;
-    expect(warning).toContain('Gemini-CLI does not support configurable reasoning levels');
-  });
-
-  test('warning message includes helpful suggestion', () => {
-    const spy = spyOn(console, 'warn');
-    maybeWarnAboutReasoning('high');
-    const warning = spy.mock.calls[0][0] as string;
-    expect(warning).toContain('Consider using prompt engineering instead');
-  });
-
-  test('warning message explains the flag will be ignored', () => {
-    const spy = spyOn(console, 'warn');
-    maybeWarnAboutReasoning('low');
-    const warning = spy.mock.calls[0][0] as string;
-    expect(warning).toContain('--reasoning flag will be ignored');
+  test('detects UNKNOWN models', () => {
+    expect(detectModelGeneration('gemini-3-ultra')).toBe(ModelGeneration.GEN_3); // Starts with gemini-3-
+    expect(detectModelGeneration('gemini-4-ultra')).toBe(ModelGeneration.UNKNOWN); // Future
+    expect(detectModelGeneration('gemini-2-ultra')).toBe(ModelGeneration.GEN_2_5); // gemini-2- matches
+    expect(detectModelGeneration('gpt-4')).toBe(ModelGeneration.UNKNOWN);
+    expect(detectModelGeneration('claude-opus')).toBe(ModelGeneration.UNKNOWN);
+    expect(detectModelGeneration('unknown-model')).toBe(ModelGeneration.UNKNOWN);
   });
 });
 
-describe('Gemini Warning Behavior Summary', () => {
-  test('only skips warning for medium reasoning level', () => {
-    const levels: Array<'minimal' | 'low' | 'medium' | 'high' | 'xhigh'> = ['minimal', 'low', 'medium', 'high', 'xhigh'];
+describe('Reasoning Level Mapping to Gemini 3.x', () => {
+  const gen3 = ModelGeneration.GEN_3;
 
-    const results = levels.map(level => {
-      const spy = spyOn(console, 'warn');
-      maybeWarnAboutReasoning(level);
-      const called = spy.mock.calls.length > 0;
-      spy.mockRestore();
-      return { level, warned: called };
-    });
+  test('maps minimal to LOW', () => {
+    const config = mapReasoningToGeminiConfig('minimal', gen3);
+    expect(config?.gen).toBe('GEN_3');
+    expect(config?.thinkingLevel).toBe('LOW');
+  });
 
-    expect(results.find(r => r.level === 'medium')?.warned).toBe(false);
-    expect(results.filter(r => r.level !== 'medium').every(r => r.warned)).toBe(true);
+  test('maps low to LOW', () => {
+    const config = mapReasoningToGeminiConfig('low', gen3);
+    expect(config?.gen).toBe('GEN_3');
+    expect(config?.thinkingLevel).toBe('LOW');
+  });
+
+  test('maps medium to MEDIUM', () => {
+    const config = mapReasoningToGeminiConfig('medium', gen3);
+    expect(config?.gen).toBe('GEN_3');
+    expect(config?.thinkingLevel).toBe('MEDIUM');
+  });
+
+  test('maps high to HIGH', () => {
+    const config = mapReasoningToGeminiConfig('high', gen3);
+    expect(config?.gen).toBe('GEN_3');
+    expect(config?.thinkingLevel).toBe('HIGH');
+  });
+
+  test('maps xhigh to HIGH', () => {
+    const config = mapReasoningToGeminiConfig('xhigh', gen3);
+    expect(config?.gen).toBe('GEN_3');
+    expect(config?.thinkingLevel).toBe('HIGH');
+  });
+});
+
+describe('Reasoning Level Mapping to Gemini 2.x', () => {
+  const gen25 = ModelGeneration.GEN_2_5;
+
+  test('maps minimal to 8192', () => {
+    const config = mapReasoningToGeminiConfig('minimal', gen25);
+    expect(config?.gen).toBe('GEN_2_5');
+    expect(config?.thinkingBudget).toBe(8192);
+  });
+
+  test('maps low to 8192', () => {
+    const config = mapReasoningToGeminiConfig('low', gen25);
+    expect(config?.gen).toBe('GEN_2_5');
+    expect(config?.thinkingBudget).toBe(8192);
+  });
+
+  test('maps medium to 16000', () => {
+    const config = mapReasoningToGeminiConfig('medium', gen25);
+    expect(config?.gen).toBe('GEN_2_5');
+    expect(config?.thinkingBudget).toBe(16000);
+  });
+
+  test('maps high to 32000', () => {
+    const config = mapReasoningToGeminiConfig('high', gen25);
+    expect(config?.gen).toBe('GEN_2_5');
+    expect(config?.thinkingBudget).toBe(32000);
+  });
+
+  test('maps xhigh to 32000', () => {
+    const config = mapReasoningToGeminiConfig('xhigh', gen25);
+    expect(config?.gen).toBe('GEN_2_5');
+    expect(config?.thinkingBudget).toBe(32000);
+  });
+});
+
+describe('Mapping for Unknown Model Generation', () => {
+  test('returns null for UNKNOWN generation', () => {
+    const config = mapReasoningToGeminiConfig('high', ModelGeneration.UNKNOWN);
+    expect(config).toBeNull();
+  });
+});
+
+describe('Mapping Edge Cases', () => {
+  test('minimal and low map to same level (Gen3 LOW)', () => {
+    const minimalConfig = mapReasoningToGeminiConfig('minimal', ModelGeneration.GEN_3);
+    const lowConfig = mapReasoningToGeminiConfig('low', ModelGeneration.GEN_3);
+    expect(minimalConfig?.thinkingLevel).toBe(lowConfig?.thinkingLevel);
+    expect(minimalConfig?.thinkingLevel).toBe('LOW');
+  });
+
+  test('high and xhigh map to same level (Gen3 HIGH)', () => {
+    const highConfig = mapReasoningToGeminiConfig('high', ModelGeneration.GEN_3);
+    const xhighConfig = mapReasoningToGeminiConfig('xhigh', ModelGeneration.GEN_3);
+    expect(highConfig?.thinkingLevel).toBe(xhighConfig?.thinkingLevel);
+    expect(highConfig?.thinkingLevel).toBe('HIGH');
+  });
+
+  test('minimal and low map to same budget (Gen2 8192)', () => {
+    const minimalConfig = mapReasoningToGeminiConfig('minimal', ModelGeneration.GEN_2_5);
+    const lowConfig = mapReasoningToGeminiConfig('low', ModelGeneration.GEN_2_5);
+    expect(minimalConfig?.thinkingBudget).toBe(lowConfig?.thinkingBudget);
+    expect(minimalConfig?.thinkingBudget).toBe(8192);
+  });
+
+  test('high and xhigh map to same budget (Gen2 32000)', () => {
+    const highConfig = mapReasoningToGeminiConfig('high', ModelGeneration.GEN_2_5);
+    const xhighConfig = mapReasoningToGeminiConfig('xhigh', ModelGeneration.GEN_2_5);
+    expect(highConfig?.thinkingBudget).toBe(xhighConfig?.thinkingBudget);
+    expect(highConfig?.thinkingBudget).toBe(32000);
   });
 });

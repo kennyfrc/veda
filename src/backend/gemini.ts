@@ -1,20 +1,7 @@
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
-import type { SandboxMode, ReasoningLevel } from '../agent/config';
+import type { SandboxMode } from '../agent/config';
 import { spawnCliWithRetry, commandExists, parseNdjsonStream } from './util/spawn';
-
-/**
- * Warn users when they try to use configurable reasoning with Gemini-CLI.
- * Gemini-CLI does not expose user-configurable reasoning levels via CLI flags.
- */
-function maybeWarnAboutReasoning(reasoning: ReasoningLevel): void {
-  if (reasoning && reasoning !== 'medium') {
-    console.warn(
-      'Warning: Gemini-CLI does not support configurable reasoning levels via CLI flags. ' +
-      'The --reasoning flag will be ignored. ' +
-      'Consider using prompt engineering instead.'
-    );
-  }
-}
+import { GeminiConfigManager } from './gemini-config';
 
 function toGeminiApprovalMode(sandbox: SandboxMode): string {
   switch (sandbox) {
@@ -28,43 +15,83 @@ export class GeminiBackend implements Backend {
   readonly name = 'gemini-cli';
   readonly command = 'gemini';
   readonly systemPromptFile = undefined;
+  private configManager: GeminiConfigManager = new GeminiConfigManager();
 
-  async *run(options: RunOptions): AsyncIterable<Message> {
+  /**
+   * Clean up stale veda overrides from previous crashed runs.
+   * Call this once on veda startup.
+   */
+  static async cleanupStale(ageHours: number = 24): Promise<number> {
+    const manager = new GeminiConfigManager();
+    return await manager.cleanupStale(ageHours);
+  }
+
+    async *run(options: RunOptions): AsyncIterable<Message> {
     const { prompt, context, config, cwd } = options;
 
-    // Warn about unsupported reasoning configuration
-    maybeWarnAboutReasoning(config.reasoning);
-
     const args: string[] = [];
+    const modelName = config.model || 'gemini-3-pro-preview';
     if (config.model) args.push('--model', config.model);
     args.push('--output-format', 'stream-json');
     if (config.sandbox) args.push('--approval-mode', toGeminiApprovalMode(config.sandbox));
-    
+
     // Gemini lacks --system-prompt, so we inject it into the message
     let input = '';
     if (config.systemPrompt) input += `<system_instructions>\n${config.systemPrompt}\n</system_instructions>\n\n`;
     if (context) input += `${context}\n\n`;
     input += prompt;
     args.push(input);
-    
-    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
-    yield* this.parseStream(stdout);
-    await process.exited;
+
+    // Execute with temporary thinking config override
+    // Config manager handles backup/inject/cleanup around subprocess execution
+    // Note: This collects all messages first to ensure cleanup happens reliably
+    const messages = await this.configManager.withOverride(
+      config.reasoning,
+      modelName,
+      async () => {
+        const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
+        const collected: Message[] = [];
+        for await (const msg of this.parseStream(stdout)) {
+          collected.push(msg);
+        }
+        await process.exited;
+        return collected;
+      }
+    );
+
+    // Yield collected messages
+    for (const msg of messages) {
+      yield msg;
+    }
   }
 
   async *resume(options: ResumeOptions): AsyncIterable<Message> {
     const { sessionId, prompt, config, cwd } = options;
 
-    // Warn about unsupported reasoning configuration
-    maybeWarnAboutReasoning(config.reasoning);
-
     const args: string[] = ['--resume', sessionId, '--output-format', 'stream-json'];
     if (config.sandbox) args.push('--approval-mode', toGeminiApprovalMode(config.sandbox));
     if (prompt) args.push(prompt);
-    
-    const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
-    yield* this.parseStream(stdout);
-    await process.exited;
+
+    const modelName = config.model || 'gemini-3-pro-preview';
+
+    // Execute with temporary thinking config override
+    const messages = await this.configManager.withOverride(
+      config.reasoning,
+      modelName,
+      async () => {
+        const { stdout, process } = await spawnCliWithRetry({ command: this.command, args, cwd });
+        const collected: Message[] = [];
+        for await (const msg of this.parseStream(stdout)) {
+          collected.push(msg);
+        }
+        await process.exited;
+        return collected;
+      }
+    );
+
+    for (const msg of messages) {
+      yield msg;
+    }
   }
 
   async isAvailable(): Promise<boolean> {

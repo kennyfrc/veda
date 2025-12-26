@@ -57,7 +57,7 @@ veda -b gemini-cli "..."   # Google Gemini CLI
 **Note on reasoning configuration:**
 - **Codex:** Uses native `model_reasoning_effort` flag. The `--reasoning` flag works as expected.
 - **Claude Code:** Maps `--reasoning` levels to the `MAX_THINKING_TOKENS` environment variable automatically.
-- **Gemini CLI:** Does not expose user-configurable reasoning. The `--reasoning` flag will emit a warning and be ignored.
+- **Gemini CLI:** Injects scoped override into `~/.gemini/settings.json`. Automatically cleaned up after execution.
 
 ### Use Model Aliases
 
@@ -79,7 +79,7 @@ veda -m gemini-flash "..."  # Uses gemini-cli with gemini-3-flash-preview
 
 When you specify both `-b` and `-m`, the model is passed literally (no alias resolution).
 
-**Note:** The `--reasoning` flag (`-r`) is fully supported by the Codex backend, automatically configured for the Claude backend (mapped to `MAX_THINKING_TOKENS`), and ignored by the Gemini backend with a warning.
+**Note:** The `--reasoning` flag (`-r`) is fully supported by the Codex backend, automatically configured for the Claude backend (mapped to `MAX_THINKING_TOKENS`), and supported by the Gemini backend (via scoped settings.json override with automatic cleanup).
 
 ### Resume Conversations
 
@@ -312,8 +312,19 @@ CLAUDE_CODE_MODEL="opus"
 #   xhigh → 63999 (64k-1 tokens)
 
 GEMINI_CLI_MODEL="gemini-3-pro-preview"
-# No user-configurable reasoning available (CLI manages internally)
-# The --reasoning flag will be ignored with a warning
+# Gemini 3.x: Maps --reasoning to thinkingLevel (LOW|MEDIUM|HIGH)
+#   minimal → LOW
+#   low → LOW
+#   medium → MEDIUM
+#   high → HIGH
+#   xhigh → HIGH
+# Gemini 2.x: Maps --reasoning to thinkingBudget (tokens)
+#   minimal → 8192 (same as low)
+#   low → 8192
+#   medium → 16000
+#   high → 32000
+#   xhigh → 32000
+# Implementation: Injects scoped override into ~/.gemini/settings.json
 ```
 
 ## Development
