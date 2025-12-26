@@ -16,7 +16,7 @@ For simple factual queries or quick questions, use regular `veda` instead.
 
 ## Resuming Deep Mode Sessions
 
-Deep mode supports `resume` for continuing conversations. Each session's thread is preserved for follow-up.
+Deep mode now supports `resume` for continuing conversations. Each session's thread is preserved for follow-up.
 
 ```bash
 # Get initial deep answer
@@ -27,14 +27,14 @@ veda -S deep-auth-strategy resume "Can you elaborate on the JWT approach?"
 veda -S deep-auth-strategy resume "What about OAuth integration options?"
 ```
 
-For complex follow-up discussions that benefit from iterative refinement, use `veda -p navigator-chat` (the default persona). It's optimized for conversational flow. Use `resume` when you need to:
+For complex follow-up discussions that benefit from iterative refinement, consider using `veda -p navigator-chat` - it's optimized for conversational flow. Use `resume` when you need to:
 - Stay within the same session context
 - Maintain the thread for reference
 - Ask specific follow-up questions about the deep answer
 
 ---
 
-## Session Naming
+## Session Naming (for Selection)
 
 **Use a descriptive, contextual session ID** with `-S` to isolate your file selection from other concurrent agents. Format: `deep-TASKNAME` where TASKNAME briefly describes the work.
 
@@ -51,7 +51,7 @@ veda -S deep-api-versioning ...   # Deep thinking about API versioning
 
 Build context with `veda sel add` before running deep mode. The context is passed to all solvers.
 
-**Always start by selecting full files.** Check token count with `sel ls` or `sel tokens`. The 80k-100k range is acceptable; ~80k is ideal. Deep mode runs multiple solvers, so large context multiplies cost.
+**Always start by selecting full files.** Check token count with `sel ls`. The 80k-100k range is acceptable; ~80k is ideal. Deep mode runs multiple solvers, so large context multiplies cost.
 
 ```bash
 # Clear and build selection (use your session name)
@@ -60,7 +60,6 @@ veda -S deep-cache-design sel add "src/feature/" "src/shared/"
 
 # Check token count
 veda -S deep-cache-design sel ls
-veda -S deep-cache-design sel tokens  # Just the total
 ```
 
 ### File Slices
@@ -69,9 +68,9 @@ veda -S deep-cache-design sel tokens  # Just the total
 
 ```bash
 # Selection-based slices
-veda -S deep-cache-design sel add main.ts:10-50       # Lines 10-50
-veda -S deep-cache-design sel add main.ts:100-        # Line 100 to end of file
-veda -S deep-cache-design sel add "src/*.ts:1-100"    # First 100 lines of each
+veda -S deep-cache-design sel add main.c:10-50       # Lines 10-50
+veda -S deep-cache-design sel add main.c:100-        # Line 100 to end of file
+veda -S deep-cache-design sel add "src/*.ts:1-100"   # First 100 lines of each
 
 # Ad-hoc file slices (doesn't modify selection)
 veda -S deep-cache-design deep -f src/auth.ts:50-150 -f src/models/user.ts:1-80 "What's the best approach?"
@@ -79,10 +78,10 @@ veda -S deep-cache-design deep -f src/auth.ts:50-150 -f src/models/user.ts:1-80 
 
 | Syntax | Description |
 |--------|-------------|
-| `file.ts:10-20` | Lines 10 to 20 (inclusive) |
-| `file.ts:15-` | Line 15 to end of file |
-| `file.ts:8` | Single line 8 |
-| `"src/*.ts:1-50"` | First 50 lines of each matched file |
+| `file.c:10-20` | Lines 10 to 20 (inclusive) |
+| `file.c:15-` | Line 15 to end of file |
+| `file.c:8` | Single line 8 |
+| `"src/*.c:1-50"` | First 50 lines of each matched file |
 
 ### Ad-hoc Files
 
@@ -90,7 +89,7 @@ Provide files directly without affecting selection:
 
 ```bash
 veda deep -f src/api/auth.ts -f src/models/user.ts "What's the best approach?"
-veda deep -f large_file.ts:100-200 "Review this function"  # Slices work here too
+veda deep -f large_file.c:100-200 "Review this function"  # Slices work here too
 ```
 
 ---
@@ -121,20 +120,14 @@ veda -S deep-api-design deep --trace /tmp/deep-trace.yaml --no-verify "Compare R
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--trace file` | Save full trace to YAML file (recommended: always use) | none |
-| `-k N` | Number of parallel solvers (1-8) | 4 |
+| `-k N` | Number of parallel solvers | 4 |
 | `--distribute-solvers` | Distribute solvers evenly across backends (round-robin) | single backend |
 | `--solver-backends LIST` | Comma-separated backends for `--distribute-solvers` | all available |
 | `--solver-backend NAME` | Force all solvers to use this backend | base backend |
-| `--solver-model NAME` | Model for solvers | base model |
-| `--judge-backend NAME` | Backend for judge | base backend |
-| `--judge-model NAME` | Model for judge | base model |
-| `--verifier-backend NAME` | Backend for verifier | base backend |
-| `--verifier-model NAME` | Model for verifier | base model |
-| `--categories LIST` | Reasoning categories to use (comma-separated) | random sampling |
-| `--modules LIST` | Exact module IDs to use (overrides k and categories) | none |
+| `--categories` | Reasoning categories to use (comma-separated) | random sampling |
+| `--modules` | Exact module IDs to use (overrides k and categories) | none |
 | `--no-verify` | Skip Chain-of-Verification | verification enabled |
 | `-f file` | Add ad-hoc context file(s) | none |
-| `--no-sel` | Ignore selection for this run | use selection |
 | `--json` | Output structured JSON result | text output |
 | `-o file` | Save response to file | stdout |
 
@@ -208,10 +201,7 @@ veda -S deep-realtime-notif sel ls
 # 2. Ask a complex design question (always trace to /tmp)
 veda -S deep-realtime-notif deep --trace /tmp/deep-trace.yaml "Given this codebase, what's the best strategy for adding real-time notifications? Consider: scalability, complexity, and integration with existing code."
 
-# 3. Resume for follow-up questions
-veda -S deep-realtime-notif resume "What about using Server-Sent Events instead?"
-
-# 4. Review trace if needed
+# 3. Review trace if needed
 cat /tmp/deep-trace.yaml
 ```
 
@@ -271,32 +261,24 @@ Returns:
 
 2. **Provide context**: Select relevant code files so solvers understand your codebase
 
-3. **Use more solvers for critical decisions**: `-k 5` or `-k 6` gives more diverse perspectives
+3. **Use more solvers for critical decisions**: `-k 5` gives more diverse perspectives
 
-4. **Distribute across backends**: Use `--distribute-solvers` for provider diversity on important decisions
+4. **Check the candidates**: The output shows all candidate answers - review them if the final answer seems off
 
-5. **Check the candidates**: The output shows all candidate answers - review them if the final answer seems off
-
-6. **Verification adds value on uncertainty**: If the judge is confident (high), verification is skipped
+5. **Verification adds value on uncertainty**: If the judge is confident (high), verification is skipped
 
 ---
 
-## Quick Reference
+## Reminders
 
-```bash
-# Build context
-veda -S deep-TASKNAME sel clear
-veda -S deep-TASKNAME sel add "src/"
-veda -S deep-TASKNAME sel ls
+Key commands:
+- `veda -S deep-TASKNAME sel add` to build context
+- `veda -S deep-TASKNAME sel ls` to check token count
+- `veda -S deep-TASKNAME deep --trace /tmp/deep-trace.yaml "question"` for deep thinking
+- `veda -S deep-TASKNAME deep --trace /tmp/deep-trace.yaml -k 5 "question"` for more solvers
+- `veda -S deep-TASKNAME deep --trace /tmp/deep-trace.yaml --no-verify "question"` for faster results
+- `cat /tmp/deep-trace.yaml` to review full pipeline execution
 
-# Run deep thinking
-veda -S deep-TASKNAME deep --trace /tmp/deep-trace.yaml "question"
-veda -S deep-TASKNAME deep --trace /tmp/deep-trace.yaml -k 5 "question"  # More solvers
-veda -S deep-TASKNAME deep --trace /tmp/deep-trace.yaml --no-verify "question"  # Skip verification
+**Use a descriptive session name** (e.g., `deep-cache-design`) to keep selections organized.
 
-# Resume conversation
-veda -S deep-TASKNAME resume "follow-up question"
-
-# Review trace
-cat /tmp/deep-trace.yaml
-```
+**Note:** Deep mode supports `resume` for follow-up questions. Each run preserves conversation history. Always use `--trace` for reviewability.

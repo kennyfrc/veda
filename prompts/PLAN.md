@@ -45,10 +45,9 @@ veda -S plan-auth-refactor sel add "src/feature/" "src/shared/utils.ts"
 
 # Check token count
 veda -S plan-auth-refactor sel ls
-veda -S plan-auth-refactor sel tokens  # Just the total
 ```
 
-**Always start by selecting full files.** Check token count with `sel ls` or `sel tokens`. The 80k-100k range is acceptable; ~80k is ideal.
+**Always start by selecting full files.** Check token count with `sel ls`. The 80k-100k range is acceptable; ~80k is ideal.
 
 ### File Slices (Line Ranges)
 
@@ -56,18 +55,18 @@ veda -S plan-auth-refactor sel tokens  # Just the total
 
 ```bash
 # Select specific line ranges (only when over budget)
-veda -S plan-auth-refactor sel add main.ts:10-50       # Lines 10-50 only
-veda -S plan-auth-refactor sel add main.ts:100-        # Line 100 to end of file
+veda -S plan-auth-refactor sel add main.c:10-50       # Lines 10-50 only
+veda -S plan-auth-refactor sel add main.c:100-        # Line 100 to end of file
 veda -S plan-auth-refactor sel add config.ts:25       # Single line 25
-veda -S plan-auth-refactor sel add "src/*.ts:1-80"     # First 80 lines of each .ts file
+veda -S plan-auth-refactor sel add "src/*.c:1-80"     # First 80 lines of each .c file
 ```
 
 | Syntax | Description |
 |--------|-------------|
-| `file.ts:10-20` | Lines 10 to 20 (inclusive) |
-| `file.ts:15-` | Line 15 to end of file |
-| `file.ts:8` | Single line 8 |
-| `"src/*.ts:1-50"` | First 50 lines of each matched file |
+| `file.c:10-20` | Lines 10 to 20 (inclusive) |
+| `file.c:15-` | Line 15 to end of file |
+| `file.c:8` | Single line 8 |
+| `"src/*.c:1-50"` | First 50 lines of each matched file |
 
 **Selection strategy:**
 1. Start with full files—always
@@ -124,8 +123,8 @@ After aligning with Navigator:
 
 Make sure to onboard yourself with veda at `~/.pi/agent/docs/veda.md` before acting.
 Key commands:
-- `veda -S plan-TASKNAME sel add` to build context (quote globs: `"src/*.ts"`)
-- `veda -S plan-TASKNAME sel add file.ts:10-50` to add specific line ranges (slices)
+- `veda -S plan-TASKNAME sel add` to build context (quote globs: `"src/*.c"`)
+- `veda -S plan-TASKNAME sel add file.c:10-50` to add specific line ranges (slices)
 - `veda -S plan-TASKNAME sel ls` to verify selection and token count
 - `veda -S plan-TASKNAME -p navigator-plan` for initial planning (xhigh reasoning)
 - `veda -S plan-TASKNAME -p navigator-chat` for follow-up discussion (medium reasoning)
@@ -134,4 +133,3 @@ Key commands:
 - **Use a descriptive session name** (e.g., `plan-auth-refactor`) to avoid conflicts with other agents
 
 Do not code yet, all we want to do is iterate on a solid plan.
-.

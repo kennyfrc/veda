@@ -73,7 +73,7 @@ veda -S my-review sel add /tmp/changes.diff
 veda -S my-review sel add src/changed_file.c src/related.c include/header.h
 
 # Use file slices if files are large (focus on relevant sections)
-veda -S my-review sel add large_file.ts:100-200  # Only the changed function
+veda -S my-review sel add large_file.c:100-200  # Only the changed function
 
 # CRITICAL: Verify selection includes diff before sending review
 veda -S my-review sel ls
@@ -180,7 +180,7 @@ Key commands:
 - `git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/changes.diff` to capture changes **(exclude binaries, regenerate before EVERY re-review)**
 - `veda -S my-review sel rm /tmp/changes.diff && veda -S my-review sel add /tmp/changes.diff` to refresh diff in selection
 - `veda -S my-review sel clear` then `veda -S my-review sel add` to build context
-- `veda -S my-review sel add file.ts:10-50` to add specific line ranges (slices)
+- `veda -S my-review sel add file.c:10-50` to add specific line ranges (slices)
 - `veda -S my-review sel ls` to verify selection and token count  
 - `veda -S my-review -p reviewer` for review requests (medium reasoning, read-only sandbox)
 - `veda -S my-review resume` to continue the review conversation (session-scoped)
@@ -205,16 +205,13 @@ Before every review request, verify:
 **Only use slices if you exceed ~100k tokens.** When paring down, target ~80k tokens.
 
 ```bash
-veda -S review-auth-refactor sel add src/auth.ts:50-120   # Only the modified function
-veda -S review-auth-refactor sel add "src/*.ts:1-30"      # Type declarations
+veda -S review-auth-refactor sel add src/auth.c:50-120   # Only the modified function
+veda -S review-auth-refactor sel add "src/*.h:1-30"      # Headers (just declarations)
 ```
 
 | Syntax | Description |
 |--------|-------------|
-| `file.ts:10-20` | Lines 10 to 20 (inclusive) |
-| `file.ts:15-` | Line 15 to end of file |
-| `file.ts:8` | Single line 8 |
-
-| `file.ts:15-` | Line 15 to end of file |
-| `file.ts:8` | Single line 8 |
+| `file.c:10-20` | Lines 10 to 20 (inclusive) |
+| `file.c:15-` | Line 15 to end of file |
+| `file.c:8` | Single line 8 |
 

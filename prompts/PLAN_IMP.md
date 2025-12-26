@@ -45,10 +45,9 @@ veda -S impl-auth-feature sel add "src/feature/" "src/shared/utils.ts"
 
 # Check token count
 veda -S impl-auth-feature sel ls
-veda -S impl-auth-feature sel tokens  # Just the total
 ```
 
-**Always start by selecting full files.** Check token count with `sel ls` or `sel tokens`. The 80k-100k range is acceptable; ~80k is ideal.
+**Always start by selecting full files.** Check token count with `sel ls`. The 80k-100k range is acceptable; ~80k is ideal.
 
 ### File Slices (Line Ranges)
 
@@ -56,18 +55,18 @@ veda -S impl-auth-feature sel tokens  # Just the total
 
 ```bash
 # Select specific line ranges (only when over budget)
-veda -S impl-auth-feature sel add main.ts:10-50       # Lines 10-50 only
-veda -S impl-auth-feature sel add main.ts:100-        # Line 100 to end of file
+veda -S impl-auth-feature sel add main.c:10-50       # Lines 10-50 only
+veda -S impl-auth-feature sel add main.c:100-        # Line 100 to end of file
 veda -S impl-auth-feature sel add config.ts:25       # Single line 25
-veda -S impl-auth-feature sel add "src/*.ts:1-80"     # First 80 lines of each .ts file
+veda -S impl-auth-feature sel add "src/*.c:1-80"     # First 80 lines of each .c file
 ```
 
 | Syntax | Description |
 |--------|-------------|
-| `file.ts:10-20` | Lines 10 to 20 (inclusive) |
-| `file.ts:15-` | Line 15 to end of file |
-| `file.ts:8` | Single line 8 |
-| `"src/*.ts:1-50"` | First 50 lines of each matched file |
+| `file.c:10-20` | Lines 10 to 20 (inclusive) |
+| `file.c:15-` | Line 15 to end of file |
+| `file.c:8` | Single line 8 |
+| `"src/*.c:1-50"` | First 50 lines of each matched file |
 
 **Selection strategy:**
 1. Start with full files—always
@@ -125,14 +124,12 @@ After aligning with Navigator:
 
 Make sure to onboard yourself with veda at `~/.pi/agent/docs/veda.md` before acting.
 Key commands:
-- `veda -S impl-TASKNAME sel add` to build context (quote globs: `"src/*.ts"`)
-- `veda -S impl-TASKNAME sel add file.ts:10-50` to add specific line ranges (slices)
+- `veda -S impl-TASKNAME sel add` to build context (quote globs: `"src/*.c"`)
+- `veda -S impl-TASKNAME sel add file.c:10-50` to add specific line ranges (slices)
 - `veda -S impl-TASKNAME sel ls` to verify selection and token count
 - `veda -S impl-TASKNAME -p navigator-plan` for initial planning (xhigh reasoning)
 - `veda -S impl-TASKNAME -p navigator-chat` for follow-up discussion (medium reasoning)
 - `veda -S impl-TASKNAME resume` to continue a conversation (session-scoped)
 - All personas run in read-only sandbox mode
 - **Use a descriptive session name** (e.g., `impl-auth-feature`) to avoid conflicts with other agents
-
-s
 
