@@ -47,6 +47,8 @@ export interface DeepThinkResult {
   wasRevised: boolean;
   usage: UsageStats;
   trace?: DeepThinkTrace;
+  sessionId?: string;  // Backend's thread ID from last stage (judge or verifier)
+  sessionBackend?: string;  // Which backend produced the last stage (for resume)
 }
 
 export interface DeepThinkTrace {
@@ -320,7 +322,9 @@ export async function* runDeepThink(
       
       let finalAnswer = judgeResult.selected;
       let wasRevised = false;
-      
+      let lastSessionId = judgeResult.sessionId;  // Track last stage's sessionId
+      let lastBackend = judge.backend;  // Track which backend produced last answer
+
       // Verify if judge confidence is low (< 0.7)
       const shouldVerify = verify && judgeResult.decision.confidence < 0.7;
       
@@ -347,7 +351,7 @@ export async function* runDeepThink(
           },
         });
         usages.push(verifyResult.usage);
-        
+
         trace.verify = {
           checks: verifyResult.checks.map(c => ({
             id: c.id,
@@ -365,12 +369,18 @@ export async function* runDeepThink(
         if (verifyResult.revision && !isUnchanged(verifyResult.revision, finalAnswer)) {
           finalAnswer = verifyResult.revision.revised;
           wasRevised = true;
-          
+
+          // Capture sessionId from verifier only if it revised the answer
+          if (verifyResult.sessionId) {
+            lastSessionId = verifyResult.sessionId;
+            lastBackend = verifier.backend;
+          }
+
           trace.verify.revision = {
             changes: verifyResult.revision.changes,
             revised: verifyResult.revision.revised,
           };
-          
+
           queue.push({
             type: 'verified',
             stage: 'verify',
@@ -393,6 +403,8 @@ export async function* runDeepThink(
         wasRevised,
         usage: totalUsage,
         trace,
+        sessionId: lastSessionId,
+        sessionBackend: lastBackend,
       };
       
       queue.push({

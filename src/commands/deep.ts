@@ -1,9 +1,11 @@
 import { ContextStore, readSliceText, parseSlice } from '../context';
 import { runDeepThink, getDeepThinkStages, type DeepThinkEvent, type DeepThinkResult } from '../pipelines';
+import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
 import { loadGlobalConfig, resolveBackendModel } from '../agent';
+import { formatUsageStats } from '../util';
 
 /**
  * Select solver backends deterministically based on options.
@@ -202,7 +204,7 @@ export async function handleDeep(
     verifierBackend: options.verifierBackend,
     verifierModel: options.verifierModel,
   })) {
-    handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model);
+    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model);
 
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
@@ -214,9 +216,22 @@ export async function handleDeep(
   if (options.trace && finalResult?.trace) {
     await writeTrace(options.trace, finalResult);
   }
+
+  // Persist session for resumability
+  if (finalResult?.sessionId && finalResult?.sessionBackend) {
+    const conversationStore = new ConversationStore({ sessionId: options.session });
+    await conversationStore.save({
+      backend: finalResult.sessionBackend,
+      threadId: finalResult.sessionId,
+    });
+  } else if (!finalResult?.sessionId) {
+    // Log warning if backend doesn't support sessions
+    const stageName = finalResult?.wasRevised ? 'verifier' : 'judge';
+    const backendName = finalResult?.sessionBackend ?? options.backend ?? 'unknown';
+    console.error(`[warn] Backend '${backendName}' (${stageName}) does not support resumability (no sessionId returned)`);  }
 }
 
-function handleEvent(
+async function handleEvent(
   event: DeepThinkEvent,
   options: CliOptions,
   prompt: string,
@@ -225,7 +240,7 @@ function handleEvent(
   solverModel?: string,
   judgeBackend?: string,
   judgeModel?: string
-): void {
+): Promise<void> {
   const shouldNotify = options.notify ?? globalNotify ?? true;
 
   switch (event.type) {
@@ -246,8 +261,7 @@ function handleEvent(
           notify({ title: 'Veda Deep', message: `Solver '${name}' complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
       }
       if (event.usage) {
-        const tokens = event.usage.inputTokens + event.usage.outputTokens;
-        console.error(`  [solve] Solver '${name}' complete (${tokens} tokens)`);
+        console.error(`  [solve] Solver '${name}' complete (${formatUsageStats(event.usage)})`);
       } else {
         console.error(`  [solve] Solver '${name}' complete`);
       }
@@ -281,7 +295,7 @@ function handleEvent(
         });
       }
       if (event.usage) {
-        console.error(`[${event.stage}] Complete (${event.usage.inputTokens + event.usage.outputTokens} tokens)`);
+        console.error(`[${event.stage}] Complete (${formatUsageStats(event.usage)})`);
       } else {
         console.error(`[${event.stage}] Complete`);
       }
@@ -308,7 +322,7 @@ function handleEvent(
         if (event.result.wasRevised) {
           console.error('[complete] Answer was revised by verification');
         }
-        console.error(`[complete] Total tokens: ${event.result.usage.inputTokens + event.result.usage.outputTokens}`);
+        console.error(`[complete] ${formatUsageStats(event.result.usage)}`);
         console.error('');
 
         // Output final answer
@@ -318,6 +332,11 @@ function handleEvent(
         } else if (options.json) {
           console.log(JSON.stringify(event.result, null, 2));
         } else {
+          // Flush stderr before writing stdout to maintain output order
+          // Write empty string to stderr and await callback to ensure buffer flushes
+          await new Promise<void>((resolve) => {
+            process.stderr.write('', () => resolve());
+          });
           console.log(event.result.answer);
         }
       }

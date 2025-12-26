@@ -2,6 +2,7 @@ import { getBackend, extractText, extractErrors, getSessionId, getUsage, collect
 import { getDefaults, resolveAgentConfig, loadGlobalConfig } from '../agent';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
+import { formatUsageStats } from '../util';
 
 export async function handleResume(
   prompt: string | undefined,
@@ -88,7 +89,7 @@ export async function handleResume(
     await Bun.write(options.output, text);
     console.error(`Response saved to ${options.output}`);
     if (usage) {
-      console.error(`Tokens: ${usage.inputTokens} in, ${usage.outputTokens} out`);
+      console.error(formatUsageStats(usage));
     }
   } else if (options.json) {
     console.log(JSON.stringify({ text, sessionId, usage }, null, 2));

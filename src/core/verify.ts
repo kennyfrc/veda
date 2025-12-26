@@ -43,6 +43,7 @@ export interface VerificationResult {
   results: CheckResult[];
   revision?: Revision;
   usage: UsageStats;
+  sessionId?: string;  // Backend's thread ID for resumability
 }
 
 export function formatGenerateChecksPrompt(
@@ -310,6 +311,7 @@ export async function runVerification(args: {
       checks: [],
       results: [],
       usage: combineUsage(usages),
+      sessionId: generateResponse.sessionId,
     };
   }
 
@@ -335,6 +337,7 @@ export async function runVerification(args: {
       checks,
       results,
       usage: combineUsage(usages),
+      sessionId: answerResponse.sessionId,
     };
   }
 
@@ -358,5 +361,6 @@ export async function runVerification(args: {
     results,
     revision,
     usage: combineUsage(usages),
+    sessionId: revisionResponse.sessionId,
   };
 }

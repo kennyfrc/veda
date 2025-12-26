@@ -17,3 +17,4 @@ export { withLock, acquireLock, LockError, type LockOptions } from './lock';
 export type { Result } from './result';
 export { ok, err, isOk, isErr } from './result';
 export { AsyncQueue } from './queue';
+export { formatUsageStats } from './format';

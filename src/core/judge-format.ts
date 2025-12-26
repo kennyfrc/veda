@@ -26,6 +26,7 @@ export interface JudgeResult {
   selected: string;
   conflicts: string[];
   usage: UsageStats;
+  sessionId?: string;  // Backend's thread ID for resumability
 }
 
 export interface UsageStats {

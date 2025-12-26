@@ -5,6 +5,7 @@ import { getDefaults, resolveAgentConfig, loadGlobalConfig, resolveBackendModel 
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 import { resolve } from 'path';
+import { formatUsageStats } from '../util';
 
 export async function handleRun(
   prompt: string,
@@ -94,7 +95,7 @@ export async function handleRun(
     await Bun.write(options.output, response.text);
     console.error(`Response saved to ${options.output}`);
     if (response.usage) {
-      console.error(`Tokens: ${response.usage.inputTokens} in, ${response.usage.outputTokens} out`);
+      console.error(formatUsageStats(response.usage));
     }
   } else if (options.json) {
     console.log(JSON.stringify({

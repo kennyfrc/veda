@@ -115,5 +115,6 @@ export async function runJudge(args: {
     selected,
     conflicts,
     usage: response.usage ?? { inputTokens: 0, outputTokens: 0 },
+    sessionId: response.sessionId,
   };
 }
