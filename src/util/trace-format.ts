@@ -335,3 +335,59 @@ export function formatCompletionStatus(
 export function formatFinalTokens(inputTokens: number, outputTokens: number): string {
   return `  Tokens: ${formatUsageCompact(inputTokens, outputTokens)}`;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat Formatting (single-agent sessions)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Format a chat session header.
+ * Example: "▸ navigator-chat (claude-code/opus) ───────────────────────────────"
+ */
+export function formatChatHeader(
+  persona: string | undefined,
+  backend: string,
+  model: string | undefined,
+  width: number = FORMAT_CONFIG.lineWidth
+): string {
+  const { symbols } = FORMAT_CONFIG;
+  
+  // Build the identifier: "persona (backend/model)" or "backend/model" or just "backend"
+  let identifier: string;
+  if (persona && model) {
+    identifier = `${persona} (${backend}/${model})`;
+  } else if (persona) {
+    identifier = `${persona} (${backend})`;
+  } else if (model) {
+    identifier = `${backend}/${model}`;
+  } else {
+    identifier = backend;
+  }
+  
+  const prefix = `${symbols.phase} ${identifier}`;
+  const dashes = Math.max(0, width - prefix.length - 1);
+  return c.cyan(`${prefix} ${symbols.separator.repeat(dashes)}`);
+}
+
+/**
+ * Format a chat tool event for display.
+ * Example: "  → Read src/util/index.ts"
+ * Example: "  → shell: rg -n "export"···[+12]"
+ */
+export function formatChatToolEvent(toolName: string, toolInput?: unknown): string {
+  const { symbols } = FORMAT_CONFIG;
+  const formatted = formatToolStart(toolName, toolInput);
+  return c.dim(`  ${symbols.arrow} ${formatted}`);
+}
+
+/**
+ * Format chat completion summary.
+ * Example: "  ✓ complete (1.2K in, 450 out)"
+ */
+export function formatChatComplete(inputTokens?: number, outputTokens?: number): string {
+  const { symbols } = FORMAT_CONFIG;
+  if (inputTokens !== undefined && outputTokens !== undefined) {
+    return c.dim(`  ${symbols.done} complete (${formatUsageCompact(inputTokens, outputTokens)})`);
+  }
+  return c.dim(`  ${symbols.done} complete`);
+}

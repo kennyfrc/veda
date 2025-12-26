@@ -38,6 +38,9 @@ export {
   formatFinalSeparator,
   formatCompletionStatus,
   formatFinalTokens,
+  formatChatHeader,
+  formatChatToolEvent,
+  formatChatComplete,
   type PhaseState,
   type FormatterState,
 } from './trace-format';

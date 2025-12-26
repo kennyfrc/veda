@@ -1,9 +1,9 @@
-import { getBackend, extractText, extractErrors, getSessionId, getUsage, collectMessages } from '../backend';
+import { getBackend, extractText, extractErrors, getSessionId, getUsage, type Message } from '../backend';
 import { getDefaults, loadGlobalConfig } from '../agent/config';
 import { resolveAgentConfig } from '../agent/persona';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
-import { formatUsageStats } from '../util';
+import { formatUsageStats, formatChatHeader, formatChatToolEvent, formatChatComplete } from '../util';
 
 export async function handleResume(
   prompt: string | undefined,
@@ -44,21 +44,51 @@ export async function handleResume(
     process.exit(1);
   }
   
-  // Resume the conversation
-  const messages = await collectMessages(
-    backend.resume({
-      sessionId: threadInfo.threadId,
-      prompt,
-      config,
-      cwd: process.cwd(),
-    })
-  );
+  // Show progress unless --json mode
+  const showProgress = !options.json;
+  let headerEmitted = false;
+  let hasToolEvents = false;
+  
+  // Stream messages with progress
+  const messages: Message[] = [];
+  for await (const msg of backend.resume({
+    sessionId: threadInfo.threadId,
+    prompt,
+    config,
+    cwd: process.cwd(),
+  })) {
+    messages.push(msg);
+    
+    if (showProgress) {
+      // Handle both tool_start (codex) and tool_use (claude) events
+      const isToolEvent = msg.type === 'tool_start' || msg.type === 'tool_use';
+      
+      // Emit header on first tool event
+      if (isToolEvent && !headerEmitted) {
+        // For resume, show "resume (session)" in header
+        console.error(formatChatHeader(`resume`, backendName, config.model));
+        headerEmitted = true;
+      }
+      
+      // Show tool events
+      if (isToolEvent && msg.toolName) {
+        console.error(formatChatToolEvent(msg.toolName, msg.toolInput));
+        hasToolEvents = true;
+      }
+    }
+  }
   
   // Extract results
   const text = extractText(messages);
   const errors = extractErrors(messages);
   const sessionId = getSessionId(messages);
   const usage = getUsage(messages);
+  
+  // Emit completion if we showed any tool events
+  if (showProgress && hasToolEvents) {
+    console.error(formatChatComplete(usage?.inputTokens, usage?.outputTokens));
+    console.error('');  // Blank line before response
+  }
   
   // Update thread info with new session ID if available
   if (sessionId) {

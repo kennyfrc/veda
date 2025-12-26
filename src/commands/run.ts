@@ -5,8 +5,9 @@ import { getDefaults, loadGlobalConfig, resolveBackendModel } from '../agent/con
 import { resolveAgentConfig } from '../agent/persona';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
+import type { Message } from '../backend';
 import { resolve } from 'path';
-import { formatUsageStats } from '../util';
+import { formatUsageStats, formatChatHeader, formatChatToolEvent, formatChatComplete } from '../util';
 
 export async function handleRun(
   prompt: string,
@@ -57,6 +58,28 @@ export async function handleRun(
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
   
+  // Show progress unless --json mode
+  const showProgress = !options.json;
+  let headerEmitted = false;
+  let hasToolEvents = false;
+  
+  const onMessage = showProgress ? (msg: Message) => {
+    // Handle both tool_start (codex) and tool_use (claude) events
+    const isToolEvent = msg.type === 'tool_start' || msg.type === 'tool_use';
+    
+    // Emit header on first tool event
+    if (isToolEvent && !headerEmitted) {
+      console.error(formatChatHeader(options.persona, backendName, config.model));
+      headerEmitted = true;
+    }
+    
+    // Show tool events
+    if (isToolEvent && msg.toolName) {
+      console.error(formatChatToolEvent(msg.toolName, msg.toolInput));
+      hasToolEvents = true;
+    }
+  } : undefined;
+  
   const response = await runLlm({
     backend: backendName,
     prompt,
@@ -66,7 +89,14 @@ export async function handleRun(
     reasoning: config.reasoning,
     sandbox: config.sandbox,
     cwd: process.cwd(),
+    onMessage,
   });
+  
+  // Emit completion if we showed any tool events
+  if (showProgress && hasToolEvents) {
+    console.error(formatChatComplete(response.usage?.inputTokens, response.usage?.outputTokens));
+    console.error('');  // Blank line before response
+  }
   
   if (response.sessionId) {
     const conversationStore = new ConversationStore({ sessionId: options.session });

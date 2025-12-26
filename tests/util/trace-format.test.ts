@@ -11,6 +11,9 @@ import {
   formatCompletionStatus,
   humanizeTokens,
   formatUsageCompact,
+  formatChatHeader,
+  formatChatToolEvent,
+  formatChatComplete,
   FORMAT_CONFIG,
 } from '../../src/util/trace-format';
 
@@ -206,6 +209,79 @@ describe('trace-format', () => {
     it('handles small numbers', () => {
       const result = formatUsageCompact(95, 683);
       expect(result).toBe('95 in, 683 out');
+    });
+  });
+
+  describe('formatChatHeader', () => {
+    it('formats with persona, backend, and model', () => {
+      const result = formatChatHeader('navigator-chat', 'claude-code', 'opus');
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('▸ navigator-chat (claude-code/opus)');
+      expect(stripped).toContain('─');
+    });
+
+    it('formats with persona and backend only', () => {
+      const result = formatChatHeader('navigator-chat', 'codex', undefined);
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('▸ navigator-chat (codex)');
+    });
+
+    it('formats with backend and model only', () => {
+      const result = formatChatHeader(undefined, 'claude-code', 'opus');
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('▸ claude-code/opus');
+    });
+
+    it('formats with backend only', () => {
+      const result = formatChatHeader(undefined, 'codex', undefined);
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('▸ codex');
+    });
+
+    it('respects line width', () => {
+      const result = formatChatHeader('test', 'backend', 'model', 80);
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped.length).toBe(80);
+    });
+  });
+
+  describe('formatChatToolEvent', () => {
+    it('formats simple tool names', () => {
+      const result = formatChatToolEvent('Read', undefined);
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('→ Read');
+    });
+
+    it('formats shell commands with truncation', () => {
+      const result = formatChatToolEvent('shell', { command: 'rg -n "export" src/util/index.ts' });
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('→ shell:');
+      expect(stripped).toContain('rg');
+    });
+
+    it('truncates long shell commands', () => {
+      const longCmd = 'rg -n "SolverId|solverIds|solver_ids|SOLVER_IDS" src tests lib --type ts --glob "*.ts" | head -100';
+      const result = formatChatToolEvent('shell', { command: longCmd });
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('···');
+      expect(stripped).toMatch(/\[\+\d+\]/);
+    });
+  });
+
+  describe('formatChatComplete', () => {
+    it('formats with usage stats', () => {
+      const result = formatChatComplete(1200, 450);
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('✓ complete');
+      expect(stripped).toContain('1K in');
+      expect(stripped).toContain('450 out');
+    });
+
+    it('handles missing usage stats', () => {
+      const result = formatChatComplete(undefined, undefined);
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('✓ complete');
+      expect(stripped).not.toContain('in');
     });
   });
 });
