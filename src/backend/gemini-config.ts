@@ -4,7 +4,6 @@ import {
   mapReasoningToGeminiConfig,
   type GeminiSettingsSchema,
   type VedaOverride,
-  type ConfigManagerState,
   type ConfigError,
 } from './gemini-config-types';
 import { randomUUID } from 'crypto';
