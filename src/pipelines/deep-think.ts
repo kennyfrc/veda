@@ -21,6 +21,36 @@ import {
   VERIFIER_SYSTEM_PROMPT,
 } from './prompts';
 
+/**
+ * Standardized member ID format: type-index-backend-model-module
+ * Examples: solver-0-claude-code-opus-analytical, judge-0-gemini-cli-gemini-pro-NA, verifier-0-codex-gpt-5.2-factual
+ */
+interface MemberIdParts {
+  type: 'solver' | 'judge' | 'verifier';
+  backend: string;
+  model: string;
+  index: number;
+  module: string;
+}
+
+/**
+ * Standardized member metadata attached to events.
+ * Notifications and tool events use this instead of parsing IDs.
+ */
+interface MemberMeta {
+  type: 'solver' | 'judge' | 'verifier';
+  backend: string;
+  model: string;
+  index: number;
+  module: string;
+  id: string;  // Canonical formatted ID
+}
+
+function formatMemberId(parts: MemberIdParts): string {
+  const { type, index, backend, model, module } = parts;
+  return `${type}-${index}-${backend}-${model}-${module}`;
+}
+
 export interface DeepThinkOptions {
   backend?: string;
   model?: string;
@@ -108,6 +138,7 @@ export interface DeepThinkResult {
 }
 
 export interface DeepThinkTrace {
+  trace_version: 2;  // Bumped from 1 to 2 for new ID format
   prompt: string;
   context?: string;
   options: {
@@ -125,6 +156,7 @@ export interface DeepThinkTrace {
   solve: {
     candidates: Array<{
       id: string;
+      legacyId?: string;  // Old format for backward compatibility: solver-${i}-${category}
       module: { id: string; category: string; name: string };
       response: string;
       usage?: UsageStats;
@@ -152,6 +184,9 @@ export interface DeepThinkEvent {
   stage?: string;
   content?: string;
   source?: string;
+  backend?: string;  // Backend used for this specific solver (for notifications)
+  model?: string;    // Model used for this specific solver (for notifications)
+  member?: MemberMeta;  // Structured member metadata (type, backend, model, index, module, id)
   toolInput?: unknown;
   confidence?: number;
   usage?: UsageStats;
@@ -228,17 +263,20 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   const backendModels = new Map<string, string>();
 
   for (const backend of new Set(solverBackends)) {
+    // When distributing across multiple backends, each backend should use its own default model
+    // unless an explicit solver-model is provided. Don't cross-pollinate with base.model.
     const resolved = resolveBackendModel({
       explicitBackend: backend,
       explicitModel: options.solverModel,
-      fallbackBackend: base.backend,
-      fallbackModel: base.model,
+      fallbackBackend: backend,  // Use backend's own default, not base.backend
+      fallbackModel: undefined,  // Let each backend use its own default model
       globalConfig,
     });
     if (!resolved.model) {
       throw new Error(`Unable to resolve model for solver backend '${backend}'. Specify --solver-model or set MODEL in config.`);
     }
     backendModels.set(backend, resolved.model);
+    console.error(`[debug] Solver backend ${backend} -> model ${resolved.model}`);
   }
 
   const solverConfig: SolverOptions = {
@@ -255,11 +293,25 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   };
 
   // Step 3: Resolve judge config
+  // When using distributed solvers, default judge to first solver's backend
+  // Otherwise, use base backend
+  let judgeFallbackBackend: string;
+  if (options.judgeModel) {
+    // Let model drive backend resolution
+    judgeFallbackBackend = base.backend;  // Will be overridden by model alias
+  } else if (options.solverBackends && options.solverBackends.length > 1) {
+    judgeFallbackBackend = options.solverBackends[0];  // First solver's backend
+  } else if (solverBackends && solverBackends.length > 1) {
+    judgeFallbackBackend = solverBackends[0];  // First solver's backend
+  } else {
+    judgeFallbackBackend = base.backend;
+  }
+
   const judge = resolveBackendModel({
     explicitBackend: options.judgeBackend,
     explicitModel: options.judgeModel,
-    fallbackBackend: base.backend,
-    fallbackModel: base.model,
+    fallbackBackend: judgeFallbackBackend,
+    fallbackModel: undefined,  // Let judge use its backend's default model
     globalConfig,
   });
 
@@ -281,11 +333,20 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   const verifyEnabled = options.verify ?? true;
 
   if (verifyEnabled) {
+    // If --verifier-model is specified, let it auto-resolve the backend
+    // Otherwise, use judge's backend (for consistency) or base backend
+    let verifierFallbackBackend: string;
+    if (options.verifierModel) {
+      verifierFallbackBackend = judge.backend;  // Let model drive backend resolution
+    } else {
+      verifierFallbackBackend = judge.backend;
+    }
+
     const verifier = resolveBackendModel({
       explicitBackend: options.verifierBackend,
       explicitModel: options.verifierModel,
-      fallbackBackend: base.backend,
-      fallbackModel: base.model,
+      fallbackBackend: verifierFallbackBackend,
+      fallbackModel: undefined,
       globalConfig,
     });
 
@@ -342,8 +403,15 @@ export async function runSolverEnsemble(
   const members: EnsembleMember[] = modules.map((module, i) => {
     const backend = options.backends[i % options.backends.length];
     const model = options.backendModels.get(backend) ?? options.model;
+    const memberId = formatMemberId({
+      type: 'solver',
+      backend,
+      model: model ?? 'unknown',
+      index: i,
+      module: module.category,
+    });
     return {
-      id: `solver-${i}-${module.category}`,
+      id: memberId,
       request: {
         backend,
         model,
@@ -520,8 +588,15 @@ export async function* runDeepThink(
       const members: EnsembleMember[] = modules.map((module, i) => {
         const backend = solver.backends[i % solver.backends.length];
         const model = solver.backendModels.get(backend) ?? solver.model;
+        const memberId = formatMemberId({
+          type: 'solver',
+          backend,
+          model: model ?? 'unknown',
+          index: i,
+          module: module.category,
+        });
         return {
-          id: `solver-${i}-${module.category}`,
+          id: memberId,
           request: {
             backend,
             model,
@@ -535,15 +610,45 @@ export async function* runDeepThink(
         };
       });
 
+      // Create mapping from memberId to MemberMeta for events
+      const solverMetaMap = new Map<string, MemberMeta>();
+      for (let i = 0; i < modules.length; i++) {
+        const backend = solver.backends[i % solver.backends.length];
+        const model = solver.backendModels.get(backend) ?? solver.model;
+        const memberId = formatMemberId({
+          type: 'solver',
+          backend,
+          model: model ?? 'unknown',
+          index: i,
+          module: modules[i].category,
+        });
+        solverMetaMap.set(memberId, {
+          type: 'solver',
+          backend,
+          model: model ?? 'unknown',
+          index: i,
+          module: modules[i].category,
+          id: memberId,
+        });
+      }
+
       const ensembleResult = await runEnsemble(members, (event: EnsembleEvent) => {
+        const memberMeta = solverMetaMap.get(event.memberId);
+
         const toolEvent = makeToolEvent(event.memberId, event.message);
-        if (toolEvent) queue.push(toolEvent);
+        if (toolEvent) {
+          toolEvent.member = memberMeta;
+          queue.push(toolEvent);
+        }
 
         if (event.message.type === 'done') {
           queue.push({
             type: 'solver_complete',
             stage: 'solve',
             source: event.memberId,
+            backend: memberMeta?.backend,
+            model: memberMeta?.model,
+            member: memberMeta,
             usage: event.message.usage,
           });
         }
@@ -573,11 +678,17 @@ export async function* runDeepThink(
       }
 
       // Populate trace with solver outputs
+      // Build mapping from successful index to outputs index for correct trace.judge.selectedIndex reference
+      const successfulToOutputsMap = new Map<number, number>();
+      let successIdx = 0;
       for (let i = 0; i < ensembleResult.outputs.length; i++) {
         const output = ensembleResult.outputs[i];
         const module = modules[i];
+        // Include legacy ID for backward compatibility
+        const legacyId = `solver-${i}-${module.category}`;
         trace.solve.candidates.push({
           id: output.id,
+          legacyId,
           module: {
             id: module.id,
             category: module.category,
@@ -586,6 +697,11 @@ export async function* runDeepThink(
           response: output.text,
           usage: output.usage,
         });
+
+        // Track successful outputs for index mapping
+        if (!output.error && !output.backendErrors?.length && output.text) {
+          successfulToOutputsMap.set(successIdx++, i);
+        }
       }
 
       // Step 4: Run judge selection
@@ -599,13 +715,31 @@ export async function* runDeepThink(
         candidates: ensembleResult.successful,
         originalTask: prompt,
         onMessage: (msg: Message) => {
-          const toolEvent = makeToolEvent('judge', msg);
-          if (toolEvent) queue.push(toolEvent);
+          const judgeId = formatMemberId({
+            type: 'judge',
+            backend: judge.backend,
+            model: judge.model ?? 'unknown',
+            index: 0,
+            module: 'NA',
+          });
+          const toolEvent = makeToolEvent(judgeId, msg);
+          if (toolEvent) {
+            toolEvent.member = {
+              type: 'judge',
+              backend: judge.backend,
+              model: judge.model ?? 'unknown',
+              index: 0,
+              module: 'NA',
+              id: judgeId,
+            };
+            queue.push(toolEvent);
+          }
         },
       });
       usages.push(judgeResult.usage);
 
-      trace.judge.selectedIndex = judgeResult.decision.selectedIndex;
+      // Map successful index to outputs index for correct trace reference
+      trace.judge.selectedIndex = successfulToOutputsMap.get(judgeResult.decision.selectedIndex) ?? 0;
       trace.judge.confidence = judgeResult.decision.confidence;
       trace.judge.reasoning = judgeResult.decision.reasoning;
 
@@ -654,8 +788,25 @@ export async function* runDeepThink(
           draft: finalAnswer,
           originalTask: prompt,
           onMessage: (msg: Message) => {
-            const toolEvent = makeToolEvent('verifier', msg);
-            if (toolEvent) queue.push(toolEvent);
+            const verifierId = formatMemberId({
+              type: 'verifier',
+              backend: verifier.backend,
+              model: verifier.model ?? 'unknown',
+              index: 0,
+              module: verifier.type,
+            });
+            const toolEvent = makeToolEvent(verifierId, msg);
+            if (toolEvent) {
+              toolEvent.member = {
+                type: 'verifier',
+                backend: verifier.backend,
+                model: verifier.model ?? 'unknown',
+                index: 0,
+                module: verifier.type,
+                id: verifierId,
+              };
+              queue.push(toolEvent);
+            }
           },
         });
         usages.push(verifyResult.usage);

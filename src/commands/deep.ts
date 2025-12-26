@@ -252,18 +252,30 @@ async function handleEvent(
       break;
 
     case 'solver_complete': {
-      // ID format: solver-${i}-${category}
-      const parts = event.source?.split('-') || [];
-      const name = parts.length >= 3 ? parts.slice(2).join('-') : (event.source || 'unknown');
+      // Use MemberMeta index/backend/model for bracket prefix
+      const bracketPrefix = event.member ? `[solve-${event.member.index}-${event.member.backend}-${event.member.model}]` : '[solve]';
+
+      // Use MemberMeta module if available, otherwise fall back to parsing old ID format
+      const module = event.member?.module ?? (
+        // Legacy: try to extract module name from old ID format
+        (() => {
+          const parts = event.source?.split('-') || [];
+          return parts.length >= 3 ? parts.slice(2).join('-') : (event.source || 'unknown');
+        })()
+      );
+
+      // Use event-specific backend/model from MemberMeta preferentially
+      const backend = event.member?.backend ?? event.backend ?? solverBackend;
+      const model = event.member?.model ?? event.model ?? solverModel;
 
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
-          notify({ title: 'Veda Deep', message: `Solver '${name}' complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
+          notify({ title: 'Veda Deep', message: `Solver '${module}' complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model }));
       }
       if (event.usage) {
-        console.error(`  [solve] Solver '${name}' complete (${formatUsageStats(event.usage)})`);
+        console.error(`  ${bracketPrefix} Solver '${module}' complete (${formatUsageStats(event.usage)})`);
       } else {
-        console.error(`  [solve] Solver '${name}' complete`);
+        console.error(`  ${bracketPrefix} Solver '${module}' complete`);
       }
       break;
     }
@@ -432,7 +444,7 @@ async function writeTrace(path: string, result: DeepThinkResult): Promise<void> 
 
   // Build YAML-friendly trace document
   const doc = {
-    trace_version: 1,
+    trace_version: 2,
     run: {
       timestamp: new Date().toISOString(),
       confidence: result.confidence,
@@ -443,11 +455,16 @@ async function writeTrace(path: string, result: DeepThinkResult): Promise<void> 
     ...(trace.context && { context: trace.context }),
     options: trace.options,
     solve: {
-      candidates: trace.solve.candidates.map(c => ({
-        id: c.id,
-        module: c.module,
-        response: c.response,
-      })),
+      candidates: trace.solve.candidates.map(c => {
+        const candidate: Record<string, unknown> = {
+          id: c.id,
+          module: c.module,
+          response: c.response,
+        };
+        if (c.usage) candidate.usage = c.usage;
+        if (c.legacyId) candidate.legacy_id = c.legacyId;  // Use snake_case for YAML
+        return candidate;
+      }),
     },
     judge: {
       selected_index: trace.judge.selectedIndex,
