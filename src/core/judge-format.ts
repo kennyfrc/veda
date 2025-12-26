@@ -15,6 +15,7 @@ export interface JudgeResult {
   conflicts: string[];
   usage: UsageStats;
   sessionId?: string;
+  indexMapping: number[];  // Maps display index → original index (for consistent candidate display)
 }
 
 export interface JudgeFormat {

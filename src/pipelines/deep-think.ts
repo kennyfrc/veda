@@ -778,21 +778,28 @@ export async function* runDeepThink(
       trace.judge.confidence = judgeResult.decision.confidence;
       trace.judge.reasoning = judgeResult.decision.reasoning;
 
-      // Emit candidate summary events AFTER judging (preserves current behavior)
-      for (let i = 0; i < ensembleResult.successful.length; i++) {
+      // Emit candidate summary events in the same order the judge saw them (shuffled)
+      // This ensures candidate numbers in the judge's reasoning match the displayed order
+      for (let displayIdx = 0; displayIdx < judgeResult.indexMapping.length; displayIdx++) {
+        const originalIdx = judgeResult.indexMapping[displayIdx];
         queue.push({
           type: 'candidate',
           stage: 'solve',
-          content: `Candidate ${i + 1}: ${truncate(ensembleResult.successful[i], 200)}`,
+          content: `Candidate ${displayIdx + 1}: ${truncate(ensembleResult.successful[originalIdx], 200)}`,
         });
       }
 
+      // Find the display index (what the judge saw) for the selected candidate
+      const selectedDisplayIndex = judgeResult.indexMapping.findIndex(
+        origIdx => origIdx === judgeResult.decision.selectedIndex
+      );
+      
       queue.push({
         type: 'selected',
         stage: 'solve',
         content: judgeResult.selected,
         confidence: judgeResult.decision.confidence,
-        selectedIndex: judgeResult.decision.selectedIndex,
+        selectedIndex: selectedDisplayIndex >= 0 ? selectedDisplayIndex : judgeResult.decision.selectedIndex,
         reasoning: judgeResult.decision.reasoning,
       });
 

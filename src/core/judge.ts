@@ -53,6 +53,7 @@ export async function runJudge(args: {
       selected: '',
       conflicts: [],
       usage: { inputTokens: 0, outputTokens: 0 },
+      indexMapping: [],
     };
   }
 
@@ -62,6 +63,7 @@ export async function runJudge(args: {
       selected: candidates[0],
       conflicts: [],
       usage: { inputTokens: 0, outputTokens: 0 },
+      indexMapping: [0],
     };
   }
 
@@ -90,5 +92,6 @@ export async function runJudge(args: {
     conflicts,
     usage: response.usage ?? { inputTokens: 0, outputTokens: 0 },
     sessionId: response.sessionId,
+    indexMapping,
   };
 }
