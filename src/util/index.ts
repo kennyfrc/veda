@@ -31,6 +31,7 @@ export {
   formatCandidateSeparator,
   formatCandidateContent,
   formatSelection,
+  formatJudgeReasoning,
   formatRevision,
   humanizeTokens,
   formatUsageCompact,

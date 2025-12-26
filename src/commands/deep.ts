@@ -16,6 +16,7 @@ import {
   formatCandidateSeparator,
   formatCandidateContent,
   formatSelection,
+  formatJudgeReasoning,
   formatRevision,
   formatStageUsage,
   formatFinalSeparator,
@@ -372,6 +373,9 @@ async function handleEvent(
 
     case 'selected': {
       console.error(formatSelection(event.selectedIndex ?? 0, event.confidence ?? 0));
+      if (event.reasoning) {
+        console.error(formatJudgeReasoning(event.reasoning));
+      }
       break;
     }
 

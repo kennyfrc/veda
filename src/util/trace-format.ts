@@ -255,6 +255,14 @@ export function formatSelection(
 }
 
 /**
+ * Format judge reasoning (not truncated - full reasoning displayed).
+ * Example: "  reason: Candidate 3 provides complete list with correct ordering"
+ */
+export function formatJudgeReasoning(reasoning: string): string {
+  return c.dim(`  reason: ${reasoning}`);
+}
+
+/**
  * Format verification revision summary.
  * Example: "✓ revised: Clarified default catalog, added non-default IDs"
  */

@@ -8,6 +8,7 @@ import {
   formatPhaseHeader,
   formatCandidateSeparator,
   formatSelection,
+  formatJudgeReasoning,
   formatCompletionStatus,
   humanizeTokens,
   formatUsageCompact,
@@ -159,6 +160,23 @@ describe('trace-format', () => {
       const result = formatSelection(2, 0.90);
       expect(result).toContain('#3');
       expect(result).toContain('90%');
+    });
+  });
+
+  describe('formatJudgeReasoning', () => {
+    it('formats reasoning with prefix', () => {
+      const result = formatJudgeReasoning('Candidate 3 provides complete list with correct ordering');
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('reason:');
+      expect(stripped).toContain('Candidate 3 provides complete list');
+    });
+
+    it('does not truncate long reasoning', () => {
+      const longReasoning = 'A'.repeat(500);
+      const result = formatJudgeReasoning(longReasoning);
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('A'.repeat(500));
+      expect(stripped).not.toContain('···');
     });
   });
 

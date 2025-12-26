@@ -192,6 +192,7 @@ export interface DeepThinkEvent {
   toolInput?: unknown;
   confidence?: number;
   selectedIndex?: number;  // For 'selected' event: which candidate was selected (0-indexed)
+  reasoning?: string;  // For 'selected' event: judge's reasoning for the selection
   usage?: UsageStats;
   result?: DeepThinkResult;
 }
@@ -792,6 +793,7 @@ export async function* runDeepThink(
         content: judgeResult.selected,
         confidence: judgeResult.decision.confidence,
         selectedIndex: judgeResult.decision.selectedIndex,
+        reasoning: judgeResult.decision.reasoning,
       });
 
       queue.push({
