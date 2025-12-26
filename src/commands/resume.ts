@@ -46,7 +46,6 @@ export async function handleResume(
   
   // Show progress unless --json mode
   const showProgress = !options.json;
-  let hasToolEvents = false;
   
   // Always emit header at start
   if (showProgress) {
@@ -70,7 +69,6 @@ export async function handleResume(
       // Show tool events
       if (isToolEvent && msg.toolName) {
         console.error(formatChatToolEvent(msg.toolName, msg.toolInput));
-        hasToolEvents = true;
       }
     }
   }
