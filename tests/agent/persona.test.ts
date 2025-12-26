@@ -18,26 +18,26 @@ const TEST_PERSONAS_DIR = join(TEST_BASE, 'personas');
 describe('persona', () => {
   beforeEach(async () => {
     await mkdir(TEST_PERSONAS_DIR, { recursive: true });
-    
-    // Create test personas
+
+    // Create test personas with frontmatter reasoning
     await mkdir(join(TEST_PERSONAS_DIR, 'navigator-plan'));
     await writeFile(
       join(TEST_PERSONAS_DIR, 'navigator-plan', 'AGENTS.md'),
-      '# Navigator Plan\n\nYou are a planning assistant.'
+      '---\nreasoning: high\n---\n# Navigator Plan\n\nYou are a planning assistant.'
     );
-    
+
     await mkdir(join(TEST_PERSONAS_DIR, 'navigator-chat'));
     await writeFile(
       join(TEST_PERSONAS_DIR, 'navigator-chat', 'AGENTS.md'),
-      '# Navigator Chat\n\nYou are a chat assistant.'
+      '---\nreasoning: medium\n---\n# Navigator Chat\n\nYou are a chat assistant.'
     );
-    
+
     await mkdir(join(TEST_PERSONAS_DIR, 'reviewer'));
     await writeFile(
       join(TEST_PERSONAS_DIR, 'reviewer', 'AGENTS.md'),
-      '# Reviewer\n\nYou are a code reviewer.'
+      '---\nreasoning: medium\n---\n# Reviewer\n\nYou are a code reviewer.'
     );
-    
+
     // Create empty directory (should not be listed)
     await mkdir(join(TEST_PERSONAS_DIR, 'empty-dir'));
   });
@@ -340,8 +340,8 @@ You are a test persona with metadata.`
       expect(persona.metadata).toEqual({ reasoning: 'xhigh' }); // Frontmatter still parsed
     });
 
-    test('frontmatter overrides legacy map', async () => {
-      // Create persona that exists in legacy map but has frontmatter
+    test('frontmatter takes precedence over default', async () => {
+      // Create persona with frontmatter to verify it's used over default
       await mkdir(join(TEST_PERSONAS_DIR, 'override-persona'), { recursive: true });
       await writeFile(
         join(TEST_PERSONAS_DIR, 'override-persona', 'AGENTS.md'),
@@ -350,24 +350,11 @@ reasoning: low
 ---
 # Override Persona
 
-You override the legacy map.`
+You use frontmatter reasoning.`
       );
 
-      // Note: navigator-chat is in legacy map with 'medium' reasoning
-      // Create test persona with same name to override legacy
-      await mkdir(join(TEST_PERSONAS_DIR, 'navigator-chat'), { recursive: true });
-      await writeFile(
-        join(TEST_PERSONAS_DIR, 'navigator-chat', 'AGENTS.md'),
-        `---
-reasoning: low
----
-# Override Persona
-
-You override the legacy map.`
-      );
-
-      const persona = await loadPersona('navigator-chat', TEST_BASE);
-      expect(persona.defaultReasoning).toBe('low'); // Frontmatter
+      const persona = await loadPersona('override-persona', TEST_BASE);
+      expect(persona.defaultReasoning).toBe('low'); // From frontmatter
     });
   });
 
@@ -394,21 +381,9 @@ You test precedence.`
       expect(persona.defaultReasoning).toBe('xhigh');
     });
 
-    test('frontmatter takes precedence over legacy map', async () => {
+    test('frontmatter takes precedence over default', async () => {
       const persona = await loadPersona('precedence-persona', TEST_BASE);
       expect(persona.defaultReasoning).toBe('medium'); // From frontmatter
-    });
-
-    test('legacy map used when no frontmatter or param', async () => {
-      // Create persona without frontmatter
-      await mkdir(join(TEST_PERSONAS_DIR, 'legacy-persona'), { recursive: true });
-      await writeFile(
-        join(TEST_PERSONAS_DIR, 'legacy-persona', 'AGENTS.md'),
-        '# Legacy Persona\n\nYou use the default fallback.'
-      );
-
-      const persona = await loadPersona('legacy-persona', TEST_BASE);
-      expect(persona.defaultReasoning).toBe('medium'); // Default fallback
     });
 
     test('default fallback when no metadata available', async () => {

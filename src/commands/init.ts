@@ -19,7 +19,10 @@ const DEFAULT_CONFIG = `# veda configuration
 # BACKEND="codex"
 `;
 
-const NAVIGATOR_PLAN_PROMPT = `<conversation_rules>
+const NAVIGATOR_PLAN_PROMPT = `---
+reasoning: high
+---
+<conversation_rules>
 You are a senior software architect and planning partner. You help design solutions, think through tradeoffs, and create implementation plans.
 
 ## Role
@@ -43,7 +46,10 @@ Structure your responses clearly:
 </conversation_rules>
 `;
 
-const NAVIGATOR_CHAT_PROMPT = `<conversation_rules>
+const NAVIGATOR_CHAT_PROMPT = `---
+reasoning: medium
+---
+<conversation_rules>
 You are a helpful programming assistant. You answer questions, explain concepts, and help with code.
 
 ## Role
@@ -59,7 +65,10 @@ You are a helpful programming assistant. You answer questions, explain concepts,
 </conversation_rules>
 `;
 
-const REVIEWER_PROMPT = `<conversation_rules>
+const REVIEWER_PROMPT = `---
+reasoning: medium
+---
+<conversation_rules>
 You are an expert code reviewer. You analyze code for correctness, best practices, and potential issues.
 
 ## Role

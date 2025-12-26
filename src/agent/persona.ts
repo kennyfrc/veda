@@ -17,13 +17,6 @@ export interface Persona {
   metadata?: PersonaMetadata; // Parsed from frontmatter
 }
 
-// Legacy fallback map for backward compatibility
-const LEGACY_PERSONA_REASONING: Record<string, ReasoningLevel> = {
-  'navigator-plan': 'high',
-  'navigator-chat': 'medium',
-  'reviewer': 'medium',
-};
-
 export interface LoadPersonaOptions {
   baseDir?: string;
   metadata?: PersonaMetadata; // Override metadata (programmatic use)
@@ -72,7 +65,7 @@ export function parsePersonaMetadata(content: string): PersonaMetadata {
 
 /**
  * Load a persona from its AGENTS.md file.
- * Metadata precedence: param override > frontmatter > legacy map > default 'medium'
+ * Metadata precedence: param override > frontmatter > default 'medium'
  *
  * Backward compatible: accepts either (name, options) or (name, baseDir string)
  */
@@ -92,11 +85,10 @@ export async function loadPersona(name: string, optionsOrBaseDir?: LoadPersonaOp
 
   const systemPrompt = await file.text();
 
-  // Resolve reasoning level with precedence
+  // Resolve reasoning level with precedence: param > frontmatter > default
   const frontmatterMetadata = parsePersonaMetadata(systemPrompt);
   const defaultReasoning = options.metadata?.reasoning
     ?? frontmatterMetadata.reasoning
-    ?? LEGACY_PERSONA_REASONING[name]
     ?? 'medium';
 
   return {

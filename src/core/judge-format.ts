@@ -1,3 +1,5 @@
+import type { UsageStats } from '../backend';
+
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
 export interface JudgeDecision {
@@ -13,13 +15,6 @@ export interface JudgeResult {
   conflicts: string[];
   usage: UsageStats;
   sessionId?: string;
-}
-
-export interface UsageStats {
-  inputTokens: number;
-  outputTokens: number;
-  cachedTokens?: number;
-  costUsd?: number;
 }
 
 export interface JudgeFormat {
