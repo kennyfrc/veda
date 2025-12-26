@@ -60,18 +60,16 @@ export async function handleRun(
   
   // Show progress unless --json mode
   const showProgress = !options.json;
-  let headerEmitted = false;
   let hasToolEvents = false;
+  
+  // Always emit header at start
+  if (showProgress) {
+    console.error(formatChatHeader(options.persona, backendName, config.model));
+  }
   
   const onMessage = showProgress ? (msg: Message) => {
     // Handle both tool_start (codex) and tool_use (claude) events
     const isToolEvent = msg.type === 'tool_start' || msg.type === 'tool_use';
-    
-    // Emit header on first tool event
-    if (isToolEvent && !headerEmitted) {
-      console.error(formatChatHeader(options.persona, backendName, config.model));
-      headerEmitted = true;
-    }
     
     // Show tool events
     if (isToolEvent && msg.toolName) {
@@ -92,8 +90,8 @@ export async function handleRun(
     onMessage,
   });
   
-  // Emit completion if we showed any tool events
-  if (showProgress && hasToolEvents) {
+  // Emit completion summary
+  if (showProgress) {
     console.error(formatChatComplete(response.usage?.inputTokens, response.usage?.outputTokens));
     console.error('');  // Blank line before response
   }

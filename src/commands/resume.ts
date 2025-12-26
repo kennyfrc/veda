@@ -46,8 +46,12 @@ export async function handleResume(
   
   // Show progress unless --json mode
   const showProgress = !options.json;
-  let headerEmitted = false;
   let hasToolEvents = false;
+  
+  // Always emit header at start
+  if (showProgress) {
+    console.error(formatChatHeader('resume', backendName, config.model));
+  }
   
   // Stream messages with progress
   const messages: Message[] = [];
@@ -63,13 +67,6 @@ export async function handleResume(
       // Handle both tool_start (codex) and tool_use (claude) events
       const isToolEvent = msg.type === 'tool_start' || msg.type === 'tool_use';
       
-      // Emit header on first tool event
-      if (isToolEvent && !headerEmitted) {
-        // For resume, show "resume (session)" in header
-        console.error(formatChatHeader(`resume`, backendName, config.model));
-        headerEmitted = true;
-      }
-      
       // Show tool events
       if (isToolEvent && msg.toolName) {
         console.error(formatChatToolEvent(msg.toolName, msg.toolInput));
@@ -84,8 +81,8 @@ export async function handleResume(
   const sessionId = getSessionId(messages);
   const usage = getUsage(messages);
   
-  // Emit completion if we showed any tool events
-  if (showProgress && hasToolEvents) {
+  // Emit completion summary
+  if (showProgress) {
     console.error(formatChatComplete(usage?.inputTokens, usage?.outputTokens));
     console.error('');  // Blank line before response
   }
