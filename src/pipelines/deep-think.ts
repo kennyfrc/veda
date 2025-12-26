@@ -191,6 +191,7 @@ export interface DeepThinkEvent {
   member?: MemberMeta;  // Structured member metadata (type, backend, model, index, module, id)
   toolInput?: unknown;
   confidence?: number;
+  selectedIndex?: number;  // For 'selected' event: which candidate was selected (0-indexed)
   usage?: UsageStats;
   result?: DeepThinkResult;
 }
@@ -263,7 +264,22 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   });
 
   // Step 2: Resolve solver configs
-  const solverBackends = options.solverBackends ?? [base.backend];
+  // If solverModel is specified without solverBackends, infer backend from model
+  let solverBackends: string[];
+  if (options.solverBackends) {
+    solverBackends = options.solverBackends;
+  } else if (options.solverModel) {
+    // Infer backend from solver model
+    const solverResolved = resolveBackendModel({
+      explicitModel: options.solverModel,
+      fallbackBackend: base.backend,
+      globalConfig,
+    });
+    solverBackends = [solverResolved.backend];
+  } else {
+    solverBackends = [base.backend];
+  }
+
   const backendModels = new Map<string, string>();
 
   for (const backend of new Set(solverBackends)) {
@@ -764,6 +780,7 @@ export async function* runDeepThink(
         stage: 'solve',
         content: judgeResult.selected,
         confidence: judgeResult.decision.confidence,
+        selectedIndex: judgeResult.decision.selectedIndex,
       });
 
       queue.push({
@@ -879,7 +896,15 @@ export async function* runDeepThink(
       });
       queue.done();
     } catch (e) {
-      queue.fail(e instanceof Error ? e : new Error(String(e)));
+      // Convert non-Error objects to Error with proper message extraction
+      if (e instanceof Error) {
+        queue.fail(e);
+      } else if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+        // Handle structured error objects like { type: 'UNKNOWN_MODEL', message: '...' }
+        queue.fail(new Error((e as { message: string }).message));
+      } else {
+        queue.fail(new Error(String(e)));
+      }
     }
   })();
 

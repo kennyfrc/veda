@@ -15,16 +15,18 @@ import { formatUsageStats } from '../util';
  * 2. If options.distributeSolvers is true:
  *    - Use options.solverBackends if provided, otherwise use available backends.
  *    - Distribute k backends in round-robin order (even distribution).
- * 3. Otherwise, use baseBackend (inherited from resolved base backend), or fallback to 'codex'.
+ * 3. If solverModel is specified, infer backend from model prefix.
+ * 4. Otherwise, use baseBackend (inherited from resolved base backend), or fallback to 'codex'.
  */
 export async function selectSolverBackends(options: {
   k: number;
   distributeSolvers?: boolean;
   solverBackend?: string;
   solverBackends?: string[];
+  solverModel?: string;
   baseBackend?: string;
 }): Promise<{ backends: string[]; mode: 'fixed' | 'distributed' }> {
-  const { k, distributeSolvers, solverBackend, solverBackends, baseBackend } = options;
+  const { k, distributeSolvers, solverBackend, solverBackends, solverModel, baseBackend } = options;
 
   // Validate k bounds (defensive, in addition to CLI validation)
   if (k < 1 || k > 8) {
@@ -56,7 +58,20 @@ export async function selectSolverBackends(options: {
     };
   }
 
-  // Precedence 3: Fixed single backend (default behavior)
+  // Precedence 3: Infer backend from solverModel if specified
+  if (solverModel) {
+    const { resolveBackendModel } = await import('../agent/config');
+    const resolved = resolveBackendModel({
+      explicitModel: solverModel,
+      fallbackBackend: baseBackend ?? 'codex',
+    });
+    return {
+      backends: Array(k).fill(resolved.backend),
+      mode: 'fixed',
+    };
+  }
+
+  // Precedence 4: Fixed single backend (default behavior)
   // Use baseBackend if nothing specified, fallback to 'codex'
   const fallbackBackend = baseBackend ?? 'codex';
   return {
@@ -161,6 +176,7 @@ export async function handleDeep(
     distributeSolvers: options.distributeSolvers,
     solverBackend: options.solverBackend,
     solverBackends: options.solverBackends,
+    solverModel: options.solverModel,
     baseBackend: base.backend,
   });
 
@@ -184,6 +200,17 @@ export async function handleDeep(
     globalConfig,
   });
 
+  // Resolve verifier for display (only if verify is enabled)
+  const verifier = (!options.noVerify && (options.verifierModel || options.verifierBackend)) 
+    ? resolveBackendModel({
+        explicitBackend: options.verifierBackend,
+        explicitModel: options.verifierModel,
+        fallbackBackend: judge.backend,
+        fallbackModel: undefined,
+        globalConfig,
+      })
+    : { backend: judge.backend, model: judge.model };
+
   let finalResult: DeepThinkResult | undefined;
 
   // Run the pipeline
@@ -205,7 +232,7 @@ export async function handleDeep(
     verifierBackend: options.verifierBackend,
     verifierModel: options.verifierModel,
   })) {
-    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model);
+    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model, verifier.backend, verifier.model);
 
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
@@ -240,9 +267,15 @@ async function handleEvent(
   solverBackend?: string,
   solverModel?: string,
   judgeBackend?: string,
-  judgeModel?: string
+  judgeModel?: string,
+  verifierBackend?: string,
+  verifierModel?: string
 ): Promise<void> {
   const shouldNotify = options.notify ?? globalNotify ?? true;
+  
+  // Format bracket prefixes for judge and verifier
+  const judgeBracket = judgeBackend && judgeModel ? `[judge-${judgeBackend}-${judgeModel}]` : '[judge]';
+  const verifierBracket = verifierBackend && verifierModel ? `[verifier-${verifierBackend}-${verifierModel}]` : '[verifier]';
 
   switch (event.type) {
     case 'ensemble_complete':
@@ -282,7 +315,11 @@ async function handleEvent(
     }
 
     case 'stage_start':
-      console.error(`[${event.stage}] Starting...`);
+      if (event.stage === 'verify') {
+        console.error(`${verifierBracket} Starting...`);
+      } else {
+        console.error(`[${event.stage}] Starting...`);
+      }
       break;
 
     case 'tool_start':
@@ -294,28 +331,33 @@ async function handleEvent(
       console.error(`  ${event.content}`);
       break;
 
-    case 'selected':
-      console.error(`\n[${event.stage}] Selected answer (confidence: ${((event.confidence ?? 0) * 100).toFixed(0)}%)`);
+    case 'selected': {
+      const candidateNum = (event.selectedIndex ?? 0) + 1;
+      console.error(`\n${judgeBracket} Selected candidate ${candidateNum} (confidence: ${((event.confidence ?? 0) * 100).toFixed(0)}%)`);
       break;
+    }
 
-    case 'stage_complete':
+    case 'stage_complete': {
+      const isJudge = event.stage === 'solve';
+      const bracket = isJudge ? judgeBracket : verifierBracket;
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) => {
-          const msg = event.stage === 'solve' ? 'Judge complete' : 'Verifier complete';
-          const backend = event.stage === 'solve' ? judgeBackend : undefined;
-          const model = event.stage === 'solve' ? judgeModel : undefined;
+          const msg = isJudge ? 'Judge complete' : 'Verifier complete';
+          const backend = isJudge ? judgeBackend : verifierBackend;
+          const model = isJudge ? judgeModel : verifierModel;
           notify({ title: 'Veda Deep', message: `${msg}: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model });
         });
       }
       if (event.usage) {
-        console.error(`[${event.stage}] Complete (${formatUsageStats(event.usage)})`);
+        console.error(`${bracket} Complete (${formatUsageStats(event.usage)})`);
       } else {
-        console.error(`[${event.stage}] Complete`);
+        console.error(`${bracket} Complete`);
       }
       break;
+    }
 
     case 'verified':
-      console.error(`[verify] ${event.content}`);
+      console.error(`${verifierBracket} ${event.content}`);
       break;
 
     case 'error':

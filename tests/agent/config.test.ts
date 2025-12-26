@@ -295,13 +295,10 @@ describe('resolveBackendModel', () => {
       expect(result.source).toEqual({ kind: 'explicit' });
     });
 
-    test('defaults to codex when no fallback and unknown model', () => {
-      const result = resolveBackendModel({
+    test('throws error for unknown model without explicit backend', () => {
+      expect(() => resolveBackendModel({
         explicitModel: 'some-custom-model',
-      });
-      expect(result.backend).toBe('codex');
-      expect(result.model).toBe('some-custom-model');
-      expect(result.source).toEqual({ kind: 'explicit' });
+      })).toThrow(/Unknown model: 'some-custom-model'/);
     });
   });
 
@@ -462,8 +459,15 @@ describe('resolveBackendModel', () => {
       expect(result.model).toBe('gpt-5.2'); // Backend default
     });
 
-    test('handles unknown model alias - treats as literal model', () => {
+    test('throws error for unknown model alias', () => {
+      expect(() => resolveBackendModel({
+        explicitModel: 'unknown-model',
+      })).toThrow(/Unknown model: 'unknown-model'/);
+    });
+
+    test('allows unknown model when explicit backend is provided', () => {
       const result = resolveBackendModel({
+        explicitBackend: 'codex',
         explicitModel: 'unknown-model',
       });
       expect(result.backend).toBe('codex');

@@ -8,6 +8,69 @@ import { resolveModelAlias as resolveModelAliasImpl, normalizeModelName } from '
 import type { ResolvedBackendModel, ModelSource } from './config';
 
 /**
+ * Prefix-to-backend mapping for model name inference.
+ * Used when a model is specified but not in MODEL_ALIASES and no explicit backend is set.
+ */
+const MODEL_PREFIX_TO_BACKEND: Record<string, string> = {
+  'gpt-': 'codex',
+  'o1-': 'codex',
+  'o3-': 'codex',
+  'gemini-': 'gemini-cli',
+  'claude-': 'claude-code',
+};
+
+/**
+ * Infer backend from model name prefix.
+ * Returns undefined if no known prefix matches.
+ */
+function inferBackendFromModel(modelName: string): string | undefined {
+  const normalized = modelName.trim().toLowerCase();
+  for (const [prefix, backend] of Object.entries(MODEL_PREFIX_TO_BACKEND)) {
+    if (normalized.startsWith(prefix)) {
+      return backend;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Format valid model options for error messages.
+ */
+function formatValidModels(): string {
+  const aliasExamples = ['opus', 'sonnet', 'haiku', 'gpt', 'gemini-pro', 'gemini-flash'];
+  const prefixExamples = Object.entries(MODEL_PREFIX_TO_BACKEND)
+    .map(([prefix, backend]) => `${prefix}* (${backend})`)
+    .join(', ');
+  
+  return `Valid options:
+  Aliases: ${aliasExamples.join(', ')}
+  Prefixes: ${prefixExamples}
+  Or specify --solver-backend/--judge-backend/--verifier-backend explicitly`;
+}
+
+/**
+ * Validate that a model can be resolved to a backend.
+ * Throws if model is unknown and no explicit backend is provided.
+ */
+export function validateModelOrThrow(modelName: string, explicitBackend?: string): void {
+  // If explicit backend provided, no validation needed - user knows what they're doing
+  if (explicitBackend) return;
+  
+  // Check if it's an alias
+  const aliasTarget = tryResolveAliasTarget(modelName);
+  if (aliasTarget) return;
+  
+  // Check if it matches a known prefix
+  const inferred = inferBackendFromModel(modelName);
+  if (inferred) return;
+  
+  // Unknown model - throw helpful error
+  throw new Error(
+    `Unknown model: '${modelName}'\n\n${formatValidModels()}`
+  );
+}
+
+/**
  * Resolved alias target with normalized name.
  */
 export interface AliasTarget {
@@ -51,18 +114,29 @@ export function shouldApplyAlias(
 
 /**
  * Determine the backend to use when resolving.
+ * Throws if explicitModel is specified but cannot be resolved to a backend.
  */
 export function determineBackend(
   explicitBackend: string | undefined,
   aliasTarget: AliasTarget | undefined,
   shouldUseAlias: boolean,
-  fallbackBackend: string
+  fallbackBackend: string,
+  explicitModel?: string
 ): string {
   if (explicitBackend) {
     return explicitBackend;
   }
   if (aliasTarget && shouldUseAlias) {
     return aliasTarget.backend;
+  }
+  // If model specified but not aliased, try to infer backend from model prefix
+  if (explicitModel) {
+    const inferred = inferBackendFromModel(explicitModel);
+    if (inferred) {
+      return inferred;
+    }
+    // Model specified but can't infer backend - throw helpful error
+    validateModelOrThrow(explicitModel, explicitBackend);
   }
   return fallbackBackend;
 }
@@ -149,7 +223,8 @@ export function resolveBackendModelExtracted(
     explicitBackend,
     aliasTarget,
     useAlias ?? false,
-    fallbackBackend ?? 'codex'
+    fallbackBackend ?? 'codex',
+    explicitModel
   );
 
   // Determine model for final resolution
