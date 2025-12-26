@@ -4,7 +4,7 @@ import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
-import { loadGlobalConfig, resolveBackendModel } from '../agent';
+import { loadGlobalConfig, resolveBackendModel } from '../agent/config';
 import { formatUsageStats } from '../util';
 
 /**

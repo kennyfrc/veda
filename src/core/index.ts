@@ -64,6 +64,7 @@ export type {
   ModuleCategory,
   ReasoningModule,
   SelectModulesOptions,
+  ModuleRegistry,
 } from './modules';
 
 export {
@@ -72,4 +73,6 @@ export {
   MODULES_BY_CATEGORY,
   MODULE_BY_ID,
   selectModules,
+  createModuleRegistry,
+  DEFAULT_REGISTRY,
 } from './modules';

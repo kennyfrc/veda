@@ -1,7 +1,8 @@
 import { ContextStore, readSliceText, serializeAllFileContextBlocks } from '../context';
 import { parseSlice } from '../context/slice';
 import { runLlm, isBackendAvailable } from '../core';
-import { getDefaults, resolveAgentConfig, loadGlobalConfig, resolveBackendModel } from '../agent';
+import { getDefaults, loadGlobalConfig, resolveBackendModel } from '../agent/config';
+import { resolveAgentConfig } from '../agent/persona';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 import { resolve } from 'path';

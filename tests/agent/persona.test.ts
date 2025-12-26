@@ -2,7 +2,14 @@ import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { loadPersona, listPersonas, personaExists, resolveAgentConfig } from '../../src/agent/persona';
+import {
+  loadPersona,
+  listPersonas,
+  personaExists,
+  resolveAgentConfig,
+  parsePersonaMetadata,
+  type PersonaMetadata,
+} from '../../src/agent/persona';
 
 // Use temp directory for tests
 const TEST_BASE = join(tmpdir(), 'veda-persona-test-' + process.pid + '-' + Date.now());
@@ -208,6 +215,211 @@ describe('persona', () => {
         { baseDir: TEST_BASE },
         defaults
       )).rejects.toThrow('Backend must be specified');
+    });
+  });
+});
+
+describe('persona metadata (additive design)', () => {
+  describe('parsePersonaMetadata', () => {
+    test('returns empty object for no frontmatter', () => {
+      const content = '# Persona\n\nYou are a helper.';
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata).toEqual({});
+    });
+
+    test('parses reasoning from frontmatter', () => {
+      const content = `---
+reasoning: high
+---
+# Persona
+
+You are a helper.`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata).toEqual({ reasoning: 'high' });
+    });
+
+    test('parses all valid reasoning levels', () => {
+      const levels: ('minimal' | 'low' | 'medium' | 'high' | 'xhigh')[] =
+        ['minimal', 'low', 'medium', 'high', 'xhigh'];
+
+      for (const level of levels) {
+        const content = `---
+reasoning: ${level}
+---
+# Persona`;
+        const metadata = parsePersonaMetadata(content);
+        expect(metadata.reasoning).toBe(level);
+      }
+    });
+
+    test('ignores invalid reasoning level', () => {
+      const content = `---
+reasoning: invalid
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.reasoning).toBeUndefined();
+    });
+
+    test('ignores comments in frontmatter', () => {
+      const content = `---
+# This is a comment
+reasoning: medium
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.reasoning).toBe('medium');
+    });
+
+    test('handles multiple frontmatter fields (parses only reasoning)', () => {
+      const content = `---
+name: custom
+reasoning: xhigh
+version: 1.0
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata).toEqual({ reasoning: 'xhigh' });
+    });
+
+    test('handles reasoning with extra spaces', () => {
+      const content = `---
+reasoning:   high   
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.reasoning).toBe('high');
+    });
+
+    test('handles lowercase reasoning', () => {
+      const content = `---
+reasoning: LOW
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.reasoning).toBeUndefined();
+    });
+
+    test('handles quoted reasoning value', () => {
+      const content = `---
+reasoning: "medium"
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.reasoning).toBeUndefined(); // Quotes not supported in simple parser
+    });
+  });
+
+  describe('loadPersona with metadata', () => {
+    beforeEach(async () => {
+      // Create persona with frontmatter
+      await mkdir(join(TEST_PERSONAS_DIR, 'meta-persona'), { recursive: true });
+      await writeFile(
+        join(TEST_PERSONAS_DIR, 'meta-persona', 'AGENTS.md'),
+        `---
+reasoning: xhigh
+---
+# Meta Persona
+
+You are a test persona with metadata.`
+      );
+    });
+
+    test('parses metadata from frontmatter', async () => {
+      const persona = await loadPersona('meta-persona', TEST_BASE);
+      expect(persona.metadata).toEqual({ reasoning: 'xhigh' });
+      expect(persona.defaultReasoning).toBe('xhigh');
+    });
+
+    test('param metadata overrides frontmatter', async () => {
+      const persona = await loadPersona('meta-persona', {
+        baseDir: TEST_BASE,
+        metadata: { reasoning: 'minimal' },
+      });
+      expect(persona.defaultReasoning).toBe('minimal'); // Param overrides frontmatter
+      expect(persona.metadata).toEqual({ reasoning: 'xhigh' }); // Frontmatter still parsed
+    });
+
+    test('frontmatter overrides legacy map', async () => {
+      // Create persona that exists in legacy map but has frontmatter
+      await mkdir(join(TEST_PERSONAS_DIR, 'override-persona'), { recursive: true });
+      await writeFile(
+        join(TEST_PERSONAS_DIR, 'override-persona', 'AGENTS.md'),
+        `---
+reasoning: low
+---
+# Override Persona
+
+You override the legacy map.`
+      );
+
+      // Note: navigator-chat is in legacy map with 'medium' reasoning
+      // Create test persona with same name to override legacy
+      await mkdir(join(TEST_PERSONAS_DIR, 'navigator-chat'), { recursive: true });
+      await writeFile(
+        join(TEST_PERSONAS_DIR, 'navigator-chat', 'AGENTS.md'),
+        `---
+reasoning: low
+---
+# Override Persona
+
+You override the legacy map.`
+      );
+
+      const persona = await loadPersona('navigator-chat', TEST_BASE);
+      expect(persona.defaultReasoning).toBe('low'); // Frontmatter
+    });
+  });
+
+  describe('precedence chain', () => {
+    beforeEach(async () => {
+      // Create persona with frontmatter
+      await mkdir(join(TEST_PERSONAS_DIR, 'precedence-persona'), { recursive: true });
+      await writeFile(
+        join(TEST_PERSONAS_DIR, 'precedence-persona', 'AGENTS.md'),
+        `---
+reasoning: medium
+---
+# Precedence Persona
+
+You test precedence.`
+      );
+    });
+
+    test('param takes precedence over frontmatter', async () => {
+      const persona = await loadPersona('precedence-persona', {
+        baseDir: TEST_BASE,
+        metadata: { reasoning: 'xhigh' },
+      });
+      expect(persona.defaultReasoning).toBe('xhigh');
+    });
+
+    test('frontmatter takes precedence over legacy map', async () => {
+      const persona = await loadPersona('precedence-persona', TEST_BASE);
+      expect(persona.defaultReasoning).toBe('medium'); // From frontmatter
+    });
+
+    test('legacy map used when no frontmatter or param', async () => {
+      // Create persona without frontmatter
+      await mkdir(join(TEST_PERSONAS_DIR, 'legacy-persona'), { recursive: true });
+      await writeFile(
+        join(TEST_PERSONAS_DIR, 'legacy-persona', 'AGENTS.md'),
+        '# Legacy Persona\n\nYou use the default fallback.'
+      );
+
+      const persona = await loadPersona('legacy-persona', TEST_BASE);
+      expect(persona.defaultReasoning).toBe('medium'); // Default fallback
+    });
+
+    test('default fallback when no metadata available', async () => {
+      await mkdir(join(TEST_PERSONAS_DIR, 'no-meta-persona'), { recursive: true });
+      await writeFile(
+        join(TEST_PERSONAS_DIR, 'no-meta-persona', 'AGENTS.md'),
+        '# No Metadata\n\nYou have no metadata.'
+      );
+
+      const persona = await loadPersona('no-meta-persona', TEST_BASE);
+      expect(persona.defaultReasoning).toBe('medium'); // Default fallback
     });
   });
 });

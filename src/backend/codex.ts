@@ -1,6 +1,6 @@
 import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './types';
 import { spawnCliWithRetry, commandExists, parseNdjsonStream } from './util/spawn';
-import { toCodexSandbox } from '../agent';
+import { toCodexSandbox } from '../agent/config';
 
 export class CodexBackend implements Backend {
   readonly name = 'codex';

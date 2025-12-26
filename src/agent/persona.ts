@@ -4,35 +4,107 @@ import { getPersonasDir, getPersonaDir } from '../util/paths';
 import type { ReasoningLevel, AgentConfig, SandboxMode, GlobalConfig } from './config';
 import { resolveModel, resolveReasoning } from './config';
 
+export interface PersonaMetadata {
+  reasoning?: ReasoningLevel;
+  // Future: sandbox?, category?, etc.
+}
+
 export interface Persona {
   name: string;
   systemPrompt: string;
   path: string;
   defaultReasoning: ReasoningLevel;
+  metadata?: PersonaMetadata; // Parsed from frontmatter
 }
 
-const PERSONA_REASONING: Record<string, ReasoningLevel> = {
+// Legacy fallback map for backward compatibility
+const LEGACY_PERSONA_REASONING: Record<string, ReasoningLevel> = {
   'navigator-plan': 'high',
   'navigator-chat': 'medium',
   'reviewer': 'medium',
 };
 
-export async function loadPersona(name: string, baseDir?: string): Promise<Persona> {
-  const personaDir = getPersonaDir(name, baseDir);
+export interface LoadPersonaOptions {
+  baseDir?: string;
+  metadata?: PersonaMetadata; // Override metadata (programmatic use)
+}
+
+/**
+ * Parse persona metadata from YAML frontmatter.
+ * Supports simple scalar values: key: value
+ * Preserves reasoning: minimal|low|medium|high|xhigh
+ */
+export function parsePersonaMetadata(content: string): PersonaMetadata {
+  // Extract frontmatter between --- delimiters
+  const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
+  if (!frontmatterMatch) {
+    return {};
+  }
+
+  const yamlText = frontmatterMatch[1];
+  const metadata: PersonaMetadata = {};
+
+  // Simple YAML subset parser: key: value (support scalars only)
+  const lines = yamlText.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const match = trimmed.match(/^([^:]+):\s*(.+)$/);
+      if (match) {
+        const [, key, value] = match;
+        const normalizedKey = key.trim();
+        const normalizedValue = value.trim();
+
+        if (normalizedKey === 'reasoning') {
+          // Validate reasoning level
+          const validReasoning: ReasoningLevel[] = ['minimal', 'low', 'medium', 'high', 'xhigh'];
+          if (validReasoning.includes(normalizedValue as ReasoningLevel)) {
+            metadata.reasoning = normalizedValue as ReasoningLevel;
+          }
+        }
+        // Future: parse other metadata fields here
+      }
+    }
+  }
+
+  return metadata;
+}
+
+/**
+ * Load a persona from its AGENTS.md file.
+ * Metadata precedence: param override > frontmatter > legacy map > default 'medium'
+ *
+ * Backward compatible: accepts either (name, options) or (name, baseDir string)
+ */
+export async function loadPersona(name: string, optionsOrBaseDir?: LoadPersonaOptions | string): Promise<Persona> {
+  // Handle backward compatibility: (name, baseDir) as string
+  const options: LoadPersonaOptions = typeof optionsOrBaseDir === 'string'
+    ? { baseDir: optionsOrBaseDir }
+    : optionsOrBaseDir ?? {};
+
+  const personaDir = getPersonaDir(name, options.baseDir);
   const agentsPath = join(personaDir, 'AGENTS.md');
-  
+
   const file = Bun.file(agentsPath);
   if (!await file.exists()) {
     throw new Error(`Persona not found: ${name} (expected ${agentsPath})`);
   }
-  
+
   const systemPrompt = await file.text();
-  
+
+  // Resolve reasoning level with precedence
+  const frontmatterMetadata = parsePersonaMetadata(systemPrompt);
+  const defaultReasoning = options.metadata?.reasoning
+    ?? frontmatterMetadata.reasoning
+    ?? LEGACY_PERSONA_REASONING[name]
+    ?? 'medium';
+
   return {
     name,
     systemPrompt,
     path: agentsPath,
-    defaultReasoning: PERSONA_REASONING[name] ?? 'medium',
+    defaultReasoning,
+    metadata: frontmatterMetadata,
   };
 }
 

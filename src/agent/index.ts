@@ -30,11 +30,14 @@ export {
 
 export {
   type Persona,
+  type PersonaMetadata,
+  type LoadPersonaOptions,
   type ResolveConfigOptions,
   loadPersona,
   listPersonas,
   personaExists,
   resolveAgentConfig,
+  parsePersonaMetadata,
 } from './persona';
 
 export {

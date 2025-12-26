@@ -15,13 +15,22 @@ export interface ReasoningModule {
   prompt: string;
 }
 
+export interface ModuleRegistry {
+  modules: ReasoningModule[];
+  byId: Record<string, ReasoningModule>;
+  byCategory: Record<ModuleCategory, ReasoningModule[]>;
+  allCategories: ModuleCategory[];
+}
+
 export interface SelectModulesOptions {
   k: number;
   categories?: string[];
   modules?: string[];
+  registry?: ModuleRegistry; // Optional custom registry
 }
 
-export const REASONING_MODULES: ReasoningModule[] = [
+// Default module catalog - 32 modules across 8 categories
+const DEFAULT_MODULES: ReasoningModule[] = [
   {
     id: 'critical_thinking',
     category: 'analytical',
@@ -224,9 +233,10 @@ export const REASONING_MODULES: ReasoningModule[] = [
 ];
 
 
+// Fixed ontology - 8 categories for solver diversity
 export const ALL_CATEGORIES: ModuleCategory[] = [
   'analytical',
-  'creative', 
+  'creative',
   'systematic',
   'strategic',
   'evaluative',
@@ -235,21 +245,85 @@ export const ALL_CATEGORIES: ModuleCategory[] = [
   'reflective',
 ];
 
-export const MODULES_BY_CATEGORY: Record<ModuleCategory, ReasoningModule[]> = 
-  ALL_CATEGORIES.reduce((acc, cat) => {
-    acc[cat] = REASONING_MODULES.filter(m => m.category === cat);
-    return acc;
-  }, {} as Record<ModuleCategory, ReasoningModule[]>);
+/**
+ * Create a module registry from a list of custom modules (optional).
+ * Defaults to DEFAULT_MODULES if no modules provided.
+ * Validates: unique IDs, valid categories.
+ */
+export function createModuleRegistry(customModules?: ReasoningModule[]): ModuleRegistry {
+  const modules = customModules ? [...customModules] : [...DEFAULT_MODULES];
 
-export const MODULE_BY_ID: Record<string, ReasoningModule> =
-  REASONING_MODULES.reduce((acc, m) => {
-    acc[m.id] = m;
-    return acc;
-  }, {} as Record<string, ReasoningModule>);
+  // Normalize IDs
+  for (const module of modules) {
+    module.id = normalizeId(module.id);
+  }
+
+  // Validate integrity
+  validateModuleIntegrity(modules);
+
+  // Derive lookups
+  const byId: Record<string, ReasoningModule> = {};
+  const byCategory: Record<ModuleCategory, ReasoningModule[]> = {} as any;
+
+  for (const cat of ALL_CATEGORIES) {
+    byCategory[cat] = [];
+  }
+
+  for (const module of modules) {
+    byId[module.id] = module;
+    if (!byCategory[module.category]) {
+      byCategory[module.category] = [];
+    }
+    byCategory[module.category].push(module);
+  }
+
+  return {
+    modules,
+    byId,
+    byCategory,
+    allCategories: ALL_CATEGORIES,
+  };
+}
+
+/**
+ * Default registry singleton - uses DEFAULT_MODULES
+ */
+export const DEFAULT_REGISTRY: ModuleRegistry = createModuleRegistry();
+
+/**
+ * Backward compatibility exports (aliases to default registry)
+ */
+export const REASONING_MODULES = DEFAULT_REGISTRY.modules;
+export const MODULES_BY_CATEGORY = DEFAULT_REGISTRY.byCategory;
+export const MODULE_BY_ID = DEFAULT_REGISTRY.byId;
+
+/**
+ * Validate module integrity: unique IDs, valid categories
+ */
+function validateModuleIntegrity(modules: ReasoningModule[]): void {
+  const ids = new Set<string>();
+  const knownCategories = new Set(ALL_CATEGORIES);
+
+  for (const module of modules) {
+    // Check unique ID
+    if (ids.has(module.id)) {
+      throw new Error(`Duplicate module ID: ${module.id}`);
+    }
+    ids.add(module.id);
+
+    // Check valid category
+    if (!knownCategories.has(module.category)) {
+      throw new Error(
+        `Invalid category '${module.category}' for module '${module.id}'. ` +
+        `Available: ${ALL_CATEGORIES.join(', ')}`
+      );
+    }
+  }
+}
 
 
 export function selectModules(options: SelectModulesOptions): ReasoningModule[] {
-  const { k, categories, modules } = options;
+  const { k, categories, modules, registry = DEFAULT_REGISTRY } = options;
 
   // Validate k
   if (k < 1 || k > 8) {
@@ -258,27 +332,30 @@ export function selectModules(options: SelectModulesOptions): ReasoningModule[] 
 
   // Case 1: Exact modules specified
   if (modules && modules.length > 0) {
-    return selectExactModules(modules);
+    return selectExactModules(modules, registry);
   }
 
   // Case 2: Categories specified
   if (categories && categories.length > 0) {
-    return selectFromCategories(k, categories);
+    return selectFromCategories(k, categories, registry);
   }
 
   // Case 3: Default - sample k categories, 1 module each
-  return selectDefault(k);
+  return selectDefault(k, registry);
 }
 
-function selectExactModules(moduleIds: string[]): ReasoningModule[] {
+function selectExactModules(moduleIds: string[], registry: ModuleRegistry): ReasoningModule[] {
   const normalized = moduleIds.map(normalizeId);
   const result: ReasoningModule[] = [];
   const seenCategories = new Set<ModuleCategory>();
 
   for (const id of normalized) {
-    const module = MODULE_BY_ID[id];
+    const module = registry.byId[id];
     if (!module) {
-      throw new Error(`Unknown module: ${id}. Available: ${Object.keys(MODULE_BY_ID).join(', ')}`);
+      throw new Error(
+        `Unknown module: ${id}. Available: ${Object.keys(registry.byId).join(', ')}. ` +
+        `Note: Custom modules must be provided via createModuleRegistry()`
+      );
     }
     if (seenCategories.has(module.category)) {
       throw new Error(`Duplicate category: ${module.category}. Each solver must use a different category.`);
@@ -294,65 +371,108 @@ function selectExactModules(moduleIds: string[]): ReasoningModule[] {
   return result;
 }
 
-function selectFromCategories(k: number, categoryNames: string[]): ReasoningModule[] {
+function selectFromCategories(k: number, categoryNames: string[], registry: ModuleRegistry): ReasoningModule[] {
   const normalized = categoryNames.map(normalizeId) as ModuleCategory[];
-  
-  // Validate categories
-  for (const cat of normalized) {
-    if (!ALL_CATEGORIES.includes(cat)) {
-      throw new Error(`Unknown category: ${cat}. Available: ${ALL_CATEGORIES.join(', ')}`);
-    }
-  }
+
+  // Validate categories and canonicalize (dedupe, preserve order)
+  const validatedCategories = validateAndCanonicalizeCategories(normalized, registry.allCategories);
 
   // Check we have enough categories
-  const uniqueCategories = [...new Set(normalized)];
-  if (k > uniqueCategories.length * 4) {
-    // Can't get k modules from these categories
-    const maxAvailable = uniqueCategories.length * 4;
-    throw new Error(`Cannot select ${k} modules from ${uniqueCategories.length} categories (max ${maxAvailable})`);
+  const maxAvailable = validatedCategories.reduce((sum, cat) => {
+    return sum + (registry.byCategory[cat]?.length ?? 0);
+  }, 0);
+
+  if (k > maxAvailable) {
+    throw new Error(
+      `Cannot select ${k} modules from ${validatedCategories.length} categories (max ${maxAvailable})`
+    );
   }
 
-  // Distribute k across categories
+  // Determine counts per category (round-robin distribution)
+  const categoryCounts = distributeKAcrossCategories(k, validatedCategories, registry);
+
+  // Sample modules from each category based on counts
   const result: ReasoningModule[] = [];
-  const categoryCounts = new Map<ModuleCategory, number>();
-
-  // Initialize counts
-  for (const cat of uniqueCategories) {
-    categoryCounts.set(cat, 0);
-  }
-
-  // Round-robin assignment
-  let remaining = k;
-  while (remaining > 0) {
-    for (const cat of uniqueCategories) {
-      if (remaining === 0) break;
-      const count = categoryCounts.get(cat)!;
-      const available = MODULES_BY_CATEGORY[cat].length;
-      if (count < available) {
-        categoryCounts.set(cat, count + 1);
-        remaining--;
-      }
-    }
-  }
-
-  // Select random modules from each category
   for (const [cat, count] of categoryCounts) {
-    const categoryModules = MODULES_BY_CATEGORY[cat];
-    const selected = randomSample(categoryModules, count);
-    result.push(...selected);
+    const categoryModules = registry.byCategory[cat];
+    if (categoryModules && categoryModules.length > 0) {
+      const selected = randomSample(categoryModules, count);
+      result.push(...selected);
+    }
   }
 
   return shuffle(result);
 }
 
-function selectDefault(k: number): ReasoningModule[] {
+function selectDefault(k: number, registry: ModuleRegistry): ReasoningModule[] {
   // Sample k categories, 1 module from each
-  const selectedCategories = randomSample(ALL_CATEGORIES, k);
-  
+  const selectedCategories = randomSample(registry.allCategories, k);
+
   return selectedCategories.map(cat => {
-    const modules = MODULES_BY_CATEGORY[cat];
-    return modules[Math.floor(Math.random() * modules.length)];
+    const modules = registry.byCategory[cat];
+    const randomIndex = Math.floor(Math.random() * modules.length);
+    return modules[randomIndex];
   });
+}
+
+/**
+ * Validate and canonicalize category names:
+ * - Validate all categories are known
+ * - Remove duplicates (keep first occurrence)
+ * - Preserve user order
+ */
+function validateAndCanonicalizeCategories(
+  categories: ModuleCategory[],
+  allCategories: ModuleCategory[]
+): ModuleCategory[] {
+  const knownSet = new Set(allCategories);
+  const result: ModuleCategory[] = [];
+
+  for (const cat of categories) {
+    if (!knownSet.has(cat)) {
+      throw new Error(
+        `Unknown category: ${cat}. Available: ${allCategories.join(', ')}`
+      );
+    }
+    if (!result.includes(cat)) {
+      result.push(cat);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Distribute k across categories using round-robin.
+ * Returns Map<category, count>.
+ */
+function distributeKAcrossCategories(
+  k: number,
+  categories: ModuleCategory[],
+  registry: ModuleRegistry
+): Map<ModuleCategory, number> {
+  const counts = new Map<ModuleCategory, number>();
+
+  // Initialize all counts to 0
+  for (const cat of categories) {
+    counts.set(cat, 0);
+  }
+
+  // Round-robin assignment, respecting category availability
+  let remaining = k;
+  while (remaining > 0) {
+    for (const cat of categories) {
+      if (remaining === 0) break;
+      const count = counts.get(cat)!;
+      const available = registry.byCategory[cat]?.length ?? 0;
+      if (count < available) {
+        counts.set(cat, count + 1);
+        remaining--;
+      }
+    }
+  }
+
+  return counts;
 }
 
 

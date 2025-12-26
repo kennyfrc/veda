@@ -1,6 +1,6 @@
 // DeepThink: parallel solvers → judge aggregation → optional verification.
 
-import { loadGlobalConfig, resolveBackendModel } from '../agent';
+import { loadGlobalConfig, resolveBackendModel } from '../agent/config';
 import { AsyncQueue } from '../util';
 import type { Message, UsageStats } from '../backend';
 import {

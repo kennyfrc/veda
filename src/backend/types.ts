@@ -1,4 +1,4 @@
-import type { AgentConfig } from '../agent';
+import type { AgentConfig } from '../agent/config';
 
 export interface Message {
   type: 'init' | 'text' | 'reasoning' | 'tool_use' | 'tool_result' | 'tool_start' | 'error' | 'done';

@@ -1,5 +1,6 @@
 import { getBackend, extractText, extractErrors, getSessionId, getUsage, collectMessages } from '../backend';
-import { getDefaults, resolveAgentConfig, loadGlobalConfig } from '../agent';
+import { getDefaults, loadGlobalConfig } from '../agent/config';
+import { resolveAgentConfig } from '../agent/persona';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 import { formatUsageStats } from '../util';

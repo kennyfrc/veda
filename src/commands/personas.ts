@@ -1,4 +1,4 @@
-import { listPersonas } from '../agent';
+import { listPersonas } from '../agent/persona';
 import type { CliOptions } from '../cli';
 
 export async function handlePersonas(
