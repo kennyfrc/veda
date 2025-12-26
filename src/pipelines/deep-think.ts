@@ -1,7 +1,7 @@
 // DeepThink: parallel solvers → judge aggregation → optional verification.
 
 import { loadGlobalConfig, resolveBackendModel } from '../agent/config';
-import { AsyncQueue } from '../util';
+import { AsyncQueue, c } from '../util';
 import type { Message, UsageStats } from '../backend';
 import {
   runEnsemble,
@@ -680,21 +680,32 @@ export async function* runDeepThink(
       usages.push(ensembleResult.totalUsage);
       queue.push({ type: 'ensemble_complete', usage: ensembleResult.totalUsage });
 
-      const solverErrors = ensembleResult.outputs.flatMap(o => o.backendErrors ?? []);
-      if (solverErrors.length > 0) {
-        queue.push({ type: 'error', stage: 'solve', content: solverErrors[0] });
-        queue.done();
-        return;
+      // Log individual solver failures with context (but don't fail pipeline if others succeeded)
+      for (let i = 0; i < ensembleResult.outputs.length; i++) {
+        const output = ensembleResult.outputs[i];
+        const errors = output.backendErrors ?? [];
+        const exceptionError = output.error;
+        
+        if (errors.length > 0 || exceptionError) {
+          const meta = solverMetaMap.get(output.id);
+          const errorMsg = errors[0] ?? exceptionError ?? 'Unknown error';
+          const context = meta 
+            ? `[solver-${meta.index}-${meta.backend}-${meta.model}-${meta.module}]`
+            : `[${output.id}]`;
+          console.error(`${c.yellow('[warning]')} ${context} Solver failed: ${errorMsg}`);
+        }
       }
 
+      // Only fail if ALL solvers failed (no successful candidates)
       if (ensembleResult.successful.length === 0) {
-        const exceptionErrors = ensembleResult.outputs
-          .filter(o => o.error)
-          .map(o => o.error!);
+        const allErrors = ensembleResult.outputs.flatMap(o => [
+          ...(o.backendErrors ?? []),
+          ...(o.error ? [o.error] : []),
+        ]);
         queue.push({
           type: 'error',
           stage: 'solve',
-          content: exceptionErrors[0] ?? 'All solvers failed to produce output',
+          content: allErrors[0] ?? 'All solvers failed to produce output',
         });
         queue.done();
         return;
