@@ -3,7 +3,7 @@
  * 
  * Provides progressive disclosure format:
  * - Phase markers with dotted separators
- * - Collapsed tool chains per solver
+ * - Streamed tool events per solver with backend/model info
  * - Smart truncation with char counts
  * - Humanized token counts
  */
@@ -17,7 +17,6 @@ import { c } from './colors';
 export const FORMAT_CONFIG = {
   lineWidth: 80,
   truncateAt: 60,
-  maxToolsInChain: 6,
   symbols: {
     phase: '▸',
     done: '✓',
@@ -36,14 +35,12 @@ export type PhaseState = 'solve' | 'judge' | 'verify' | 'complete' | null;
 
 export interface FormatterState {
   phase: PhaseState;
-  solverTools: Map<number, string[]>;  // index → tool names
   candidateCount: number;
 }
 
 export function createFormatterState(): FormatterState {
   return {
     phase: null,
-    solverTools: new Map(),
     candidateCount: 0,
   };
 }
@@ -78,83 +75,39 @@ export function formatPhaseSummary(message: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Solver Tool Chain Formatting
+// Solver Formatting
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Accumulate a tool for a solver. Call on each tool_start event.
+ * Format a solver tool event for streaming display.
+ * Example: "[solver:0:codex:gpt-5.2] → shell: rg -n "test""
  */
-export function accumulateTool(
-  state: FormatterState,
+export function formatSolverToolEvent(
   solverIndex: number,
-  toolName: string
-): void {
-  if (!state.solverTools.has(solverIndex)) {
-    state.solverTools.set(solverIndex, []);
-  }
-  state.solverTools.get(solverIndex)!.push(toolName);
+  backend: string,
+  model: string,
+  toolName: string,
+  toolInput?: unknown
+): string {
+  const { symbols } = FORMAT_CONFIG;
+  const toolContent = formatToolStart(toolName, toolInput);
+  return c.dim(`  [solver:${solverIndex}:${backend}:${model}] ${symbols.arrow} ${toolContent}`);
 }
 
 /**
- * Collapse consecutive repeated tools.
- * ['Read', 'Read', 'Read', 'Grep'] → ['Read × 3', 'Grep']
- */
-function collapseConsecutive(tools: string[]): string[] {
-  if (tools.length === 0) return [];
-  
-  const result: string[] = [];
-  let current = tools[0];
-  let count = 1;
-  
-  for (let i = 1; i < tools.length; i++) {
-    if (tools[i] === current) {
-      count++;
-    } else {
-      result.push(count > 1 ? `${current} × ${count}` : current);
-      current = tools[i];
-      count = 1;
-    }
-  }
-  result.push(count > 1 ? `${current} × ${count}` : current);
-  
-  return result;
-}
-
-/**
- * Format a collapsed tool chain for solver completion.
- * Example: "[solver:0] empirical → Grep → Read × 2 → done (683 out)"
+ * Format solver completion summary.
+ * Example: "[solver:0:codex:gpt-5.2] empirical → done (683 out)"
  */
 export function formatSolverComplete(
-  state: FormatterState,
   solverIndex: number,
+  backend: string,
+  model: string,
   module: string,
   outputTokens?: number
 ): string {
-  const { symbols, maxToolsInChain } = FORMAT_CONFIG;
-  const tools = state.solverTools.get(solverIndex) ?? [];
-  
-  // Collapse consecutive repeats
-  const collapsed = collapseConsecutive(tools);
-  
-  // Truncate if too many tools
-  let toolChain: string;
-  if (collapsed.length === 0) {
-    toolChain = 'done';
-  } else if (collapsed.length <= maxToolsInChain) {
-    toolChain = collapsed.join(` ${symbols.arrow} `) + ` ${symbols.arrow} done`;
-  } else {
-    const shown = collapsed.slice(0, maxToolsInChain);
-    const hidden = collapsed.length - maxToolsInChain;
-    toolChain = shown.join(` ${symbols.arrow} `) + ` ${symbols.ellipsis}[+${hidden}] ${symbols.arrow} done`;
-  }
-  
-  // Format tokens if available
+  const { symbols } = FORMAT_CONFIG;
   const tokenSuffix = outputTokens !== undefined ? ` (${outputTokens} out)` : '';
-  
-  // Clear the tools for this solver
-  state.solverTools.delete(solverIndex);
-  
-  return c.dim(`  [solver:${solverIndex}] ${module} ${symbols.arrow} ${toolChain}${tokenSuffix}`);
+  return c.dim(`  [solver:${solverIndex}:${backend}:${model}] ${module} ${symbols.arrow} done${tokenSuffix}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

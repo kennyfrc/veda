@@ -3,7 +3,7 @@ import {
   createFormatterState,
   formatPhaseHeader,
   formatPhaseSummary,
-  accumulateTool,
+  formatSolverToolEvent,
   formatSolverComplete,
   formatToolStart,
   formatCandidateSeparator,
@@ -20,43 +20,43 @@ import {
 
 /**
  * E2E test for trace formatting.
- * Simulates the full event flow and verifies the output matches Option 4 design.
+ * Simulates the full event flow and verifies the output matches the streaming design.
  */
 describe('trace-format e2e', () => {
   // Helper to strip ANSI codes for assertions
   const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
 
-  test('full pipeline output matches Option 4 design', () => {
+  test('full pipeline output matches streaming design', () => {
     const state = createFormatterState();
     const output: string[] = [];
 
     // Simulate: [deep] Starting...
     output.push('[deep] Starting deep thinking mode...');
-    output.push('[deep] Distributed solver backends (round-robin): claude-code, codex');
+    output.push('[deep] Distributed solver backends (round-robin): claude, codex');
     output.push('');
 
     // SOLVE phase - stage_start
     output.push(formatPhaseHeader('solve'));
 
-    // Simulate tool_start events for solver 0
-    accumulateTool(state, 0, 'Grep');
-    accumulateTool(state, 0, 'Read');
-    accumulateTool(state, 0, 'Read');
+    // Simulate streaming tool_start events for solver 0
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Grep'));
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Read'));
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Read'));
 
-    // Simulate tool_start events for solver 1
-    accumulateTool(state, 1, 'shell');
-    accumulateTool(state, 1, 'shell');
-    accumulateTool(state, 1, 'shell');
+    // Simulate streaming tool_start events for solver 1
+    output.push(formatSolverToolEvent(1, 'claude', 'opus', 'shell', { command: 'rg -n "test"' }));
+    output.push(formatSolverToolEvent(1, 'claude', 'opus', 'shell', { command: 'ls -la' }));
+    output.push(formatSolverToolEvent(1, 'claude', 'opus', 'shell', { command: 'cat file.ts' }));
 
-    // Simulate tool_start events for solver 2
-    accumulateTool(state, 2, 'Grep');
-    accumulateTool(state, 2, 'Glob');
-    accumulateTool(state, 2, 'Read');
+    // Simulate streaming tool_start events for solver 2
+    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'Grep'));
+    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'Glob'));
+    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'Read'));
 
-    // solver_complete events
-    output.push(formatSolverComplete(state, 0, 'empirical', 723));
-    output.push(formatSolverComplete(state, 1, 'contextual', 941));
-    output.push(formatSolverComplete(state, 2, 'analytical', 713));
+    // solver_complete events (just summary, no tool chain)
+    output.push(formatSolverComplete(0, 'codex', 'gpt-5.2', 'empirical', 723));
+    output.push(formatSolverComplete(1, 'claude', 'opus', 'contextual', 941));
+    output.push(formatSolverComplete(2, 'gemini-cli', 'gemini-2.5-flash', 'analytical', 713));
 
     // ensemble_complete
     output.push(formatPhaseSummary('ensemble complete'));
@@ -111,10 +111,16 @@ describe('trace-format e2e', () => {
     expect(stripped).toContain('▸ judge (gemini-3-flash-preview) ─');
     expect(stripped).toContain('▸ verify (gpt-5.2) ─');
 
-    // Verify solver completion format
-    expect(stripped).toContain('[solver:0] empirical → Grep → Read × 2 → done (723 out)');
-    expect(stripped).toContain('[solver:1] contextual → shell × 3 → done (941 out)');
-    expect(stripped).toContain('[solver:2] analytical → Grep → Glob → Read → done (713 out)');
+    // Verify streaming solver tool events with backend:model
+    expect(stripped).toContain('[solver:0:codex:gpt-5.2] → Grep');
+    expect(stripped).toContain('[solver:0:codex:gpt-5.2] → Read');
+    expect(stripped).toContain('[solver:1:claude:opus] → shell: rg -n "test"');
+    expect(stripped).toContain('[solver:2:gemini-cli:gemini-2.5-flash] → Grep');
+
+    // Verify solver completion format (no tool chain, just summary)
+    expect(stripped).toContain('[solver:0:codex:gpt-5.2] empirical → done (723 out)');
+    expect(stripped).toContain('[solver:1:claude:opus] contextual → done (941 out)');
+    expect(stripped).toContain('[solver:2:gemini-cli:gemini-2.5-flash] analytical → done (713 out)');
 
     // Verify candidate separators
     expect(stripped).toContain('#1 ─');
@@ -136,34 +142,32 @@ describe('trace-format e2e', () => {
     expect(stripped).toContain('Tokens: 509K in, 23K out');
   });
 
-  test('solver tool chains are cleared after completion', () => {
-    const state = createFormatterState();
+  test('solver tool events are independent (no accumulation)', () => {
+    const output: string[] = [];
 
-    // First solver
-    accumulateTool(state, 0, 'Grep');
-    accumulateTool(state, 0, 'Read');
-    formatSolverComplete(state, 0, 'empirical');
+    // First solver streams tools
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Grep'));
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Read'));
+    output.push(formatSolverComplete(0, 'codex', 'gpt-5.2', 'empirical', 500));
 
-    // Second solver in same session
-    accumulateTool(state, 0, 'Write');
-    const output = formatSolverComplete(state, 0, 'creative');
+    // Second solver uses same index (simulating new session)
+    output.push(formatSolverToolEvent(0, 'claude', 'opus', 'Write'));
+    output.push(formatSolverComplete(0, 'claude', 'opus', 'creative', 600));
 
-    // Should only show 'Write', not 'Grep → Read → Write'
-    expect(stripAnsi(output)).toContain('Write → done');
-    expect(stripAnsi(output)).not.toContain('Grep');
-  });
+    const stripped = stripAnsi(output.join('\n'));
 
-  test('handles empty tool chains gracefully', () => {
-    const state = createFormatterState();
-    const output = formatSolverComplete(state, 0, 'empirical', 500);
-
-    expect(stripAnsi(output)).toContain('[solver:0] empirical → done (500 out)');
-    expect(stripAnsi(output)).not.toContain('→ →');
+    // Each completion should be independent
+    expect(stripped).toContain('[solver:0:codex:gpt-5.2] empirical → done (500 out)');
+    expect(stripped).toContain('[solver:0:claude:opus] creative → done (600 out)');
+    
+    // Tool events should show immediately
+    expect(stripped).toContain('[solver:0:codex:gpt-5.2] → Grep');
+    expect(stripped).toContain('[solver:0:claude:opus] → Write');
   });
 
   test('truncates long shell commands with char count', () => {
     const longCmd = 'rg -n "SolverId|solverIds|solver_ids|SOLVER_IDS" src tests lib --type ts --glob "*.ts" | head -100';
-    const output = formatToolStart('shell', { command: longCmd });
+    const output = formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'shell', { command: longCmd });
 
     expect(output).toContain('shell:');
     expect(output).toContain('···');
@@ -217,5 +221,15 @@ describe('trace-format e2e', () => {
 
     // Final separator uses double separator
     expect(stripAnsi(formatFinalSeparator())).toContain(symbols.doubleSeparator);
+  });
+
+  test('full model strings are preserved', () => {
+    // Test with a long model name
+    const output = formatSolverComplete(0, 'gemini-cli', 'gemini-2.5-flash-preview-05-20', 'analytical', 500);
+    const stripped = stripAnsi(output);
+    
+    // Full model string should be preserved
+    expect(stripped).toContain('gemini-2.5-flash-preview-05-20');
+    expect(stripped).not.toContain('···'); // No truncation on model name
   });
 });

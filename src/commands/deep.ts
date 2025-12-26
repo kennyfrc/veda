@@ -10,7 +10,7 @@ import {
   createFormatterState,
   formatPhaseHeader,
   formatPhaseSummary,
-  accumulateTool,
+  formatSolverToolEvent,
   formatSolverComplete,
   formatToolStart as formatToolStartNew,
   formatCandidateSeparator,
@@ -237,7 +237,7 @@ export async function handleDeep(
   // Run the pipeline
   for await (const event of runDeepThink(prompt, {
     backend: base.backend,  // Pass resolved backend to avoid duplicate resolution
-    model: base.model,  // Pass resolved model to avoid duplicate resolution
+    model: options.model,  // Pass explicit CLI model (undefined if not set) - pipeline resolves defaults
     k: options.k,
     verify: !options.noVerify,
     forceVerify: options.forceVerify,
@@ -311,9 +311,15 @@ async function handleEvent(
     }
 
     case 'tool_start': {
-      // Accumulate tools for solver completion summary
+      // Stream solver tool events immediately with backend/model info
       if (event.member?.type === 'solver' && event.content) {
-        accumulateTool(state, event.member.index, event.content);
+        console.error(formatSolverToolEvent(
+          event.member.index,
+          event.member.backend,
+          event.member.model,
+          event.content,
+          event.toolInput
+        ));
       }
       // For verifier, show tool execution inline (dimmed)
       if (event.member?.type === 'verifier' && event.content) {
@@ -323,16 +329,16 @@ async function handleEvent(
     }
 
     case 'solver_complete': {
-      // Emit collapsed tool chain for this solver
+      // Emit solver completion summary with backend/model info
       const module = event.member?.module ?? 'unknown';
       const outputTokens = event.usage?.outputTokens;
       const solverIndex = event.member?.index ?? 0;
+      const backend = event.member?.backend ?? event.backend ?? solverBackend ?? 'unknown';
+      const model = event.member?.model ?? event.model ?? solverModel ?? 'unknown';
       
-      console.error(formatSolverComplete(state, solverIndex, module, outputTokens));
+      console.error(formatSolverComplete(solverIndex, backend, model, module, outputTokens));
 
       // Notification
-      const backend = event.member?.backend ?? event.backend ?? solverBackend;
-      const model = event.member?.model ?? event.model ?? solverModel;
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
           notify({ title: 'Veda Deep', message: `Solver '${module}' complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model }));

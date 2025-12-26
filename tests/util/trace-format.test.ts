@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 import {
   createFormatterState,
-  accumulateTool,
+  formatSolverToolEvent,
   formatSolverComplete,
   truncateWithCount,
   formatToolStart,
@@ -23,62 +23,59 @@ describe('trace-format', () => {
     it('creates initial state', () => {
       const state = createFormatterState();
       expect(state.phase).toBe(null);
-      expect(state.solverTools.size).toBe(0);
       expect(state.candidateCount).toBe(0);
     });
   });
 
-  describe('tool accumulation', () => {
-    it('accumulates tools for a solver', () => {
-      const state = createFormatterState();
-      accumulateTool(state, 0, 'Grep');
-      accumulateTool(state, 0, 'Read');
-      expect(state.solverTools.get(0)).toEqual(['Grep', 'Read']);
+  describe('formatSolverToolEvent', () => {
+    it('formats solver tool event with backend and model', () => {
+      const result = formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Grep');
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('[solver:0:codex:gpt-5.2]');
+      expect(stripped).toContain('→ Grep');
     });
 
-    it('accumulates tools for multiple solvers', () => {
-      const state = createFormatterState();
-      accumulateTool(state, 0, 'Grep');
-      accumulateTool(state, 1, 'shell');
-      accumulateTool(state, 0, 'Read');
-      expect(state.solverTools.get(0)).toEqual(['Grep', 'Read']);
-      expect(state.solverTools.get(1)).toEqual(['shell']);
+    it('formats shell commands with truncation', () => {
+      const result = formatSolverToolEvent(1, 'claude', 'opus', 'shell', { command: 'rg -n "test" src' });
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('[solver:1:claude:opus]');
+      expect(stripped).toContain('shell: rg');
+    });
+
+    it('includes full model string without truncation', () => {
+      const result = formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash-preview-05-20', 'Read');
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('[solver:2:gemini-cli:gemini-2.5-flash-preview-05-20]');
     });
   });
 
   describe('formatSolverComplete', () => {
-    it('collapses consecutive repeated tools', () => {
-      const state = createFormatterState();
-      accumulateTool(state, 0, 'Read');
-      accumulateTool(state, 0, 'Read');
-      accumulateTool(state, 0, 'Read');
-      const output = formatSolverComplete(state, 0, 'empirical', 683);
-      expect(output).toContain('Read × 3');
-      expect(output).toContain('done');
-      expect(output).toContain('683 out');
+    it('formats completion with backend and model', () => {
+      const output = formatSolverComplete(0, 'codex', 'gpt-5.2', 'empirical', 683);
+      const stripped = output.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('[solver:0:codex:gpt-5.2]');
+      expect(stripped).toContain('empirical');
+      expect(stripped).toContain('done');
+      expect(stripped).toContain('683 out');
     });
 
-    it('clears tools after completion', () => {
-      const state = createFormatterState();
-      accumulateTool(state, 0, 'Grep');
-      formatSolverComplete(state, 0, 'empirical');
-      expect(state.solverTools.has(0)).toBe(false);
+    it('handles missing token count', () => {
+      const output = formatSolverComplete(1, 'claude', 'opus', 'analytical');
+      const stripped = output.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('[solver:1:claude:opus]');
+      expect(stripped).toContain('analytical');
+      expect(stripped).toContain('done');
+      expect(stripped).not.toContain('out');
     });
 
-    it('handles empty tool list', () => {
-      const state = createFormatterState();
-      const output = formatSolverComplete(state, 0, 'analytical');
-      expect(output).toContain('done');
-      expect(output).not.toContain('→ →');
-    });
-
-    it('truncates long tool chains', () => {
-      const state = createFormatterState();
-      for (let i = 0; i < 10; i++) {
-        accumulateTool(state, 0, `Tool${i}`);
-      }
-      const output = formatSolverComplete(state, 0, 'systematic');
-      expect(output).toContain('[+');
+    it('shows simple completion line without tool chain', () => {
+      const output = formatSolverComplete(0, 'codex', 'gpt-5.2', 'systematic', 500);
+      const stripped = output.replace(/\x1b\[[0-9;]*m/g, '');
+      // Should NOT contain tool chain artifacts
+      expect(stripped).not.toContain('→ →');
+      expect(stripped).not.toContain('×');
+      // Should contain the expected format
+      expect(stripped).toBe('  [solver:0:codex:gpt-5.2] systematic → done (500 out)');
     });
   });
 

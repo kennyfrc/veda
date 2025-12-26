@@ -24,7 +24,7 @@ export {
   createFormatterState,
   formatPhaseHeader,
   formatPhaseSummary,
-  accumulateTool,
+  formatSolverToolEvent,
   formatSolverComplete,
   truncateWithCount,
   formatToolStart,

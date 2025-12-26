@@ -293,13 +293,13 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   const backendModels = new Map<string, string>();
 
   for (const backend of uniqueSolverBackends) {
-    // If -m is specified, use base.model as fallback for all solvers.
+    // If -m is specified, use that model for all solvers.
     // Otherwise, let each backend use its own default model.
     const resolved = resolveBackendModel({
       explicitBackend: backend,
       explicitModel: options.solverModel,
       fallbackBackend: backend,
-      fallbackModel: base.model,  // Inherit from -m if specified
+      fallbackModel: options.model,  // Only inherit if user explicitly passed -m (undefined otherwise)
       globalConfig,
     });
     if (!resolved.model) {
