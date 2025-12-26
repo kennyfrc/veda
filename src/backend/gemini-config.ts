@@ -20,12 +20,6 @@ import { rename, unlink } from 'fs/promises';
 export class GeminiConfigManager {
   private geminiHome: string;
   private settingsPath: string;
-  private state: ConfigManagerState = {
-    backupFilePath: null,
-    overrideId: null,
-    originalSettings: null,
-    hasModifiedSettings: false,
-  };
 
   constructor(geminiHome?: string) {
     this.geminiHome = geminiHome ?? this.resolveGeminiHome();
@@ -63,28 +57,46 @@ export class GeminiConfigManager {
     const overrideId = `veda-override-${randomUUID()}`;
     const overrideScope = `veda-session-${randomUUID()}`;
 
+    // Per-call state (NOT instance-level to avoid race conditions)
+    let backupFilePath: string | null = null;
+    let hasModifiedSettings = false;
     let result: T;
-    let error: Error | undefined;
+    let originalError: Error | undefined;
 
     try {
       const settings = await this.readSettings();
 
-      this.state.backupFilePath = await this.createBackup(settings);
-      this.state.overrideId = overrideId;
-      this.state.originalSettings = JSON.parse(JSON.stringify(settings));
+      backupFilePath = await this.createBackup(settings);
 
       await this.injectOverride(settings, model, overrideScope, overrideId, thinkingConfig);
-      this.state.hasModifiedSettings = true;
+      hasModifiedSettings = true;
 
       result = await callback();
     } catch (e) {
-      error = e instanceof Error ? e : new Error(String(e));
-      throw error;
+      originalError = e instanceof Error ? e : new Error(String(e));
+      throw originalError;
     } finally {
-      await this.cleanup(!!error);
+      try {
+        await this.cleanup({
+          overrideId,
+          backupFilePath,
+          hasModifiedSettings,
+          hadError: !!originalError,
+        });
+      } catch (cleanupError) {
+        // Preserve original error, attach cleanup failure if available
+        if (originalError) {
+          if (!originalError.cause) {
+            (originalError as Error & { cause?: unknown }).cause = cleanupError;
+          }
+          throw originalError;
+        } else {
+          throw cleanupError;
+        }
+      }
     }
 
-    return result;
+    return result!;
   }
 
   /**
@@ -240,27 +252,28 @@ export class GeminiConfigManager {
     await rename(tempPath, this.settingsPath);
   }
 
-  private async cleanup(hadError: boolean): Promise<void> {
-    const { backupFilePath, hasModifiedSettings } = this.state;
+  private async cleanup(opts: {
+    overrideId: string;
+    backupFilePath: string | null;
+    hasModifiedSettings: boolean;
+    hadError: boolean;
+  }): Promise<void> {
+    const { overrideId, backupFilePath, hasModifiedSettings, hadError } = opts;
 
     if (!hasModifiedSettings) {
-      // No modifications made, nothing to clean up
-      this.resetState();
       return;
     }
 
     try {
-      // Read current settings (might have been modified by gemini CLI)
       const currentSettings = await this.readSettings();
 
-      // Surgical remove: filter out veda overrides
+      // Surgical cleanup: remove only THIS override (not all veda overrides)
       if (currentSettings.modelConfigs?.overrides) {
         currentSettings.modelConfigs.overrides = currentSettings.modelConfigs.overrides.filter(
-          (override) => !override.veda?.overrideId.startsWith('veda-override-')
+          (override) => override.veda?.overrideId !== overrideId
         );
       }
 
-      // Write cleaned settings
       await this.writeSettingsAtomically(currentSettings);
 
       // If no error, delete backup file
@@ -268,7 +281,7 @@ export class GeminiConfigManager {
         try {
           await unlink(backupFilePath);
         } catch (e) {
-          // Non-critical, file will be cleaned up by cleanupStale later
+          // Non-critical, will be cleaned up by cleanupStale later
           console.warn(`Failed to delete backup file: ${backupFilePath}`);
         }
       }
@@ -280,9 +293,8 @@ export class GeminiConfigManager {
       } else {
         console.error('No backup available, config may be corrupted');
       }
+      throw e;
     }
-
-    this.resetState();
   }
 
   private async restoreFromBackup(backupPath: string): Promise<void> {
@@ -299,15 +311,6 @@ export class GeminiConfigManager {
       console.error(`Failed to restore from backup ${backupPath}:`, e);
       throw this.createError('RESTORE_ERROR', backupPath, e instanceof Error ? e : new Error(String(e)));
     }
-  }
-
-  private resetState(): void {
-    this.state = {
-      backupFilePath: null,
-      overrideId: null,
-      originalSettings: null,
-      hasModifiedSettings: false,
-    };
   }
 
   private getCurrentReasoningLevel(config: ThinkingConfig): string {

@@ -65,16 +65,20 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<Result<Read
       crlfDelay: Infinity
     });
 
-    for await (const line of rl) {
-      if (currentLine >= startLine && currentLine <= endLine) {
-        lines.push(line);
-        actualEndLine = currentLine;
-      }
-      if (currentLine >= endLine) {
+    try {
+      for await (const line of rl) {
+        if (currentLine >= startLine && currentLine <= endLine) {
+          lines.push(line);
+          actualEndLine = currentLine;
+        }
+        if (currentLine >= endLine) {
+          currentLine++;
+          break;
+        }
         currentLine++;
-        break;
       }
-      currentLine++;
+    } finally {
+      rl.close();
     }
 
     // If startLine was beyond the end of the file
@@ -100,7 +104,6 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<Result<Read
       lineCount: lines.length,
       sliceType: slice.sliceType,
     });
-    return result;
     return result;
   } catch (e) {
     return err(e instanceof Error ? e : new Error(String(e)));
