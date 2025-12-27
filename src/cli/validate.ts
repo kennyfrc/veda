@@ -163,6 +163,15 @@ export function detectConflicts(flags: RawFlags): void {
     );
   }
   
+  // --solver-backends requires --distribute-solvers
+  if (flags.solverBackends && flags.solverBackends.length > 0 && !flags.distributeSolvers) {
+    throw new CliValidationError(
+      '--solver-backends requires --distribute-solvers',
+      'FLAG_NOT_APPLICABLE',
+      'Add --distribute-solvers to enable round-robin backend distribution'
+    );
+  }
+  
   // --notify vs --no-notify (last one wins, but flag both if explicit)
   // This is actually fine - we'll use the last value. No conflict.
 }

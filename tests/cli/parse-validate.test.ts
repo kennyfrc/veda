@@ -159,6 +159,16 @@ describe('detectConflicts', () => {
     const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--no-verify', 'solve']);
     expect(() => detectConflicts(flags)).not.toThrow();
   });
+  
+  test('rejects --solver-backends without --distribute-solvers', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--solver-backends', 'gemini-cli,codex', 'solve']);
+    expect(() => detectConflicts(flags)).toThrow(/--solver-backends requires --distribute-solvers/);
+  });
+  
+  test('allows --solver-backends with --distribute-solvers', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--distribute-solvers', '--solver-backends', 'gemini-cli,codex', 'solve']);
+    expect(() => detectConflicts(flags)).not.toThrow();
+  });
 });
 
 describe('resolveBackendModel', () => {
