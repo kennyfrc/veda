@@ -305,6 +305,7 @@ Options:
   --force-verify          Run verification even with high confidence (≥70%)
   --trace <file>          Save trace to YAML file (deep mode)
   --json                  Output raw JSON
+  --dry-run               Show resolved config without executing
   --help, -h              Show help
   --version, -v           Show version
 

@@ -1,0 +1,259 @@
+import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { 
+  tokenizeArgv, 
+  classifyCommand,
+  validateApplicability,
+  detectConflicts,
+  resolveBackendModel,
+  CliValidationError,
+  parseAndValidate,
+} from '../../src/cli/index';
+
+describe('tokenizeArgv', () => {
+  const originalEnv = process.env.VEDA_SESSION;
+  
+  beforeEach(() => {
+    delete process.env.VEDA_SESSION;
+  });
+  
+  afterEach(() => {
+    if (originalEnv) {
+      process.env.VEDA_SESSION = originalEnv;
+    }
+  });
+  
+  test('parses flags with values', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '-S', 'my-session', '-b', 'codex', 'hello']);
+    expect(flags.session).toBe('my-session');
+    expect(flags.backend).toBe('codex');
+  });
+  
+  test('parses boolean flags', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--json', '--no-verify', 'hello']);
+    expect(flags.deep).toBe(true);
+    expect(flags.json).toBe(true);
+    expect(flags.noVerify).toBe(true);
+  });
+  
+  test('parses multiple -f flags', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '-f', 'a.ts', '-f', 'b.ts', 'hello']);
+    expect(flags.files).toEqual(['a.ts', 'b.ts']);
+  });
+  
+  test('handles -- separator', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', '-S', 'test', '--', '-b', 'not-a-flag']);
+    expect(flags.session).toBe('test');
+    expect(positionals).toEqual(['-b', 'not-a-flag']);
+  });
+  
+  test('throws on flag without value', () => {
+    expect(() => tokenizeArgv(['node', 'veda', '-S'])).toThrow(CliValidationError);
+  });
+  
+  test('throws on invalid session ID', () => {
+    expect(() => tokenizeArgv(['node', 'veda', '-S', '../invalid', 'hello'])).toThrow(CliValidationError);
+  });
+  
+  test('parses --dry-run flag', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--dry-run', 'hello']);
+    expect(flags.dryRun).toBe(true);
+  });
+});
+
+describe('classifyCommand', () => {
+  test('classifies explicit deep command', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', 'deep', 'solve', 'this']);
+    const parsed = classifyCommand(['deep', 'solve', 'this'], flags);
+    expect(parsed.command).toBe('prompt');
+    expect(parsed.subcommand).toBe('deep');
+    expect(parsed.prompt).toBe('solve this');
+  });
+  
+  test('classifies --deep flag as deep mode', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', '--deep', 'solve', 'this']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(parsed.command).toBe('prompt');
+    expect(parsed.subcommand).toBe('deep');
+  });
+  
+  test('classifies sel command', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'sel', 'add', 'file.ts']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(parsed.command).toBe('sel');
+    expect(parsed.subcommand).toBe('add');
+    expect(parsed.args).toEqual(['file.ts']);
+  });
+  
+  test('classifies resume command', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'resume', 'follow', 'up']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(parsed.command).toBe('resume');
+    expect(parsed.prompt).toBe('follow up');
+  });
+  
+  test('defaults to simple prompt', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'hello', 'world']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(parsed.command).toBe('prompt');
+    expect(parsed.subcommand).toBeUndefined();
+    expect(parsed.prompt).toBe('hello world');
+  });
+});
+
+describe('validateApplicability', () => {
+  test('allows deep-only flags in deep mode', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', '--deep', '-k', '4', '--trace', 'out.yaml', 'solve']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags)).not.toThrow();
+  });
+  
+  test('rejects deep-only flags in simple mode', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', '-k', '4', 'hello']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags)).toThrow(CliValidationError);
+    expect(() => validateApplicability(parsed, flags)).toThrow(/requires deep mode/);
+  });
+  
+  test('rejects --trace without deep mode', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', '--trace', 'out.yaml', 'hello']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags)).toThrow(/requires deep mode/);
+  });
+  
+  test('rejects --persona in deep mode', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', '--deep', '-p', 'navigator-plan', 'solve']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags)).toThrow(/not used in deep mode/);
+  });
+  
+  test('validates -k range', () => {
+    const { flags: flags1, positionals: pos1 } = tokenizeArgv(['node', 'veda', '--deep', '-k', '0', 'solve']);
+    const parsed1 = classifyCommand(pos1, flags1);
+    expect(() => validateApplicability(parsed1, flags1)).toThrow(/must be an integer between 1 and 8/);
+    
+    const { flags: flags2, positionals: pos2 } = tokenizeArgv(['node', 'veda', '--deep', '-k', '9', 'solve']);
+    const parsed2 = classifyCommand(pos2, flags2);
+    expect(() => validateApplicability(parsed2, flags2)).toThrow(/must be an integer between 1 and 8/);
+  });
+  
+  test('rejects missing prompt', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', '-b', 'codex']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags)).toThrow(/No prompt provided/);
+  });
+});
+
+describe('detectConflicts', () => {
+  test('rejects --no-verify with --force-verify', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--no-verify', '--force-verify', 'solve']);
+    expect(() => detectConflicts(flags)).toThrow(CliValidationError);
+    expect(() => detectConflicts(flags)).toThrow(/Cannot use --no-verify and --force-verify together/);
+  });
+  
+  test('rejects --solver-backend with --distribute-solvers', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--solver-backend', 'codex', '--distribute-solvers', 'solve']);
+    expect(() => detectConflicts(flags)).toThrow(/Cannot use --solver-backend and --distribute-solvers together/);
+  });
+  
+  test('allows --no-verify alone', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--no-verify', 'solve']);
+    expect(() => detectConflicts(flags)).not.toThrow();
+  });
+});
+
+describe('resolveBackendModel', () => {
+  test('resolves alias to backend', () => {
+    const result = resolveBackendModel({ explicitModel: 'opus' });
+    expect(result.backend).toBe('claude-code');
+    expect(result.model).toBe('opus');
+    expect(result.source).toBe('alias');
+  });
+  
+  test('infers backend from model prefix', () => {
+    const result = resolveBackendModel({ explicitModel: 'gpt-5.2' });
+    expect(result.backend).toBe('codex');
+    expect(result.model).toBe('gpt-5.2');
+    expect(result.source).toBe('prefix');
+  });
+  
+  test('throws on alias/backend mismatch', () => {
+    expect(() => resolveBackendModel({
+      explicitBackend: 'codex',
+      explicitModel: 'opus',
+    })).toThrow(CliValidationError);
+    expect(() => resolveBackendModel({
+      explicitBackend: 'codex',
+      explicitModel: 'opus',
+    })).toThrow(/targets claude-code, conflicts with -b codex/);
+  });
+  
+  test('throws on unknown model without backend', () => {
+    expect(() => resolveBackendModel({
+      explicitModel: 'unknown-model-xyz',
+    })).toThrow(CliValidationError);
+    expect(() => resolveBackendModel({
+      explicitModel: 'unknown-model-xyz',
+    })).toThrow(/Unknown model/);
+  });
+  
+  test('uses explicit backend with default model', () => {
+    const result = resolveBackendModel({ explicitBackend: 'gemini-cli' });
+    expect(result.backend).toBe('gemini-cli');
+    expect(result.model).toBe('gemini-3-pro-preview');
+    expect(result.source).toBe('explicit');
+  });
+  
+  test('falls back to codex/gpt-5.2', () => {
+    const result = resolveBackendModel({});
+    expect(result.backend).toBe('codex');
+    expect(result.model).toBe('gpt-5.2');
+    expect(result.source).toBe('default');
+  });
+});
+
+describe('integration: parseAndValidate', () => {
+  // These tests use the full pipeline
+  
+  test('parses simple prompt', async () => {
+    const result = await parseAndValidate(['node', 'veda', 'hello', 'world']);
+    expect(result.command).toBe('prompt');
+    if (result.command === 'prompt') {
+      expect(result.mode).toBe('simple');
+      if (result.mode === 'simple') {
+        expect(result.config.prompt).toBe('hello world');
+        expect(result.config.backend).toBe('codex');
+      }
+    }
+  });
+  
+  test('parses deep mode', async () => {
+    const result = await parseAndValidate(['node', 'veda', 'deep', 'solve', 'this']);
+    expect(result.command).toBe('prompt');
+    if (result.command === 'prompt') {
+      expect(result.mode).toBe('deep');
+      if (result.mode === 'deep') {
+        expect(result.config.prompt).toBe('solve this');
+        expect(result.config.k).toBe(4);  // default
+      }
+    }
+  });
+  
+  test('returns dry-run output', async () => {
+    const result = await parseAndValidate(['node', 'veda', '--dry-run', '-m', 'opus', 'hello']);
+    expect(result.command).toBe('dry-run');
+    if (result.command === 'dry-run') {
+      expect(result.resolved.backend.backend).toBe('claude-code');
+      expect(result.resolved.backend.model).toBe('opus');
+    }
+  });
+  
+  test('rejects conflicting flags', async () => {
+    await expect(parseAndValidate(['node', 'veda', '--deep', '--no-verify', '--force-verify', 'solve']))
+      .rejects.toThrow(/Cannot use --no-verify and --force-verify together/);
+  });
+  
+  test('rejects alias mismatch', async () => {
+    await expect(parseAndValidate(['node', 'veda', '-b', 'codex', '-m', 'opus', 'hello']))
+      .rejects.toThrow(/targets claude-code, conflicts with -b codex/);
+  });
+});
