@@ -29,23 +29,23 @@ describe('trace-format', () => {
 
   describe('formatSolverToolEvent', () => {
     it('formats solver tool event with backend and model', () => {
-      const result = formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Grep');
+      const result = formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'analytical', 'Grep');
       const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
-      expect(stripped).toContain('[solver:0:codex:gpt-5.2]');
+      expect(stripped).toContain('[solver-1:codex:gpt-5.2:analytical]');
       expect(stripped).toContain('→ Grep');
     });
 
     it('formats shell commands with truncation', () => {
-      const result = formatSolverToolEvent(1, 'claude', 'opus', 'shell', { command: 'rg -n "test" src' });
+      const result = formatSolverToolEvent(1, 'claude', 'opus', 'empirical', 'shell', { command: 'rg -n "test" src' });
       const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
-      expect(stripped).toContain('[solver:1:claude:opus]');
+      expect(stripped).toContain('[solver-2:claude:opus:empirical]');
       expect(stripped).toContain('shell: rg');
     });
 
     it('includes full model string without truncation', () => {
-      const result = formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash-preview-05-20', 'Read');
+      const result = formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash-preview-05-20', 'creative', 'Read');
       const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
-      expect(stripped).toContain('[solver:2:gemini-cli:gemini-2.5-flash-preview-05-20]');
+      expect(stripped).toContain('[solver-3:gemini-cli:gemini-2.5-flash-preview-05-20:creative]');
     });
   });
 
@@ -53,8 +53,7 @@ describe('trace-format', () => {
     it('formats completion with backend and model', () => {
       const output = formatSolverComplete(0, 'codex', 'gpt-5.2', 'empirical', 683);
       const stripped = output.replace(/\x1b\[[0-9;]*m/g, '');
-      expect(stripped).toContain('[solver:0:codex:gpt-5.2]');
-      expect(stripped).toContain('empirical');
+      expect(stripped).toContain('[solver-1:codex:gpt-5.2:empirical]');
       expect(stripped).toContain('done');
       expect(stripped).toContain('683 out');
     });
@@ -62,8 +61,7 @@ describe('trace-format', () => {
     it('handles missing token count', () => {
       const output = formatSolverComplete(1, 'claude', 'opus', 'analytical');
       const stripped = output.replace(/\x1b\[[0-9;]*m/g, '');
-      expect(stripped).toContain('[solver:1:claude:opus]');
-      expect(stripped).toContain('analytical');
+      expect(stripped).toContain('[solver-2:claude:opus:analytical]');
       expect(stripped).toContain('done');
       expect(stripped).not.toContain('out');
     });
@@ -75,7 +73,7 @@ describe('trace-format', () => {
       expect(stripped).not.toContain('→ →');
       expect(stripped).not.toContain('×');
       // Should contain the expected format
-      expect(stripped).toBe('  [solver:0:codex:gpt-5.2] systematic → done (500 out)');
+      expect(stripped).toBe('  [solver-1:codex:gpt-5.2:systematic] → done (500 out)');
     });
   });
 

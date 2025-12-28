@@ -37,9 +37,10 @@ describe('JudgeFormat interface', () => {
 
       const prompt = XML_JUDGE_FORMAT.format(candidates, indexMapping);
 
-      expect(prompt).toMatch(/Candidate 1\nThird/);
-      expect(prompt).toMatch(/Candidate 2\nFirst/);
-      expect(prompt).toMatch(/Candidate 3\nSecond/);
+      // Format is now ## Candidate N\n<candidate_content>\nContent
+      expect(prompt).toMatch(/## Candidate 1\n<candidate_content>\nThird/);
+      expect(prompt).toMatch(/## Candidate 2\n<candidate_content>\nFirst/);
+      expect(prompt).toMatch(/## Candidate 3\n<candidate_content>\nSecond/);
     });
   });
 

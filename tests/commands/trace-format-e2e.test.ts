@@ -39,19 +39,19 @@ describe('trace-format e2e', () => {
     output.push(formatPhaseHeader('solve'));
 
     // Simulate streaming tool_start events for solver 0
-    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Grep'));
-    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Read'));
-    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Read'));
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'empirical', 'Grep'));
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'empirical', 'Read'));
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'empirical', 'Read'));
 
     // Simulate streaming tool_start events for solver 1
-    output.push(formatSolverToolEvent(1, 'claude', 'opus', 'shell', { command: 'rg -n "test"' }));
-    output.push(formatSolverToolEvent(1, 'claude', 'opus', 'shell', { command: 'ls -la' }));
-    output.push(formatSolverToolEvent(1, 'claude', 'opus', 'shell', { command: 'cat file.ts' }));
+    output.push(formatSolverToolEvent(1, 'claude', 'opus', 'contextual', 'shell', { command: 'rg -n "test"' }));
+    output.push(formatSolverToolEvent(1, 'claude', 'opus', 'contextual', 'shell', { command: 'ls -la' }));
+    output.push(formatSolverToolEvent(1, 'claude', 'opus', 'contextual', 'shell', { command: 'cat file.ts' }));
 
     // Simulate streaming tool_start events for solver 2
-    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'Grep'));
-    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'Glob'));
-    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'Read'));
+    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'analytical', 'Grep'));
+    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'analytical', 'Glob'));
+    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'analytical', 'Read'));
 
     // solver_complete events (just summary, no tool chain)
     output.push(formatSolverComplete(0, 'codex', 'gpt-5.2', 'empirical', 723));
@@ -111,16 +111,16 @@ describe('trace-format e2e', () => {
     expect(stripped).toContain('▸ judge (gemini-3-flash-preview) ─');
     expect(stripped).toContain('▸ verify (gpt-5.2) ─');
 
-    // Verify streaming solver tool events with backend:model
-    expect(stripped).toContain('[solver:0:codex:gpt-5.2] → Grep');
-    expect(stripped).toContain('[solver:0:codex:gpt-5.2] → Read');
-    expect(stripped).toContain('[solver:1:claude:opus] → shell: rg -n "test"');
-    expect(stripped).toContain('[solver:2:gemini-cli:gemini-2.5-flash] → Grep');
+    // Verify streaming solver tool events with backend:model:module
+    expect(stripped).toContain('[solver-1:codex:gpt-5.2:empirical] → Grep');
+    expect(stripped).toContain('[solver-1:codex:gpt-5.2:empirical] → Read');
+    expect(stripped).toContain('[solver-2:claude:opus:contextual] → shell: rg -n "test"');
+    expect(stripped).toContain('[solver-3:gemini-cli:gemini-2.5-flash:analytical] → Grep');
 
     // Verify solver completion format (no tool chain, just summary)
-    expect(stripped).toContain('[solver:0:codex:gpt-5.2] empirical → done (723 out)');
-    expect(stripped).toContain('[solver:1:claude:opus] contextual → done (941 out)');
-    expect(stripped).toContain('[solver:2:gemini-cli:gemini-2.5-flash] analytical → done (713 out)');
+    expect(stripped).toContain('[solver-1:codex:gpt-5.2:empirical] → done (723 out)');
+    expect(stripped).toContain('[solver-2:claude:opus:contextual] → done (941 out)');
+    expect(stripped).toContain('[solver-3:gemini-cli:gemini-2.5-flash:analytical] → done (713 out)');
 
     // Verify candidate separators
     expect(stripped).toContain('#1 ─');
@@ -146,28 +146,28 @@ describe('trace-format e2e', () => {
     const output: string[] = [];
 
     // First solver streams tools
-    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Grep'));
-    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'Read'));
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'empirical', 'Grep'));
+    output.push(formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'empirical', 'Read'));
     output.push(formatSolverComplete(0, 'codex', 'gpt-5.2', 'empirical', 500));
 
     // Second solver uses same index (simulating new session)
-    output.push(formatSolverToolEvent(0, 'claude', 'opus', 'Write'));
+    output.push(formatSolverToolEvent(0, 'claude', 'opus', 'creative', 'Write'));
     output.push(formatSolverComplete(0, 'claude', 'opus', 'creative', 600));
 
     const stripped = stripAnsi(output.join('\n'));
 
     // Each completion should be independent
-    expect(stripped).toContain('[solver:0:codex:gpt-5.2] empirical → done (500 out)');
-    expect(stripped).toContain('[solver:0:claude:opus] creative → done (600 out)');
+    expect(stripped).toContain('[solver-1:codex:gpt-5.2:empirical] → done (500 out)');
+    expect(stripped).toContain('[solver-1:claude:opus:creative] → done (600 out)');
     
     // Tool events should show immediately
-    expect(stripped).toContain('[solver:0:codex:gpt-5.2] → Grep');
-    expect(stripped).toContain('[solver:0:claude:opus] → Write');
+    expect(stripped).toContain('[solver-1:codex:gpt-5.2:empirical] → Grep');
+    expect(stripped).toContain('[solver-1:claude:opus:creative] → Write');
   });
 
   test('truncates long shell commands with char count', () => {
     const longCmd = 'rg -n "SolverId|solverIds|solver_ids|SOLVER_IDS" src tests lib --type ts --glob "*.ts" | head -100';
-    const output = formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'shell', { command: longCmd });
+    const output = formatSolverToolEvent(0, 'codex', 'gpt-5.2', 'analytical', 'shell', { command: longCmd });
 
     expect(output).toContain('shell:');
     expect(output).toContain('···');
@@ -230,6 +230,7 @@ describe('trace-format e2e', () => {
     
     // Full model string should be preserved
     expect(stripped).toContain('gemini-2.5-flash-preview-05-20');
+    expect(stripped).toContain('[solver-1:gemini-cli:gemini-2.5-flash-preview-05-20:analytical]');
     expect(stripped).not.toContain('···'); // No truncation on model name
   });
 });

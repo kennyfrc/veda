@@ -20,10 +20,10 @@ describe('judge', () => {
       const indexMapping = [2, 0, 1]; // Third, First, Second
       const prompt = formatJudgePrompt(candidates, indexMapping);
       
-      // Candidate 1 should be "Third" (index 2)
-      expect(prompt).toMatch(/Candidate 1\nThird/);
+      // Candidate 1 should be "Third" (index 2) - format is now ## Candidate N\n<candidate_content>\nContent
+      expect(prompt).toMatch(/## Candidate 1\n<candidate_content>\nThird/);
       // Candidate 2 should be "First" (index 0)
-      expect(prompt).toMatch(/Candidate 2\nFirst/);
+      expect(prompt).toMatch(/## Candidate 2\n<candidate_content>\nFirst/);
     });
   });
 

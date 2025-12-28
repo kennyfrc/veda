@@ -31,7 +31,7 @@ export const FORMAT_CONFIG = {
 // Formatter State
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type PhaseState = 'solve' | 'judge' | 'verify' | 'complete' | null;
+export type PhaseState = 'solve' | 'judge' | 'verify' | 'revise' | 'complete' | null;
 
 export interface FormatterState {
   phase: PhaseState;
