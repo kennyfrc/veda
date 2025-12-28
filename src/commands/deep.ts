@@ -228,6 +228,17 @@ export async function handleDeep(
       })
     : { backend: judge.backend, model: judge.model };
 
+  // Resolve revision for display (falls back to verifier if not specified)
+  const revision = (!options.noVerify && (options.revisionModel || options.revisionBackend))
+    ? resolveBackendModel({
+        explicitBackend: options.revisionBackend,
+        explicitModel: options.revisionModel,
+        fallbackBackend: verifier.backend,
+        fallbackModel: verifier.model,
+        globalConfig,
+      })
+    : verifier;
+
   let finalResult: DeepThinkResult | undefined;
   
   // Create formatter state for progressive disclosure output
@@ -251,8 +262,10 @@ export async function handleDeep(
     judgeModel: options.judgeModel,
     verifierBackend: options.verifierBackend,
     verifierModel: options.verifierModel,
+    revisionBackend: options.revisionBackend,
+    revisionModel: options.revisionModel,
   })) {
-    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model, verifier.backend, verifier.model, formatterState);
+    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model, verifier.backend, verifier.model, revision.backend, revision.model, formatterState);
 
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
@@ -290,6 +303,8 @@ async function handleEvent(
   judgeModel?: string,
   verifierBackend?: string,
   verifierModel?: string,
+  revisionBackend?: string,
+  revisionModel?: string,
   formatterState?: FormatterState
 ): Promise<void> {
   const shouldNotify = options.notify ?? globalNotify ?? true;
@@ -305,6 +320,10 @@ async function handleEvent(
         const suffix = verifierModel ?? verifierBackend;
         console.error(`\n${formatPhaseHeader('verify', suffix)}`);
         state.phase = 'verify';
+      } else if (event.stage === 'revise') {
+        const suffix = revisionModel ?? revisionBackend ?? verifierModel ?? verifierBackend;
+        console.error(`\n${formatPhaseHeader('revise', suffix)}`);
+        state.phase = 'revise';
       }
       break;
     }
@@ -322,9 +341,11 @@ async function handleEvent(
           event.toolInput
         ));
       }
-      // For verifier, show tool execution inline (dimmed)
+      // For verifier, show tool execution with check number
       if (event.member?.type === 'verifier' && event.content) {
-        console.error(c.dim(`  → ${formatToolStartNew(event.content, event.toolInput)}`));
+        const qNum = event.checkIndex !== undefined ? `Q${event.checkIndex + 1}` : '';
+        const prefix = qNum ? `[verifier:${qNum}] → ` : '→ ';
+        console.error(c.dim(`  ${prefix}${formatToolStartNew(event.content, event.toolInput)}`));
       }
       break;
     }
@@ -417,12 +438,18 @@ async function handleEvent(
       }
       
       if (!isJudge && event.stage === 'verify') {
+        // Show verify summary with contradiction count
+        const summary = event.content ? `complete (${event.content})` : 'complete';
+        console.error(formatPhaseSummary(summary));
+      }
+      
+      if (!isJudge && event.stage === 'revise') {
         console.error(formatPhaseSummary('complete'));
       }
       
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) => {
-          const msg = isJudge ? 'Judge complete' : 'Verifier complete';
+          const msg = isJudge ? 'Judge complete' : event.stage === 'revise' ? 'Revision complete' : 'Verifier complete';
           const backend = isJudge ? judgeBackend : verifierBackend;
           const model = isJudge ? judgeModel : verifierModel;
           notify({ title: 'Veda Deep', message: `${msg}: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model });
@@ -432,9 +459,53 @@ async function handleEvent(
     }
 
     case 'verified': {
-      // Extract changes from content (e.g., "Revised: change1, change2")
+      // Legacy event - now using revision_complete
       const changes = event.content?.replace(/^Revised:\s*/, '') ?? '';
       console.error(formatRevision(changes));
+      break;
+    }
+
+    case 'revision_complete': {
+      // Show revision changes with separator
+      const { symbols } = FORMAT_CONFIG;
+      const label = 'revision';
+      const dashes = symbols.separator.repeat(Math.max(0, FORMAT_CONFIG.lineWidth - label.length - 4));
+      console.error('');
+      console.error(c.dim(`  ${label} ${dashes}`));
+      
+      if (event.content) {
+        const changes = event.content.split('\n');
+        for (const change of changes) {
+          if (change.trim()) {
+            console.error(c.dim(`  - ${change.trim()}`));
+          }
+        }
+      }
+      break;
+    }
+
+    case 'verify_questions': {
+      // Display generated verification questions
+      if (event.checks && event.checks.length > 0) {
+        console.error('');
+        console.error(c.cyan('  Verification Questions:'));
+        for (let i = 0; i < event.checks.length; i++) {
+          const check = event.checks[i];
+          const difficultyTag = check.difficulty ? c.dim(` [${check.difficulty}]`) : '';
+          console.error(c.dim(`  Q${i + 1}. ${check.question}${difficultyTag}`));
+        }
+        console.error('');
+      }
+      break;
+    }
+
+    case 'verify_check_complete': {
+      // Show check completion with verdict
+      const qNum = (event.checkIndex ?? 0) + 1;
+      const verdict = event.verdict ?? 'uncertain';
+      const conf = event.confidence !== undefined ? `${(event.confidence * 100).toFixed(0)}%` : '';
+      const verdictColor = verdict === 'supports' ? c.green : verdict === 'contradicts' ? c.red : c.yellow;
+      console.error(c.dim(`  [verifier:Q${qNum}] → `) + verdictColor(verdict) + c.dim(conf ? ` (${conf})` : ''));
       break;
     }
 

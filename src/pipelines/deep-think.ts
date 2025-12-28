@@ -7,6 +7,7 @@ import {
   runEnsemble,
   runJudge,
   runVerification,
+  runRevision,
   combineUsage,
   selectModules,
   isUnchanged,
@@ -61,6 +62,7 @@ export interface DeepThinkOptions {
   solverReasoning?: Reasoning;
   judgeReasoning?: Reasoning;
   verifyReasoning?: Reasoning;
+  revisionReasoning?: Reasoning;
   categories?: string[];
   modules?: string[];
   cwd?: string;
@@ -70,6 +72,8 @@ export interface DeepThinkOptions {
   judgeModel?: string;
   verifierBackend?: string;
   verifierModel?: string;
+  revisionBackend?: string;
+  revisionModel?: string;
 }
 
 export interface SolverOptions {
@@ -127,6 +131,21 @@ export interface VerifierOptions {
   cwd: string;
 }
 
+export interface RevisionOptions {
+  /** Backend for revision */
+  backend: string;
+  /** Model override for revision */
+  model: string;
+  /** System prompt */
+  systemPrompt: string;
+  /** Reasoning level */
+  reasoning: Reasoning;
+  /** Sandbox mode */
+  sandbox: 'read-only' | 'workspace-write' | 'full';
+  /** Working directory */
+  cwd: string;
+}
+
 export interface DeepThinkResult {
   answer: string;
   confidence: number;
@@ -154,6 +173,7 @@ export interface DeepThinkTrace {
     solverBackends?: string[];  // Randomized backends used
     judge?: { backend: string; model?: string };
     verifier?: { backend: string; model?: string };
+    revision?: { backend: string; model?: string };
   };
   solve: {
     candidates: Array<{
@@ -172,7 +192,7 @@ export interface DeepThinkTrace {
     reasoning?: string;
   };
   verify?: {
-    checks: Array<{ id: string; question: string; targetClaim?: string }>;
+    checks: Array<{ id: string; question: string; targetClaim?: string; difficulty?: string }>;
     results: Array<{
       checkId: string;
       answer: string;
@@ -184,7 +204,7 @@ export interface DeepThinkTrace {
 }
 
 export interface DeepThinkEvent {
-  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete' | 'solver_complete';
+  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete' | 'solver_complete' | 'verify_questions' | 'verify_check_complete' | 'revision_complete';
   stage?: string;
   content?: string;
   source?: string;
@@ -198,6 +218,11 @@ export interface DeepThinkEvent {
   consensusAnalysis?: string; // For 'selected' event: judge's consensus analysis
   usage?: UsageStats;
   result?: DeepThinkResult;
+  // Verification-specific fields
+  checkIndex?: number;  // 0-based index of current check (for verify_check_complete and tool_start during verification)
+  checkId?: string;     // ID of current check
+  checks?: Array<{ id: string; question: string; targetClaim?: string; difficulty?: string }>;  // For verify_questions event
+  verdict?: 'supports' | 'contradicts' | 'uncertain';  // For verify_check_complete
 }
 
 export interface RunSolverEnsembleResult {
@@ -242,6 +267,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   solver: SolverOptions;
   judge: JudgeOptions;
   verifier: VerifierOptions | null;
+  revision: RevisionOptions | null;
   verifyEnabled: boolean;  // User enabled verification (may not run if confidence high)
   forceVerify: boolean;  // Force verification regardless of confidence
   traceOptions: {
@@ -256,6 +282,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     solverBackends: string[];
     judge: { backend: string; model?: string };
     verifier?: { backend: string; model?: string };
+    revision?: { backend: string; model?: string };
   };
 }> {
   const globalConfig = await loadGlobalConfig();
@@ -397,7 +424,34 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     }
   }
 
-  // Step 5: Build trace options
+  // Step 5: Resolve revision config (if verification enabled)
+  let revisionConfig: RevisionOptions | null = null;
+  if (verifyEnabled) {
+    // Revision defaults to verifier settings unless explicitly overridden
+    const revisionFallbackBackend = verifierConfig?.backend ?? judge.backend;
+    const revisionFallbackModel = verifierConfig?.model ?? judge.model;
+
+    const revisionResolved = resolveBackendModel({
+      explicitBackend: options.revisionBackend,
+      explicitModel: options.revisionModel,
+      fallbackBackend: revisionFallbackBackend,
+      fallbackModel: revisionFallbackModel,
+      globalConfig,
+    });
+
+    if (revisionResolved.model) {
+      revisionConfig = {
+        backend: revisionResolved.backend,
+        model: revisionResolved.model,
+        systemPrompt: VERIFIER_SYSTEM_PROMPT,  // Same system prompt as verifier
+        reasoning: options.revisionReasoning ?? options.verifyReasoning ?? 'high',
+        sandbox: 'full',
+        cwd: options.cwd ?? process.cwd(),
+      };
+    }
+  }
+
+  // Step 6: Build trace options
   const traceOptions = {
     backend: base.backend,
     model: base.model,
@@ -419,9 +473,13 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
       backend: verifierConfig.backend,
       model: verifierConfig.model,
     } : undefined,
+    revision: revisionConfig ? {
+      backend: revisionConfig.backend,
+      model: revisionConfig.model,
+    } : undefined,
   };
 
-  return { solver: solverConfig, judge: judgeConfig, verifier: verifierConfig, verifyEnabled, forceVerify, traceOptions };
+  return { solver: solverConfig, judge: judgeConfig, verifier: verifierConfig, revision: revisionConfig, verifyEnabled, forceVerify, traceOptions };
 }
 
 export async function runSolverEnsemble(
@@ -601,7 +659,7 @@ export async function* runDeepThink(
   (async () => {
     try {
       // Step 1: Expand options into configured structs
-      const { solver, judge, verifier, verifyEnabled, forceVerify, traceOptions } = await expandDeepThinkOptions(options);
+      const { solver, judge, verifier, revision, verifyEnabled, forceVerify, traceOptions } = await expandDeepThinkOptions(options);
 
       // Step 2: Build trace with expanded options
       const trace: DeepThinkTrace = {
@@ -854,26 +912,56 @@ export async function* runDeepThink(
           type: verifier.type,
           draft: finalAnswer,
           originalTask: prompt,
-          onMessage: (msg: Message) => {
-            const verifierId = formatMemberId({
-              type: 'verifier',
-              backend: verifier.backend,
-              model: verifier.model ?? 'unknown',
-              index: 0,
-              module: verifier.type,
-            });
-            const toolEvent = makeToolEvent(verifierId, msg);
-            if (toolEvent) {
-              toolEvent.member = {
+          // Factory creates per-check handlers that capture index/id in closure.
+          // This fixes the race condition where parallel checks interleave events.
+          createCheckMessageHandler: ({ index, check }) => {
+            return (msg: Message) => {
+              const verifierId = formatMemberId({
                 type: 'verifier',
                 backend: verifier.backend,
                 model: verifier.model ?? 'unknown',
-                index: 0,
+                index,
                 module: verifier.type,
-                id: verifierId,
-              };
-              queue.push(toolEvent);
-            }
+              });
+              const toolEvent = makeToolEvent(verifierId, msg);
+              if (toolEvent) {
+                toolEvent.member = {
+                  type: 'verifier',
+                  backend: verifier.backend,
+                  model: verifier.model ?? 'unknown',
+                  index,
+                  module: verifier.type,
+                  id: verifierId,
+                };
+                // Tag with check info for display
+                toolEvent.checkIndex = index;
+                toolEvent.checkId = check.id;
+                queue.push(toolEvent);
+              }
+            };
+          },
+          onChecksGenerated: (checks) => {
+            queue.push({
+              type: 'verify_questions',
+              stage: 'verify',
+              checks: checks.map(c => ({
+                id: c.id,
+                question: c.question,
+                targetClaim: c.targetClaim,
+                difficulty: c.difficulty,
+              })),
+            });
+          },
+          onCheckComplete: ({ index, check, result }) => {
+            queue.push({
+              type: 'verify_check_complete',
+              stage: 'verify',
+              checkIndex: index,
+              checkId: check.id,
+              verdict: result.verdict,
+              confidence: result.confidence,
+              content: result.answer,
+            });
           },
         });
         usages.push(verifyResult.usage);
@@ -883,6 +971,7 @@ export async function* runDeepThink(
             id: c.id,
             question: c.question,
             targetClaim: c.targetClaim,
+            difficulty: c.difficulty,
           })),
           results: verifyResult.results.map(r => ({
             checkId: r.checkId,
@@ -892,31 +981,87 @@ export async function* runDeepThink(
           })),
         };
 
-        if (verifyResult.revision && !isUnchanged(verifyResult.revision, finalAnswer)) {
-          finalAnswer = verifyResult.revision.revised;
-          wasRevised = true;
-
-          if (verifyResult.sessionId) {
-            lastSessionId = verifyResult.sessionId;
-            lastBackend = verifier.backend;
-          }
-
-          trace.verify.revision = {
-            changes: verifyResult.revision.changes,
-            revised: verifyResult.revision.revised,
-          };
-
-          queue.push({
-            type: 'verified',
-            stage: 'verify',
-            content: `Revised: ${verifyResult.revision.changes.join(', ')}`,
-          });
-        }
-
+        // Count contradictions for verify summary
+        const contradictionResults = verifyResult.results.filter(r => r.verdict === 'contradicts');
+        const contradictions = contradictionResults.length;
+        const uncertain = verifyResult.results.filter(r => r.verdict === 'uncertain').length;
+        
         queue.push({
           type: 'stage_complete',
           stage: 'verify',
+          content: contradictions > 0 
+            ? `${contradictions} contradiction${contradictions > 1 ? 's' : ''} found`
+            : uncertain > 0 
+              ? `${uncertain} uncertain` 
+              : 'all checks passed',
         });
+
+        // Run revision if there are contradictions and we have a revision config
+        if (contradictions > 0 && revision) {
+          // Emit revise phase start
+          queue.push({ type: 'stage_start', stage: 'revise' });
+
+          const revisionResult = await runRevision({
+            backend: revision.backend,
+            model: revision.model,
+            systemPrompt: revision.systemPrompt,
+            reasoning: revision.reasoning,
+            sandbox: revision.sandbox,
+            cwd: revision.cwd,
+            draft: finalAnswer,
+            contradictions: contradictionResults,
+            onMessage: (msg: Message) => {
+              const revisionId = formatMemberId({
+                type: 'verifier',  // Use 'verifier' type for consistent display
+                backend: revision.backend,
+                model: revision.model ?? 'unknown',
+                index: 0,
+                module: 'revision',
+              });
+              const toolEvent = makeToolEvent(revisionId, msg);
+              if (toolEvent) {
+                toolEvent.member = {
+                  type: 'verifier',
+                  backend: revision.backend,
+                  model: revision.model ?? 'unknown',
+                  index: 0,
+                  module: 'revision',
+                  id: revisionId,
+                };
+                queue.push(toolEvent);
+              }
+            },
+          });
+
+          usages.push(revisionResult.usage);
+
+          if (!isUnchanged(revisionResult.revision, finalAnswer)) {
+            finalAnswer = revisionResult.revision.revised;
+            wasRevised = true;
+
+            if (revisionResult.sessionId) {
+              lastSessionId = revisionResult.sessionId;
+              lastBackend = revision.backend;
+            }
+
+            trace.verify.revision = {
+              changes: revisionResult.revision.changes,
+              revised: revisionResult.revision.revised,
+            };
+
+            // Emit revision details
+            queue.push({
+              type: 'revision_complete',
+              stage: 'revise',
+              content: revisionResult.revision.changes.join('\n'),
+            });
+          }
+
+          queue.push({
+            type: 'stage_complete',
+            stage: 'revise',
+          });
+        }
       }
 
       // Step 6: Combine results
@@ -965,8 +1110,14 @@ export function getDeepThinkStages(trace?: DeepThinkTrace): string[] {
   }
 
   const stages: string[] = ['solve'];
+  if (trace.judge) {
+    stages.push('judge');
+  }
   if (trace.verify) {
     stages.push('verify');
+    if (trace.verify.revision) {
+      stages.push('revise');
+    }
   }
 
   return stages;
