@@ -211,6 +211,8 @@ function constructDeepInput(
     session: flags.session!,
     prompt: parsed.prompt!,
     k: flags.k ?? 4,
+    categories: flags.categories,
+    modules: flags.modules,
     context: constructContextConfig(flags),
     output: constructOutputConfig(flags),
     verify: resolveVerifyConfig(flags),

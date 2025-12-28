@@ -1,6 +1,6 @@
 {
   "name": "veda-ts",
-  "version": "0.23.7",
+  "version": "0.23.8",
   "description": "AI CLI wrapper with multi-backend support and deep reasoning",
   "type": "module",
   "main": "src/index.ts",

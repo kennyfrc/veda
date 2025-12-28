@@ -82,6 +82,10 @@ export function deepConfigToCliOptions(config: DeepConfig): CliOptions {
   options.revisionBackend = config.stages.revision.backend;
   options.revisionModel = config.stages.revision.model;
 
+  // Handle module selection filters
+  options.categories = config.categories;
+  options.modules = config.modules;
+
   return options;
 }
 
