@@ -65,12 +65,9 @@ export function deepConfigToCliOptions(config: DeepConfig): CliOptions {
   } else {
     options.distributeSolvers = true;
     options.solverBackends = config.stages.solver.backends;
-    // For distributed mode, pass the first backend's model as solverModel
-    // This is used for notifications and as default for backend model resolution
-    const firstBackend = config.stages.solver.backends[0];
-    if (firstBackend && config.stages.solver.modelPerBackend.has(firstBackend)) {
-      options.solverModel = config.stages.solver.modelPerBackend.get(firstBackend);
-    }
+    // In distributed mode, don't set solverModel - let the pipeline resolve
+    // per-backend models from defaults. Setting it would override all backends
+    // with the same model, breaking per-backend default resolution.
   }
 
   // Handle judge config
