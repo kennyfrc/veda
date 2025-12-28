@@ -214,7 +214,15 @@ export async function handleDeep(
 
   // Resolve single backend for notifications (use first if randomized)
   const solverBackendForNotification = solverBackendsResult.backends[0] ?? base.backend;
-  const solverModelForNotification = options.solverModel ?? base.model;
+  // For distributed mode, resolve the model for the first backend instead of using base.model
+  const solverModelForNotification = options.solverModel ?? (
+    solverBackendsResult.mode === 'distributed' 
+      ? resolveBackendModel({
+          explicitBackend: solverBackendForNotification,
+          globalConfig,
+        }).model
+      : base.model
+  );
 
   // Merge CLI with config for judge (CLI > config > base)
   const effectiveJudgeBackend = options.judgeBackend ?? deepConfig.judgeBackend;
