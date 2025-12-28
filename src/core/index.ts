@@ -58,6 +58,7 @@ export {
   parseRevision,
   isUnchanged,
   runVerification,
+  runRevision,
 } from './verify';
 
 export type {
