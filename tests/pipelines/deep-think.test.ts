@@ -8,7 +8,7 @@ describe('DeepThink staging', () => {
       expect(stages).toEqual([]);
     });
 
-    test('returns solve stage when trace exists without verify', () => {
+    test('returns solve and judge stages when trace exists without verify', () => {
       const trace: DeepThinkTrace = {
         prompt: 'test prompt',
         options: { backend: 'codex', k: 3, verify: false },
@@ -17,10 +17,10 @@ describe('DeepThink staging', () => {
       };
 
       const stages = getDeepThinkStages(trace);
-      expect(stages).toEqual(['solve']);
+      expect(stages).toEqual(['solve', 'judge']);
     });
 
-    test('returns both stages when trace has verify', () => {
+    test('returns solve, judge, verify stages when trace has verify', () => {
       const trace: DeepThinkTrace = {
         prompt: 'test prompt',
         options: { backend: 'codex', k: 3, verify: true },
@@ -33,10 +33,10 @@ describe('DeepThink staging', () => {
       };
 
       const stages = getDeepThinkStages(trace);
-      expect(stages).toEqual(['solve', 'verify']);
+      expect(stages).toEqual(['solve', 'judge', 'verify']);
     });
 
-    test('handle trace with complete verify data', () => {
+    test('includes revise stage when verify has revision', () => {
       const trace: DeepThinkTrace = {
         prompt: 'test prompt',
         options: { backend: 'codex', k: 3, verify: true },
@@ -50,21 +50,23 @@ describe('DeepThink staging', () => {
       };
 
       const stages = getDeepThinkStages(trace);
-      expect(stages).toEqual(['solve', 'verify']);
+      expect(stages).toEqual(['solve', 'judge', 'verify', 'revise']);
     });
 
-    test('maintains stage order (solve before verify)', () => {
+    test('maintains stage order (solve → judge → verify → revise)', () => {
       const trace: DeepThinkTrace = {
         prompt: 'test',
         options: { backend: 'codex', k: 3, verify: true },
         solve: { candidates: [] },
         judge: { selectedIndex: 0, confidence: 0.5 },
-        verify: { checks: [], results: [] },
+        verify: { checks: [], results: [], revision: { changes: ['x'], revised: 'y' } },
       };
 
       const stages = getDeepThinkStages(trace);
       expect(stages[0]).toBe('solve');
-      expect(stages[1]).toBe('verify');
+      expect(stages[1]).toBe('judge');
+      expect(stages[2]).toBe('verify');
+      expect(stages[3]).toBe('revise');
     });
 
     test('always returns solve when trace exists', () => {
