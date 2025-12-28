@@ -313,10 +313,12 @@ async function handleEvent(
     case 'tool_start': {
       // Stream solver tool events immediately with backend/model info
       if (event.member?.type === 'solver' && event.content) {
+        const module = event.member.module ?? 'unknown';
         console.error(formatSolverToolEvent(
           event.member.index,
           event.member.backend,
           event.member.model,
+          module,
           event.content,
           event.toolInput
         ));

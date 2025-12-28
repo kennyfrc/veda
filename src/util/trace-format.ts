@@ -80,23 +80,25 @@ export function formatPhaseSummary(message: string): string {
 
 /**
  * Format a solver tool event for streaming display.
- * Example: "[solver:0:codex:gpt-5.2] → shell: rg -n "test""
+ * Example: "[solver:0:codex:gpt-5.2:analytical] → shell: rg -n "test""
  */
 export function formatSolverToolEvent(
   solverIndex: number,
   backend: string,
   model: string,
+  module: string,
   toolName: string,
   toolInput?: unknown
 ): string {
   const { symbols } = FORMAT_CONFIG;
   const toolContent = formatToolStart(toolName, toolInput);
-  return c.dim(`  [solver:${solverIndex}:${backend}:${model}] ${symbols.arrow} ${toolContent}`);
+  const safeModule = module?.trim() ? module : 'unknown';
+  return c.dim(`  [solver:${solverIndex}:${backend}:${model}:${safeModule}] ${symbols.arrow} ${toolContent}`);
 }
 
 /**
  * Format solver completion summary.
- * Example: "[solver:0:codex:gpt-5.2] empirical → done (683 out)"
+ * Example: "[solver:0:codex:gpt-5.2:analytical] → done (683 out)"
  */
 export function formatSolverComplete(
   solverIndex: number,
@@ -107,7 +109,8 @@ export function formatSolverComplete(
 ): string {
   const { symbols } = FORMAT_CONFIG;
   const tokenSuffix = outputTokens !== undefined ? ` (${outputTokens} out)` : '';
-  return c.dim(`  [solver:${solverIndex}:${backend}:${model}] ${module} ${symbols.arrow} done${tokenSuffix}`);
+  const safeModule = module?.trim() ? module : 'unknown';
+  return c.dim(`  [solver:${solverIndex}:${backend}:${model}:${safeModule}] ${symbols.arrow} done${tokenSuffix}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
