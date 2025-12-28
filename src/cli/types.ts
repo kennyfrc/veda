@@ -197,7 +197,7 @@ export interface RawFlags {
   revisionModel?: string;
   
   // Deep mode distribution
-  distributeSolvers: boolean;
+  distributeSolvers?: boolean;  // undefined = not set by CLI (use config)
   solverBackends?: string[];
   
   // Meta

@@ -190,7 +190,8 @@ export async function handleDeep(
 
   // Merge CLI options with config defaults (CLI takes precedence)
   // For solver backends: CLI --solver-backends > CLI --distribute-solvers > config DEEP_SOLVER_BACKENDS
-  const effectiveDistributeSolvers = options.distributeSolvers ?? deepConfig.distributeSolvers;
+  // options.distributeSolvers is undefined if not set by CLI, true if --distribute-solvers passed
+  const effectiveDistributeSolvers = options.distributeSolvers ?? deepConfig.distributeSolvers ?? false;
   const effectiveSolverBackends = options.solverBackends ?? deepConfig.solverBackends;
 
   // Handle solver backend selection (potentially distributed)

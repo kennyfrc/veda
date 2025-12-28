@@ -31,7 +31,7 @@ export function simpleConfigToCliOptions(config: SimpleConfig): CliOptions {
     deep: false,
     noVerify: false,
     forceVerify: false,
-    distributeSolvers: false,
+    distributeSolvers: undefined,
     help: false,
     version: false,
   };
@@ -55,7 +55,7 @@ export function deepConfigToCliOptions(config: DeepConfig): CliOptions {
     forceVerify: config.verify.enabled && config.verify.forced,
     help: false,
     version: false,
-    distributeSolvers: false,
+    distributeSolvers: undefined,
   };
 
   // Handle solver config
@@ -65,8 +65,12 @@ export function deepConfigToCliOptions(config: DeepConfig): CliOptions {
   } else {
     options.distributeSolvers = true;
     options.solverBackends = config.stages.solver.backends;
-    // For distributed mode, we don't set solverBackend/solverModel
-    // The models are per-backend in modelPerBackend
+    // For distributed mode, pass the first backend's model as solverModel
+    // This is used for notifications and as default for backend model resolution
+    const firstBackend = config.stages.solver.backends[0];
+    if (firstBackend && config.stages.solver.modelPerBackend.has(firstBackend)) {
+      options.solverModel = config.stages.solver.modelPerBackend.get(firstBackend);
+    }
   }
 
   // Handle judge config
@@ -101,7 +105,7 @@ export function resumeConfigToCliOptions(config: ResumeConfig): CliOptions {
     deep: false,
     noVerify: false,
     forceVerify: false,
-    distributeSolvers: false,
+    distributeSolvers: undefined,
     noSel: false,
     files: [],
     help: false,

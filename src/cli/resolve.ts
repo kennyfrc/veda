@@ -159,9 +159,37 @@ function resolveSolverConfig(
   base: ResolvedBackendModel,
   globalConfig?: GlobalConfig
 ): SolverConfig {
-  // Distributed mode
-  if (flags.distributeSolvers) {
-    const backends = flags.solverBackends ?? [base.backend];
+  const deepConfig = globalConfig?.deep;
+  
+  // Check if solver model is an alias (drives backend choice)
+  const solverModelAlias = flags.solverModel ? resolveModelAlias(flags.solverModel) : undefined;
+  
+  // Check for solver-specific alias mismatch (only when both are explicit)
+  if (flags.solverModel && flags.solverBackend) {
+    if (solverModelAlias && solverModelAlias.backend !== flags.solverBackend) {
+      throw new CliValidationError(
+        `Model alias '${flags.solverModel}' targets ${solverModelAlias.backend}, conflicts with --solver-backend ${flags.solverBackend}`,
+        'ALIAS_BACKEND_MISMATCH'
+      );
+    }
+  }
+  
+  // Distributed mode: CLI flag > config > false
+  const useDistributed = flags.distributeSolvers ?? deepConfig?.distributeSolvers ?? false;
+  
+  if (useDistributed) {
+    // Backends: CLI > config > alias-inferred > [base.backend]
+    let backends: string[];
+    if (flags.solverBackends) {
+      backends = flags.solverBackends;
+    } else if (deepConfig?.solverBackends) {
+      backends = deepConfig.solverBackends;
+    } else if (solverModelAlias) {
+      // If solver model is an alias, use its backend
+      backends = [solverModelAlias.backend];
+    } else {
+      backends = [base.backend];
+    }
     const uniqueBackends = [...new Set(backends)];
     
     // Check for -m with multiple backends
@@ -176,12 +204,18 @@ function resolveSolverConfig(
     // Resolve model per backend
     const modelPerBackend = new Map<string, string>();
     for (const backend of uniqueBackends) {
-      const resolved = resolveBackendModel({
-        explicitBackend: backend,
-        explicitModel: flags.solverModel ?? flags.model,
-        globalConfig,
-      });
-      modelPerBackend.set(backend, resolved.model);
+      // If solver model is specified, use it (alias already resolved backend)
+      // Otherwise resolve per backend
+      if (flags.solverModel) {
+        modelPerBackend.set(backend, solverModelAlias?.model ?? flags.solverModel);
+      } else {
+        const resolved = resolveBackendModel({
+          explicitBackend: backend,
+          explicitModel: flags.model,
+          globalConfig,
+        });
+        modelPerBackend.set(backend, resolved.model);
+      }
     }
     
     return {
@@ -191,27 +225,19 @@ function resolveSolverConfig(
     };
   }
   
-  // Fixed mode
+  // Fixed mode: solver backend CLI > alias-inferred > base
+  const effectiveBackend = flags.solverBackend 
+    ?? (solverModelAlias ? solverModelAlias.backend : undefined);
+  
   const resolved = resolveBackendModel({
-    explicitBackend: flags.solverBackend,
+    explicitBackend: effectiveBackend,
     explicitModel: flags.solverModel ?? flags.model,
     globalConfig,
   });
   
-  // Check for solver-specific alias mismatch
-  if (flags.solverModel && flags.solverBackend) {
-    const alias = resolveModelAlias(flags.solverModel);
-    if (alias && alias.backend !== flags.solverBackend) {
-      throw new CliValidationError(
-        `Model alias '${flags.solverModel}' targets ${alias.backend}, conflicts with --solver-backend ${flags.solverBackend}`,
-        'ALIAS_BACKEND_MISMATCH'
-      );
-    }
-  }
-  
   return {
     mode: 'fixed',
-    backend: flags.solverBackend ?? resolved.backend,
+    backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
   };
 }
@@ -221,7 +247,9 @@ function resolveJudgeConfig(
   _base: ResolvedBackendModel,
   globalConfig?: GlobalConfig
 ): StageConfig {
-  // Check for judge-specific alias mismatch
+  const deepConfig = globalConfig?.deep;
+  
+  // Check for judge-specific alias mismatch (only when both are explicit)
   if (flags.judgeModel && flags.judgeBackend) {
     const alias = resolveModelAlias(flags.judgeModel);
     if (alias && alias.backend !== flags.judgeBackend) {
@@ -232,14 +260,23 @@ function resolveJudgeConfig(
     }
   }
   
+  // If judge model is an alias, let it drive the backend
+  const judgeModel = flags.judgeModel ?? deepConfig?.judgeModel;
+  const judgeModelAlias = judgeModel ? resolveModelAlias(judgeModel) : undefined;
+  
+  // Judge backend: CLI > alias-inferred > config > base
+  const effectiveBackend = flags.judgeBackend 
+    ?? (judgeModelAlias ? judgeModelAlias.backend : undefined)
+    ?? deepConfig?.judgeBackend;
+  
   const resolved = resolveBackendModel({
-    explicitBackend: flags.judgeBackend,
-    explicitModel: flags.judgeModel ?? flags.model,
+    explicitBackend: effectiveBackend,
+    explicitModel: judgeModel ?? flags.model,
     globalConfig,
   });
   
   return {
-    backend: flags.judgeBackend ?? resolved.backend,
+    backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
   };
 }
@@ -249,7 +286,9 @@ function resolveVerifierConfig(
   _base: ResolvedBackendModel,
   globalConfig?: GlobalConfig
 ): StageConfig {
-  // Check for verifier-specific alias mismatch
+  const deepConfig = globalConfig?.deep;
+  
+  // Check for verifier-specific alias mismatch (only when both are explicit)
   if (flags.verifierModel && flags.verifierBackend) {
     const alias = resolveModelAlias(flags.verifierModel);
     if (alias && alias.backend !== flags.verifierBackend) {
@@ -260,15 +299,23 @@ function resolveVerifierConfig(
     }
   }
   
-  // Verifier follows BASE, not judge (per user decision)
+  // If verifier model is an alias, let it drive the backend
+  const verifierModel = flags.verifierModel ?? deepConfig?.verifierModel;
+  const verifierModelAlias = verifierModel ? resolveModelAlias(verifierModel) : undefined;
+  
+  // Verifier backend: CLI > alias-inferred > config > base
+  const effectiveBackend = flags.verifierBackend 
+    ?? (verifierModelAlias ? verifierModelAlias.backend : undefined)
+    ?? deepConfig?.verifierBackend;
+  
   const resolved = resolveBackendModel({
-    explicitBackend: flags.verifierBackend,
-    explicitModel: flags.verifierModel ?? flags.model,
+    explicitBackend: effectiveBackend,
+    explicitModel: verifierModel ?? flags.model,
     globalConfig,
   });
   
   return {
-    backend: flags.verifierBackend ?? resolved.backend,
+    backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
   };
 }
@@ -278,7 +325,9 @@ function resolveRevisionConfig(
   _base: ResolvedBackendModel,
   globalConfig?: GlobalConfig
 ): StageConfig {
-  // Check for revision-specific alias mismatch
+  const deepConfig = globalConfig?.deep;
+  
+  // Check for revision-specific alias mismatch (only when both are explicit)
   if (flags.revisionModel && flags.revisionBackend) {
     const alias = resolveModelAlias(flags.revisionModel);
     if (alias && alias.backend !== flags.revisionBackend) {
@@ -289,15 +338,25 @@ function resolveRevisionConfig(
     }
   }
   
-  // Revision defaults to verifier config if not specified
+  // If revision model is an alias, let it drive the backend (don't inherit from verifier)
+  const revisionModel = flags.revisionModel ?? deepConfig?.revisionModel;
+  const revisionModelAlias = revisionModel ? resolveModelAlias(revisionModel) : undefined;
+  
+  // Revision backend: CLI > alias-inferred > config > verifier > base
+  const effectiveBackend = flags.revisionBackend 
+    ?? (revisionModelAlias ? revisionModelAlias.backend : undefined)
+    ?? deepConfig?.revisionBackend 
+    ?? flags.verifierBackend 
+    ?? deepConfig?.verifierBackend;
+  
   const resolved = resolveBackendModel({
-    explicitBackend: flags.revisionBackend ?? flags.verifierBackend,
-    explicitModel: flags.revisionModel ?? flags.verifierModel ?? flags.model,
+    explicitBackend: effectiveBackend,
+    explicitModel: revisionModel ?? flags.verifierModel ?? deepConfig?.verifierModel ?? flags.model,
     globalConfig,
   });
   
   return {
-    backend: flags.revisionBackend ?? flags.verifierBackend ?? resolved.backend,
+    backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
   };
 }

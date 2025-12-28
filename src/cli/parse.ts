@@ -58,7 +58,7 @@ export function tokenizeArgv(argv: string[]): { flags: RawFlags; positionals: st
     deep: false,
     noVerify: false,
     forceVerify: false,
-    distributeSolvers: false,
+    distributeSolvers: undefined,  // undefined = not set by CLI, use config
     help: false,
     version: false,
     dryRun: false,
