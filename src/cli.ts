@@ -28,6 +28,8 @@ export interface CliOptions {
   judgeModel?: string;
   verifierBackend?: string;
   verifierModel?: string;
+  revisionBackend?: string;
+  revisionModel?: string;
 
   distributeSolvers?: boolean;
   solverBackends?: string[];
@@ -58,6 +60,7 @@ const FLAGS_WITH_VALUES = new Set([
   '--solver-backend', '--solver-model',
   '--judge-backend', '--judge-model',
   '--verifier-backend', '--verifier-model',
+  '--revision-backend', '--revision-model',
   // Randomization options for deep mode
   '--solver-backends',
 ]);
@@ -144,6 +147,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
           break;
         case '--verifier-model':
           options.verifierModel = value;
+          break;
+        case '--revision-backend':
+          options.revisionBackend = value;
+          break;
+        case '--revision-model':
+          options.revisionModel = value;
           break;
         case '--solver-backends':
           options.solverBackends = value.split(',').map(s => s.trim());
@@ -316,6 +325,8 @@ Deep Mode Stage Overrides:
   --judge-model <name>      Model for judge (default: -m value)
   --verifier-backend <name> Backend for verifier (default: -b value)
   --verifier-model <name>   Model for verifier (default: -m value)
+  --revision-backend <name> Backend for revision (default: verifier value)
+  --revision-model <name>   Model for revision (default: verifier value)
 
 Deep Mode Backends:
   --distribute-solvers      Distribute solver backends evenly (round-robin)

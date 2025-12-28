@@ -26,6 +26,7 @@ const FLAGS_WITH_VALUES = new Set([
   '--solver-backend', '--solver-model',
   '--judge-backend', '--judge-model',
   '--verifier-backend', '--verifier-model',
+  '--revision-backend', '--revision-model',
   '--solver-backends',
 ]);
 
@@ -178,6 +179,12 @@ function parseFlagWithValue(flags: RawFlags, flag: string, value: string): void 
       break;
     case '--verifier-model':
       flags.verifierModel = value;
+      break;
+    case '--revision-backend':
+      flags.revisionBackend = value;
+      break;
+    case '--revision-model':
+      flags.revisionModel = value;
       break;
     case '--solver-backends':
       flags.solverBackends = value.split(',').map(s => s.trim()).filter(s => s.length > 0);

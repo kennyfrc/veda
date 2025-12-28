@@ -67,6 +67,7 @@ export interface StageConfigs {
   solver: SolverConfig;
   judge: StageConfig;
   verifier: StageConfig;
+  revision: StageConfig;
 }
 
 /**
@@ -139,6 +140,7 @@ export interface DryRunOutput {
     solver: { mode: string; backends: string[]; models: Record<string, string> };
     judge: ResolvedBackendModel;
     verifier: ResolvedBackendModel;
+    revision: ResolvedBackendModel;
   };
   flags: Record<string, unknown>;
 }
@@ -191,6 +193,8 @@ export interface RawFlags {
   judgeModel?: string;
   verifierBackend?: string;
   verifierModel?: string;
+  revisionBackend?: string;
+  revisionModel?: string;
   
   // Deep mode distribution
   distributeSolvers: boolean;

@@ -196,6 +196,11 @@ function constructDeepInput(
             model: stages.verifier.model,
             source: 'explicit',
           },
+          revision: {
+            backend: stages.revision.backend,
+            model: stages.revision.model,
+            source: 'explicit',
+          },
         },
         flags: extractFlagsForDryRun(flags),
       },

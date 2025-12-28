@@ -77,6 +77,10 @@ export function deepConfigToCliOptions(config: DeepConfig): CliOptions {
   options.verifierBackend = config.stages.verifier.backend;
   options.verifierModel = config.stages.verifier.model;
 
+  // Handle revision config
+  options.revisionBackend = config.stages.revision.backend;
+  options.revisionModel = config.stages.revision.model;
+
   return options;
 }
 

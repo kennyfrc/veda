@@ -41,6 +41,8 @@ const FLAG_DISPLAY_NAMES: Record<string, string> = {
   judgeModel: '--judge-model',
   verifierBackend: '--verifier-backend',
   verifierModel: '--verifier-model',
+  revisionBackend: '--revision-backend',
+  revisionModel: '--revision-model',
   distributeSolvers: '--distribute-solvers',
   solverBackends: '--solver-backends',
   persona: '--persona',

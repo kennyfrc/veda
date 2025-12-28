@@ -149,8 +149,9 @@ export function resolveDeepStages(opts: StageResolveOptions): StageConfigs {
   const solver = resolveSolverConfig(flags, baseResolved, globalConfig);
   const judge = resolveJudgeConfig(flags, baseResolved, globalConfig);
   const verifier = resolveVerifierConfig(flags, baseResolved, globalConfig);
+  const revision = resolveRevisionConfig(flags, baseResolved, globalConfig);
   
-  return { solver, judge, verifier };
+  return { solver, judge, verifier, revision };
 }
 
 function resolveSolverConfig(
@@ -268,6 +269,35 @@ function resolveVerifierConfig(
   
   return {
     backend: flags.verifierBackend ?? resolved.backend,
+    model: resolved.model,
+  };
+}
+
+function resolveRevisionConfig(
+  flags: RawFlags,
+  _base: ResolvedBackendModel,
+  globalConfig?: GlobalConfig
+): StageConfig {
+  // Check for revision-specific alias mismatch
+  if (flags.revisionModel && flags.revisionBackend) {
+    const alias = resolveModelAlias(flags.revisionModel);
+    if (alias && alias.backend !== flags.revisionBackend) {
+      throw new CliValidationError(
+        `Model alias '${flags.revisionModel}' targets ${alias.backend}, conflicts with --revision-backend ${flags.revisionBackend}`,
+        'ALIAS_BACKEND_MISMATCH'
+      );
+    }
+  }
+  
+  // Revision defaults to verifier config if not specified
+  const resolved = resolveBackendModel({
+    explicitBackend: flags.revisionBackend ?? flags.verifierBackend,
+    explicitModel: flags.revisionModel ?? flags.verifierModel ?? flags.model,
+    globalConfig,
+  });
+  
+  return {
+    backend: flags.revisionBackend ?? flags.verifierBackend ?? resolved.backend,
     model: resolved.model,
   };
 }
