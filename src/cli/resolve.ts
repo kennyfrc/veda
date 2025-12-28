@@ -178,15 +178,22 @@ function resolveSolverConfig(
   const useDistributed = flags.distributeSolvers ?? deepConfig?.distributeSolvers ?? false;
   
   if (useDistributed) {
-    // Backends: CLI > config > alias-inferred > [base.backend]
+    // If solver model is an alias, it determines the backend (can't use sonnet on codex)
+    // This overrides distributed backends from config
+    if (solverModelAlias) {
+      return {
+        mode: 'fixed',
+        backend: solverModelAlias.backend,
+        model: solverModelAlias.model,
+      };
+    }
+    
+    // Backends: CLI > config > [base.backend]
     let backends: string[];
     if (flags.solverBackends) {
       backends = flags.solverBackends;
     } else if (deepConfig?.solverBackends) {
       backends = deepConfig.solverBackends;
-    } else if (solverModelAlias) {
-      // If solver model is an alias, use its backend
-      backends = [solverModelAlias.backend];
     } else {
       backends = [base.backend];
     }
@@ -204,18 +211,12 @@ function resolveSolverConfig(
     // Resolve model per backend
     const modelPerBackend = new Map<string, string>();
     for (const backend of uniqueBackends) {
-      // If solver model is specified, use it (alias already resolved backend)
-      // Otherwise resolve per backend
-      if (flags.solverModel) {
-        modelPerBackend.set(backend, solverModelAlias?.model ?? flags.solverModel);
-      } else {
-        const resolved = resolveBackendModel({
-          explicitBackend: backend,
-          explicitModel: flags.model,
-          globalConfig,
-        });
-        modelPerBackend.set(backend, resolved.model);
-      }
+      const resolved = resolveBackendModel({
+        explicitBackend: backend,
+        explicitModel: flags.model,
+        globalConfig,
+      });
+      modelPerBackend.set(backend, resolved.model);
     }
     
     return {
