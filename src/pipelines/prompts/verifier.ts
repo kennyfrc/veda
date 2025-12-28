@@ -1,3 +1,14 @@
+/**
+ * Escape XML special characters to prevent prompt injection/malformation.
+ */
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export const VERIFIER_SYSTEM_PROMPT = `<conversation_rules>
 You are a meticulous verifier checking the accuracy and completeness of solutions.
 
@@ -67,12 +78,19 @@ For each question:
 - Be specific about what you're checking
 - Focus on claims that could actually be wrong
 - Include questions about edge cases or assumptions
+- Assess the difficulty of verifying this claim
+
+Difficulty levels:
+- **easy**: Simple lookup or check (read a file, run a command, check an import)
+- **moderate**: Requires some analysis (trace logic, check multiple files, test edge case)
+- **hard**: Complex reasoning (prove correctness, analyze algorithm, verify invariants)
 
 Format:
 <checks>
 <check id="1">
 <question>Your verification question</question>
 <claim>The specific claim or aspect being verified</claim>
+<difficulty>easy|moderate|hard</difficulty>
 </check>
 ...
 </checks>`;
@@ -90,6 +108,44 @@ Format:
 <answer>Your direct answer here</answer>
 <verdict>supports|contradicts|uncertain</verdict>
 <confidence>high|medium|low</confidence>`;
+}
+
+/**
+ * Factored verification prompt: answers a single check WITHOUT access to the original draft.
+ * This isolation prevents copying hallucinations from the draft.
+ */
+export function getFactoredAnswerCheckPrompt(
+  check: { id: string; question: string; targetClaim?: string },
+  originalTask: string
+): string {
+  // Escape XML special characters to prevent prompt malformation/injection
+  // Note: We escape task/question/claim content but NOT check.id, since:
+  // 1. IDs are typically simple strings ("1", "2") assigned by the system
+  // 2. Escaping IDs would cause mismatch when comparing response ID to check.id
+  const safeTask = escapeXml(originalTask);
+  const safeQuestion = escapeXml(check.question);
+  const safeClaim = check.targetClaim ? escapeXml(check.targetClaim) : undefined;
+
+  return `Answer this verification question independently, from first principles.
+
+<task_context>
+${safeTask}
+</task_context>
+
+<check id="${check.id}">
+<question>${safeQuestion}</question>
+${safeClaim ? `<claim>${safeClaim}</claim>` : ''}
+</check>
+
+**Important**: Investigate this claim independently. Do NOT assume any prior answer is correct.
+Run commands, read files, or test code to gather evidence before concluding.
+
+Format your response as:
+<result id="${check.id}">
+<answer>Your direct answer with evidence (cite files, line numbers, command outputs)</answer>
+<verdict>supports|contradicts|uncertain</verdict>
+<confidence>high|medium|low</confidence>
+</result>`;
 }
 
 export function getRevisionPrompt(draft: string, issues: string[]): string {
