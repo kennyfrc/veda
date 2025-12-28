@@ -228,11 +228,13 @@ export async function handleDeep(
   const effectiveJudgeBackend = options.judgeBackend ?? deepConfig.judgeBackend;
   const effectiveJudgeModel = options.judgeModel ?? deepConfig.judgeModel;
 
+  // Only use fallbackModel if we're also using the fallback backend
+  // Otherwise, let the explicit backend use its own default model
   const judge = resolveBackendModel({
     explicitBackend: effectiveJudgeBackend,
     explicitModel: effectiveJudgeModel,
     fallbackBackend: base.backend,
-    fallbackModel: base.model,
+    fallbackModel: effectiveJudgeBackend ? undefined : base.model,
     globalConfig,
   });
 
@@ -246,7 +248,7 @@ export async function handleDeep(
         explicitBackend: effectiveVerifierBackend,
         explicitModel: effectiveVerifierModel,
         fallbackBackend: judge.backend,
-        fallbackModel: judge.model,  // Verifier follows judge unless explicitly overridden
+        fallbackModel: effectiveVerifierBackend ? undefined : judge.model,
         globalConfig,
       })
     : { backend: judge.backend, model: judge.model };
@@ -261,7 +263,7 @@ export async function handleDeep(
         explicitBackend: effectiveRevisionBackend,
         explicitModel: effectiveRevisionModel,
         fallbackBackend: verifier.backend,
-        fallbackModel: verifier.model,
+        fallbackModel: effectiveRevisionBackend ? undefined : verifier.model,
         globalConfig,
       })
     : verifier;
