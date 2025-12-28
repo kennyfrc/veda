@@ -74,6 +74,70 @@ CODEX_MODEL=gpt-5.2
     expect(config.backend).toBe('codex');
     expect(config.backendModels?.['codex']).toBe('gpt-5.2');
   });
+
+  test('parses deep mode config', () => {
+    const content = `
+DEEP_DISTRIBUTE_SOLVERS=true
+DEEP_SOLVER_BACKENDS=codex,claude-code
+DEEP_JUDGE_BACKEND=codex
+DEEP_JUDGE_MODEL=gpt-5.2
+DEEP_JUDGE_REASONING=medium
+DEEP_VERIFIER_BACKEND=claude-code
+DEEP_VERIFIER_MODEL=claude-sonnet-4-20250514
+DEEP_VERIFIER_REASONING=high
+DEEP_REVISION_BACKEND=codex
+DEEP_REVISION_MODEL=gpt-5.2
+DEEP_REVISION_REASONING=high
+`;
+    const config = parseConfigFile(content);
+    expect(config.deep).toBeDefined();
+    expect(config.deep?.distributeSolvers).toBe(true);
+    expect(config.deep?.solverBackends).toEqual(['codex', 'claude-code']);
+    expect(config.deep?.judgeBackend).toBe('codex');
+    expect(config.deep?.judgeModel).toBe('gpt-5.2');
+    expect(config.deep?.judgeReasoning).toBe('medium');
+    expect(config.deep?.verifierBackend).toBe('claude-code');
+    expect(config.deep?.verifierModel).toBe('claude-sonnet-4-20250514');
+    expect(config.deep?.verifierReasoning).toBe('high');
+    expect(config.deep?.revisionBackend).toBe('codex');
+    expect(config.deep?.revisionModel).toBe('gpt-5.2');
+    expect(config.deep?.revisionReasoning).toBe('high');
+  });
+
+  test('parses deep mode with false distribute', () => {
+    const content = `
+DEEP_DISTRIBUTE_SOLVERS=false
+`;
+    const config = parseConfigFile(content);
+    expect(config.deep?.distributeSolvers).toBe(false);
+  });
+
+  test('ignores invalid reasoning in deep config', () => {
+    const content = `
+DEEP_JUDGE_REASONING=invalid
+DEEP_VERIFIER_REASONING=medium
+`;
+    const config = parseConfigFile(content);
+    expect(config.deep?.judgeReasoning).toBeUndefined();
+    expect(config.deep?.verifierReasoning).toBe('medium');
+  });
+
+  test('handles empty solver backends list', () => {
+    const content = `
+DEEP_SOLVER_BACKENDS=
+`;
+    const config = parseConfigFile(content);
+    // Empty value doesn't match the regex, so solverBackends won't be set
+    expect(config.deep?.solverBackends).toBeUndefined();
+  });
+
+  test('trims whitespace from solver backends', () => {
+    const content = `
+DEEP_SOLVER_BACKENDS=" codex , claude-code , gemini-cli "
+`;
+    const config = parseConfigFile(content);
+    expect(config.deep?.solverBackends).toEqual(['codex', 'claude-code', 'gemini-cli']);
+  });
 });
 
 describe('isValidReasoning', () => {

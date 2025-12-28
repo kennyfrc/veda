@@ -21,6 +21,20 @@ export interface AgentConfig {
   systemPromptPath?: string;
 }
 
+export interface DeepModeConfig {
+  distributeSolvers?: boolean;
+  solverBackends?: string[];
+  judgeBackend?: string;
+  judgeModel?: string;
+  judgeReasoning?: ReasoningLevel;
+  verifierBackend?: string;
+  verifierModel?: string;
+  verifierReasoning?: ReasoningLevel;
+  revisionBackend?: string;
+  revisionModel?: string;
+  revisionReasoning?: ReasoningLevel;
+}
+
 export interface GlobalConfig {
   persona?: string;
   backend?: string;
@@ -29,6 +43,7 @@ export interface GlobalConfig {
   notify?: boolean;
   backendModels?: Record<string, string>;
   backendReasoning?: Record<string, ReasoningLevel>;
+  deep?: DeepModeConfig;
 }
 
 const DEFAULT_PERSONA = 'navigator-chat';
@@ -38,6 +53,7 @@ export function parseConfigFile(content: string): GlobalConfig {
   const config: GlobalConfig = {};
   const backendModels: Record<string, string> = {};
   const backendReasoning: Record<string, ReasoningLevel> = {};
+  const deep: DeepModeConfig = {};
   
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
@@ -47,6 +63,47 @@ export function parseConfigFile(content: string): GlobalConfig {
     if (match) {
       const [, key, value] = match;
       
+      // Deep mode config (DEEP_* keys)
+      if (key.startsWith('DEEP_')) {
+        switch (key) {
+          case 'DEEP_DISTRIBUTE_SOLVERS':
+            deep.distributeSolvers = value.toLowerCase() === 'true';
+            break;
+          case 'DEEP_SOLVER_BACKENDS':
+            deep.solverBackends = value.split(',').map(s => s.trim()).filter(s => s);
+            break;
+          case 'DEEP_JUDGE_BACKEND':
+            deep.judgeBackend = value;
+            break;
+          case 'DEEP_JUDGE_MODEL':
+            deep.judgeModel = value;
+            break;
+          case 'DEEP_JUDGE_REASONING':
+            if (isValidReasoning(value)) deep.judgeReasoning = value;
+            break;
+          case 'DEEP_VERIFIER_BACKEND':
+            deep.verifierBackend = value;
+            break;
+          case 'DEEP_VERIFIER_MODEL':
+            deep.verifierModel = value;
+            break;
+          case 'DEEP_VERIFIER_REASONING':
+            if (isValidReasoning(value)) deep.verifierReasoning = value;
+            break;
+          case 'DEEP_REVISION_BACKEND':
+            deep.revisionBackend = value;
+            break;
+          case 'DEEP_REVISION_MODEL':
+            deep.revisionModel = value;
+            break;
+          case 'DEEP_REVISION_REASONING':
+            if (isValidReasoning(value)) deep.revisionReasoning = value;
+            break;
+        }
+        continue;
+      }
+      
+      // Per-backend model override (e.g., CODEX_MODEL)
       const backendModelMatch = key.match(/^(.+)_MODEL$/);
       if (backendModelMatch) {
         const prefix = backendModelMatch[1];
@@ -55,6 +112,7 @@ export function parseConfigFile(content: string): GlobalConfig {
         continue;
       }
       
+      // Per-backend reasoning override (e.g., CODEX_REASONING)
       const backendReasoningMatch = key.match(/^(.+)_REASONING$/);
       if (backendReasoningMatch) {
         const prefix = backendReasoningMatch[1];
@@ -94,6 +152,10 @@ export function parseConfigFile(content: string): GlobalConfig {
   
   if (Object.keys(backendReasoning).length > 0) {
     config.backendReasoning = backendReasoning;
+  }
+  
+  if (Object.keys(deep).length > 0) {
+    config.deep = deep;
   }
   
   return config;

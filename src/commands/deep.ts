@@ -158,6 +158,7 @@ export async function handleDeep(
   options: CliOptions
 ): Promise<void> {
   const globalConfig = await loadGlobalConfig();
+  const deepConfig = globalConfig.deep ?? {};
 
   // Build context from selection (unless --no-sel)
   let context: string | undefined;
@@ -187,12 +188,17 @@ export async function handleDeep(
     globalConfig,
   });
 
+  // Merge CLI options with config defaults (CLI takes precedence)
+  // For solver backends: CLI --solver-backends > CLI --distribute-solvers > config DEEP_SOLVER_BACKENDS
+  const effectiveDistributeSolvers = options.distributeSolvers ?? deepConfig.distributeSolvers;
+  const effectiveSolverBackends = options.solverBackends ?? deepConfig.solverBackends;
+
   // Handle solver backend selection (potentially distributed)
   const solverBackendsResult = await selectSolverBackends({
     k: options.k ?? 4,
-    distributeSolvers: options.distributeSolvers,
+    distributeSolvers: effectiveDistributeSolvers,
     solverBackend: options.solverBackend,
-    solverBackends: options.solverBackends,
+    solverBackends: effectiveSolverBackends,
     solverModel: options.solverModel,
     baseBackend: base.backend,
   });
@@ -209,30 +215,42 @@ export async function handleDeep(
   const solverBackendForNotification = solverBackendsResult.backends[0] ?? base.backend;
   const solverModelForNotification = options.solverModel ?? base.model;
 
+  // Merge CLI with config for judge (CLI > config > base)
+  const effectiveJudgeBackend = options.judgeBackend ?? deepConfig.judgeBackend;
+  const effectiveJudgeModel = options.judgeModel ?? deepConfig.judgeModel;
+
   const judge = resolveBackendModel({
-    explicitBackend: options.judgeBackend,
-    explicitModel: options.judgeModel,
+    explicitBackend: effectiveJudgeBackend,
+    explicitModel: effectiveJudgeModel,
     fallbackBackend: base.backend,
     fallbackModel: base.model,
     globalConfig,
   });
 
+  // Merge CLI with config for verifier (CLI > config > judge)
+  const effectiveVerifierBackend = options.verifierBackend ?? deepConfig.verifierBackend;
+  const effectiveVerifierModel = options.verifierModel ?? deepConfig.verifierModel;
+
   // Resolve verifier for display (only if verify is enabled)
-  const verifier = (!options.noVerify && (options.verifierModel || options.verifierBackend)) 
+  const verifier = (!options.noVerify && (effectiveVerifierModel || effectiveVerifierBackend)) 
     ? resolveBackendModel({
-        explicitBackend: options.verifierBackend,
-        explicitModel: options.verifierModel,
+        explicitBackend: effectiveVerifierBackend,
+        explicitModel: effectiveVerifierModel,
         fallbackBackend: judge.backend,
         fallbackModel: judge.model,  // Verifier follows judge unless explicitly overridden
         globalConfig,
       })
     : { backend: judge.backend, model: judge.model };
 
+  // Merge CLI with config for revision (CLI > config > verifier)
+  const effectiveRevisionBackend = options.revisionBackend ?? deepConfig.revisionBackend;
+  const effectiveRevisionModel = options.revisionModel ?? deepConfig.revisionModel;
+
   // Resolve revision for display (falls back to verifier if not specified)
-  const revision = (!options.noVerify && (options.revisionModel || options.revisionBackend))
+  const revision = (!options.noVerify && (effectiveRevisionModel || effectiveRevisionBackend))
     ? resolveBackendModel({
-        explicitBackend: options.revisionBackend,
-        explicitModel: options.revisionModel,
+        explicitBackend: effectiveRevisionBackend,
+        explicitModel: effectiveRevisionModel,
         fallbackBackend: verifier.backend,
         fallbackModel: verifier.model,
         globalConfig,
@@ -255,15 +273,15 @@ export async function handleDeep(
     categories: options.categories,
     modules: options.modules,
     cwd: process.cwd(),
-    // Per-stage overrides
+    // Per-stage overrides (CLI > config > defaults)
     solverBackends: solverBackendsResult.backends,
     solverModel: options.solverModel,
-    judgeBackend: options.judgeBackend,
-    judgeModel: options.judgeModel,
-    verifierBackend: options.verifierBackend,
-    verifierModel: options.verifierModel,
-    revisionBackend: options.revisionBackend,
-    revisionModel: options.revisionModel,
+    judgeBackend: effectiveJudgeBackend,
+    judgeModel: effectiveJudgeModel,
+    verifierBackend: effectiveVerifierBackend,
+    verifierModel: effectiveVerifierModel,
+    revisionBackend: effectiveRevisionBackend,
+    revisionModel: effectiveRevisionModel,
   })) {
     await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model, verifier.backend, verifier.model, revision.backend, revision.model, formatterState);
 
