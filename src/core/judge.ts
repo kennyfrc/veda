@@ -44,8 +44,9 @@ export async function runJudge(args: {
   originalTask?: string;
   onMessage?: (msg: Message) => void;
   format?: JudgeFormat;
+  seed?: string;
 }): Promise<JudgeResult> {
-  const { backend, model, systemPrompt, reasoning, sandbox, cwd, candidates, originalTask, onMessage, format = XML_JUDGE_FORMAT } = args;
+  const { backend, model, systemPrompt, reasoning, sandbox, cwd, candidates, originalTask, onMessage, format = XML_JUDGE_FORMAT, seed } = args;
 
   if (candidates.length === 0) {
     return {
@@ -67,7 +68,7 @@ export async function runJudge(args: {
     };
   }
 
-  const { indexMapping } = shuffleCandidates(candidates);
+  const { indexMapping } = shuffleCandidates(candidates, seed);
 
   const prompt = format.format(candidates, indexMapping, originalTask);
 

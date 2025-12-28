@@ -165,8 +165,10 @@ export interface DeepThinkTrace {
     }>;
   };
   judge: {
-    selectedIndex: number;
+    selectedIndex: number;  // Original index in successful candidates array
+    selectedDisplayIndex: number;  // Display index (1-indexed) as shown to user and judge
     confidence: number;
+    consensusAnalysis?: string;
     reasoning?: string;
   };
   verify?: {
@@ -193,6 +195,7 @@ export interface DeepThinkEvent {
   confidence?: number;
   selectedIndex?: number;  // For 'selected' event: which candidate was selected (0-indexed)
   reasoning?: string;  // For 'selected' event: judge's reasoning for the selection
+  consensusAnalysis?: string; // For 'selected' event: judge's consensus analysis
   usage?: UsageStats;
   result?: DeepThinkResult;
 }
@@ -214,6 +217,7 @@ export interface RunJudgeSelectionResult {
   selected: string;
   confidence: number;
   selectedIndex: number;
+  consensusAnalysis?: string;
   reasoning?: string;
   usage: UsageStats;
   sessionId?: string;
@@ -509,6 +513,7 @@ export async function runJudgeSelection(
     selected: result.selected,
     confidence: result.decision.confidence,
     selectedIndex: result.decision.selectedIndex,
+    consensusAnalysis: result.decision.consensusAnalysis,
     reasoning: result.decision.reasoning,
     usage: result.usage,
     sessionId: result.sessionId,
@@ -605,7 +610,7 @@ export async function* runDeepThink(
         context: solver.context,
         options: traceOptions,
         solve: { candidates: [] },
-        judge: { selectedIndex: 0, confidence: 0 },
+        judge: { selectedIndex: 0, selectedDisplayIndex: 0, confidence: 0 },
       };
 
       // Step 3: Run solver ensemble
@@ -699,7 +704,7 @@ export async function* runDeepThink(
           const meta = solverMetaMap.get(output.id);
           const errorMsg = errors[0] ?? exceptionError ?? 'Unknown error';
           const context = meta 
-            ? `[solver-${meta.index}-${meta.backend}-${meta.model}-${meta.module}]`
+            ? `[solver-${meta.index + 1}:${meta.backend}:${meta.model}:${meta.module}]`
             : `[${output.id}]`;
           console.error(`${c.yellow('[warning]')} ${context} Solver failed: ${errorMsg}`);
         }
@@ -757,6 +762,7 @@ export async function* runDeepThink(
         cwd: judge.cwd,
         candidates: ensembleResult.successful,
         originalTask: prompt,
+        seed: `${prompt}-${Date.now()}`, // Salt the seed with timestamp to prevent simple predictability
         onMessage: (msg: Message) => {
           const judgeId = formatMemberId({
             type: 'judge',
@@ -781,13 +787,20 @@ export async function* runDeepThink(
       });
       usages.push(judgeResult.usage);
 
+      // Find the display index (what the judge saw and referenced in its reasoning)
+      const selectedDisplayIdx = judgeResult.indexMapping.findIndex(
+        origIdx => origIdx === judgeResult.decision.selectedIndex
+      );
+
       // Map successful index to outputs index for correct trace reference
       trace.judge.selectedIndex = successfulToOutputsMap.get(judgeResult.decision.selectedIndex) ?? 0;
+      trace.judge.selectedDisplayIndex = selectedDisplayIdx + 1;  // 1-indexed for user clarity
       trace.judge.confidence = judgeResult.decision.confidence;
+      trace.judge.consensusAnalysis = judgeResult.decision.consensusAnalysis;
       trace.judge.reasoning = judgeResult.decision.reasoning;
 
-      // Emit candidate summary events in the same order the judge saw them (shuffled)
-      // This ensures candidate numbers in the judge's reasoning match the displayed order
+      // Emit candidate summary events in the SAME shuffled order the judge sees
+      // This ensures candidate numbers in the judge's reasoning match what the user sees
       for (let displayIdx = 0; displayIdx < judgeResult.indexMapping.length; displayIdx++) {
         const originalIdx = judgeResult.indexMapping[displayIdx];
         queue.push({
@@ -797,7 +810,8 @@ export async function* runDeepThink(
         });
       }
 
-      // Find the display index (what the judge saw) for the selected candidate
+      // Find the display index (what the judge saw and referenced in its reasoning)
+      // This is the number the user should see to match the judge's output
       const selectedDisplayIndex = judgeResult.indexMapping.findIndex(
         origIdx => origIdx === judgeResult.decision.selectedIndex
       );
@@ -807,8 +821,9 @@ export async function* runDeepThink(
         stage: 'solve',
         content: judgeResult.selected,
         confidence: judgeResult.decision.confidence,
-        selectedIndex: selectedDisplayIndex >= 0 ? selectedDisplayIndex : judgeResult.decision.selectedIndex,
+        selectedIndex: selectedDisplayIndex >= 0 ? selectedDisplayIndex : 0,
         reasoning: judgeResult.decision.reasoning,
+        consensusAnalysis: judgeResult.decision.consensusAnalysis,
       });
 
       queue.push({

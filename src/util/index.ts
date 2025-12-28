@@ -32,6 +32,7 @@ export {
   formatCandidateContent,
   formatSelection,
   formatJudgeReasoning,
+  formatConsensusAnalysis,
   formatRevision,
   humanizeTokens,
   formatUsageCompact,

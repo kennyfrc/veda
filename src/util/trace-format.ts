@@ -80,7 +80,8 @@ export function formatPhaseSummary(message: string): string {
 
 /**
  * Format a solver tool event for streaming display.
- * Example: "[solver:0:codex:gpt-5.2:analytical] → shell: rg -n "test""
+ * Example: "[solver-1:codex:gpt-5.2:analytical] → shell: rg -n "test""
+ * Note: solverIndex is 0-based internally, but displayed as 1-based for user clarity.
  */
 export function formatSolverToolEvent(
   solverIndex: number,
@@ -93,12 +94,13 @@ export function formatSolverToolEvent(
   const { symbols } = FORMAT_CONFIG;
   const toolContent = formatToolStart(toolName, toolInput);
   const safeModule = module?.trim() ? module : 'unknown';
-  return c.dim(`  [solver:${solverIndex}:${backend}:${model}:${safeModule}] ${symbols.arrow} ${toolContent}`);
+  return c.dim(`  [solver-${solverIndex + 1}:${backend}:${model}:${safeModule}] ${symbols.arrow} ${toolContent}`);
 }
 
 /**
  * Format solver completion summary.
- * Example: "[solver:0:codex:gpt-5.2:analytical] → done (683 out)"
+ * Example: "[solver-1:codex:gpt-5.2:analytical] → done (683 out)"
+ * Note: solverIndex is 0-based internally, but displayed as 1-based for user clarity.
  */
 export function formatSolverComplete(
   solverIndex: number,
@@ -110,7 +112,7 @@ export function formatSolverComplete(
   const { symbols } = FORMAT_CONFIG;
   const tokenSuffix = outputTokens !== undefined ? ` (${outputTokens} out)` : '';
   const safeModule = module?.trim() ? module : 'unknown';
-  return c.dim(`  [solver:${solverIndex}:${backend}:${model}:${safeModule}] ${symbols.arrow} done${tokenSuffix}`);
+  return c.dim(`  [solver-${solverIndex + 1}:${backend}:${model}:${safeModule}] ${symbols.arrow} done${tokenSuffix}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -216,6 +218,13 @@ export function formatSelection(
  */
 export function formatJudgeReasoning(reasoning: string): string {
   return c.dim(`  reason: ${reasoning}`);
+}
+
+/**
+ * Format judge consensus analysis.
+ */
+export function formatConsensusAnalysis(analysis: string): string {
+  return c.dim(`  consensus: ${analysis}`);
 }
 
 /**

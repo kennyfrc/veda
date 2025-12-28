@@ -15,13 +15,12 @@ import {
   formatToolStart as formatToolStartNew,
   formatCandidateSeparator,
   formatCandidateContent,
-  formatSelection,
-  formatJudgeReasoning,
   formatRevision,
   formatStageUsage,
   formatFinalSeparator,
   formatCompletionStatus,
   formatFinalTokens,
+  FORMAT_CONFIG,
   type FormatterState,
 } from '../util';
 
@@ -380,9 +379,32 @@ async function handleEvent(
     }
 
     case 'selected': {
-      console.error(formatSelection(event.selectedIndex ?? 0, event.confidence ?? 0));
+      // Add visual separation between candidates and judge decision
+      // Use the same separator style as candidates for consistency
+      const { symbols } = FORMAT_CONFIG;
+      const label = 'decision';
+      const dashes = symbols.separator.repeat(Math.max(0, FORMAT_CONFIG.lineWidth - label.length - 4));
+      console.error('');
+      console.error(c.dim(`  ${label} ${dashes}`));
+      console.error('');
+      
+      if (event.consensusAnalysis) {
+        console.error(c.cyan('  consensus:'));
+        const lines = event.consensusAnalysis.split('\n');
+        for (const line of lines) {
+          console.error(c.dim(`    ${line}`));
+        }
+      }
+      
+      const pct = ((event.confidence ?? 0) * 100).toFixed(0);
+      console.error(c.cyan('  selected:') + c.green(` #${(event.selectedIndex ?? 0) + 1}`) + c.dim(` (${pct}% confidence)`));
+      
       if (event.reasoning) {
-        console.error(formatJudgeReasoning(event.reasoning));
+        console.error(c.cyan('  rationale:'));
+        const lines = event.reasoning.split('\n');
+        for (const line of lines) {
+          console.error(c.dim(`    ${line}`));
+        }
       }
       break;
     }
@@ -541,7 +563,9 @@ async function writeTrace(path: string, result: DeepThinkResult): Promise<void> 
     },
     judge: {
       selected_index: trace.judge.selectedIndex,
+      selected_display_index: trace.judge.selectedDisplayIndex,
       confidence: trace.judge.confidence,
+      ...(trace.judge.consensusAnalysis && { consensus_analysis: trace.judge.consensusAnalysis }),
       ...(trace.judge.reasoning && { reasoning: trace.judge.reasoning }),
     },
     ...(trace.verify && {
