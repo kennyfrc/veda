@@ -216,6 +216,9 @@ export interface DeepThinkEvent {
   selectedIndex?: number;  // For 'selected' event: which candidate was selected (0-indexed)
   reasoning?: string;  // For 'selected' event: judge's reasoning for the selection
   consensusAnalysis?: string; // For 'selected' event: judge's consensus analysis
+  // Selected solver metadata (for 'selected' event)
+  selectedMember?: { backend: string; model: string; index: number };
+  selectedModule?: { category: string; name: string; prompt: string }
   usage?: UsageStats;
   result?: DeepThinkResult;
   // Verification-specific fields
@@ -873,6 +876,13 @@ export async function* runDeepThink(
       const selectedDisplayIndex = judgeResult.indexMapping.findIndex(
         origIdx => origIdx === judgeResult.decision.selectedIndex
       );
+
+      // Look up selected solver metadata for display
+      const selectedOriginalIdx = judgeResult.decision.selectedIndex;
+      const selectedOutputsIdx = successfulToOutputsMap.get(selectedOriginalIdx) ?? 0;
+      const selectedModule = modules[selectedOutputsIdx];
+      const selectedMemberId = ensembleResult.outputs[selectedOutputsIdx]?.id;
+      const selectedMeta = selectedMemberId ? solverMetaMap.get(selectedMemberId) : undefined;
       
       queue.push({
         type: 'selected',
@@ -882,6 +892,16 @@ export async function* runDeepThink(
         selectedIndex: selectedDisplayIndex >= 0 ? selectedDisplayIndex : 0,
         reasoning: judgeResult.decision.reasoning,
         consensusAnalysis: judgeResult.decision.consensusAnalysis,
+        selectedMember: selectedMeta ? {
+          backend: selectedMeta.backend,
+          model: selectedMeta.model,
+          index: selectedMeta.index,
+        } : undefined,
+        selectedModule: selectedModule ? {
+          category: selectedModule.category,
+          name: selectedModule.name,
+          prompt: selectedModule.prompt,
+        } : undefined,
       });
 
       queue.push({

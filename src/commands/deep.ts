@@ -445,11 +445,34 @@ async function handleEvent(
           console.error(c.dim(`    ${line}`));
         }
       }
+
+      // Newline before selected
+      console.error('');
+      console.error(c.cyan('  selected:'));
       
+      // Candidate number
+      console.error(c.green(`    Candidate #${(event.selectedIndex ?? 0) + 1}`));
+      
+      // Member ID line (solver-N:backend:model:category)
+      if (event.selectedMember) {
+        const m = event.selectedMember;
+        const category = event.selectedModule?.category ?? 'unknown';
+        console.error(c.dim(`    [solver-${m.index + 1}:${m.backend}:${m.model}:${category}]`));
+      }
+      
+      // Module prompt line
+      if (event.selectedModule) {
+        const mod = event.selectedModule;
+        console.error(c.dim(`    Reasoning Module: ${mod.category} - "${mod.prompt}"`));
+      }
+      
+      // Confidence
       const pct = ((event.confidence ?? 0) * 100).toFixed(0);
-      console.error(c.cyan('  selected:') + c.green(` #${(event.selectedIndex ?? 0) + 1}`) + c.dim(` (${pct}% confidence)`));
-      
+      console.error(c.dim(`    (${pct}% confidence)`));
+
+      // Newline before rationale
       if (event.reasoning) {
+        console.error('');
         console.error(c.cyan('  rationale:'));
         const lines = event.reasoning.split('\n');
         for (const line of lines) {
