@@ -713,19 +713,20 @@ export async function* runDeepThink(
       for (let i = 0; i < modules.length; i++) {
         const backend = solver.backends[i % solver.backends.length];
         const model = solver.backendModels.get(backend) ?? solver.model;
+        const moduleSpec = `${modules[i].category}/${modules[i].id}`;
         const memberId = formatMemberId({
           type: 'solver',
           backend,
           model: model ?? 'unknown',
           index: i,
-          module: modules[i].category,
+          module: moduleSpec,
         });
         solverMetaMap.set(memberId, {
           type: 'solver',
           backend,
           model: model ?? 'unknown',
           index: i,
-          module: modules[i].category,
+          module: moduleSpec,
           id: memberId,
         });
       }
