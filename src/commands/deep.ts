@@ -453,17 +453,20 @@ async function handleEvent(
       // Candidate number
       console.error(c.green(`    Candidate #${(event.selectedIndex ?? 0) + 1}`));
       
-      // Member ID line (solver-N:backend:model:category)
+      // Member ID line (solver-N:backend:model:category/module_id)
       if (event.selectedMember) {
         const m = event.selectedMember;
-        const category = event.selectedModule?.category ?? 'unknown';
-        console.error(c.dim(`    [solver-${m.index + 1}:${m.backend}:${m.model}:${category}]`));
+        const moduleSpec = event.selectedModule 
+          ? `${event.selectedModule.category}/${event.selectedModule.id}`
+          : 'unknown';
+        console.error(c.dim(`    [solver-${m.index + 1}:${m.backend}:${m.model}:${moduleSpec}]`));
       }
       
-      // Module prompt line
+      // Module details line
       if (event.selectedModule) {
         const mod = event.selectedModule;
-        console.error(c.dim(`    Reasoning Module: ${mod.category} - "${mod.prompt}"`));
+        console.error(c.dim(`    Module: ${mod.name}`));
+        console.error(c.dim(`    Prompt: "${mod.prompt}"`));
       }
       
       // Confidence

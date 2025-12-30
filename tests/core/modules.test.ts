@@ -11,17 +11,19 @@ import {
 
 describe('Reasoning Modules', () => {
   describe('catalog', () => {
-    test('has 32 modules (8 categories × 4)', () => {
-      expect(REASONING_MODULES.length).toBe(32);
+    test('has 33 modules across 8 categories', () => {
+      expect(REASONING_MODULES.length).toBe(33);
     });
 
     test('has 8 categories', () => {
       expect(ALL_CATEGORIES.length).toBe(8);
     });
 
-    test('each category has 4 modules', () => {
+    test('each category has 3-5 modules', () => {
       for (const cat of ALL_CATEGORIES) {
-        expect(MODULES_BY_CATEGORY[cat].length).toBe(4);
+        const count = MODULES_BY_CATEGORY[cat].length;
+        expect(count).toBeGreaterThanOrEqual(3);
+        expect(count).toBeLessThanOrEqual(5);
       }
     });
 
@@ -63,12 +65,12 @@ describe('Reasoning Modules', () => {
     test('exact modules: uses specified modules', () => {
       const result = selectModules({
         k: 5, // ignored
-        modules: ['critical_thinking', 'step_by_step'],
+        modules: ['critical_thinking', 'issue_tree'],
       });
       
       expect(result.length).toBe(2);
       expect(result[0].id).toBe('critical_thinking');
-      expect(result[1].id).toBe('step_by_step');
+      expect(result[1].id).toBe('issue_tree');
     });
 
     test('exact modules: errors on unknown module', () => {
@@ -83,6 +85,64 @@ describe('Reasoning Modules', () => {
         k: 1,
         modules: ['critical_thinking', 'assumption_analysis'], // both analytical
       })).toThrow(/Duplicate category/);
+    });
+
+    test('category/module format: exact module selection', () => {
+      const result = selectModules({
+        k: 3,
+        modules: ['analytical/so_what_test', 'creative/invert_the_problem'],
+      });
+      
+      expect(result.length).toBe(2);
+      expect(result[0].id).toBe('so_what_test');
+      expect(result[0].category).toBe('analytical');
+      expect(result[1].id).toBe('invert_the_problem');
+      expect(result[1].category).toBe('creative');
+    });
+
+    test('category/module format: random from category', () => {
+      const result = selectModules({
+        k: 3,
+        modules: ['analytical', 'creative', 'systematic'],
+      });
+      
+      expect(result.length).toBe(3);
+      expect(result.some(m => m.category === 'analytical')).toBe(true);
+      expect(result.some(m => m.category === 'creative')).toBe(true);
+      expect(result.some(m => m.category === 'systematic')).toBe(true);
+    });
+
+    test('category/module format: mixed exact and random', () => {
+      const result = selectModules({
+        k: 3,
+        modules: ['analytical/so_what_test', 'creative', 'systematic/mece_decomposition'],
+      });
+      
+      expect(result.length).toBe(3);
+      expect(result[0].id).toBe('so_what_test');
+      expect(result[1].category).toBe('creative'); // random from creative
+      expect(result[2].id).toBe('mece_decomposition');
+    });
+
+    test('category/module format: errors on wrong category', () => {
+      expect(() => selectModules({
+        k: 1,
+        modules: ['analytical/invert_the_problem'], // invert_the_problem is creative
+      })).toThrow(/belongs to 'creative', not 'analytical'/);
+    });
+
+    test('category/module format: errors on unknown category', () => {
+      expect(() => selectModules({
+        k: 1,
+        modules: ['unknown_category/some_module'],
+      })).toThrow(/Unknown category 'unknown_category'/);
+    });
+
+    test('category/module format: errors on unknown module in category', () => {
+      expect(() => selectModules({
+        k: 1,
+        modules: ['analytical/unknown_module'],
+      })).toThrow(/Unknown module 'unknown_module' in category 'analytical'/);
     });
 
     test('categories: distributes k across specified categories', () => {
@@ -141,7 +201,7 @@ describe('Reasoning Modules', () => {
 describe('ModuleRegistry (additive design)', () => {
   test('creates default registry from DEFAULT_MODULES', () => {
     const registry = createModuleRegistry();
-    expect(registry.modules.length).toBe(32);
+    expect(registry.modules.length).toBe(33);
     expect(registry.allCategories.length).toBe(8);
   });
 
@@ -271,7 +331,7 @@ describe('ModuleRegistry (additive design)', () => {
   });
 
   test('DEFAULT_REGISTRY is a singleton using DEFAULT_MODULES', () => {
-    expect(DEFAULT_REGISTRY.modules).toHaveLength(32);
+    expect(DEFAULT_REGISTRY.modules).toHaveLength(33);
     expect(DEFAULT_REGISTRY.allCategories).toHaveLength(8);
 
     // Verify backward compatibility aliases work

@@ -218,7 +218,7 @@ export interface DeepThinkEvent {
   consensusAnalysis?: string; // For 'selected' event: judge's consensus analysis
   // Selected solver metadata (for 'selected' event)
   selectedMember?: { backend: string; model: string; index: number };
-  selectedModule?: { category: string; name: string; prompt: string }
+  selectedModule?: { id: string; category: string; name: string; prompt: string }
   usage?: UsageStats;
   result?: DeepThinkResult;
   // Verification-specific fields
@@ -504,7 +504,7 @@ export async function runSolverEnsemble(
       backend,
       model: model ?? 'unknown',
       index: i,
-      module: module.category,
+      module: `${module.category}/${module.id}`,
     });
     return {
       id: memberId,
@@ -691,7 +691,7 @@ export async function* runDeepThink(
           backend,
           model: model ?? 'unknown',
           index: i,
-          module: module.category,
+          module: `${module.category}/${module.id}`,
         });
         return {
           id: memberId,
@@ -898,6 +898,7 @@ export async function* runDeepThink(
           index: selectedMeta.index,
         } : undefined,
         selectedModule: selectedModule ? {
+          id: selectedModule.id,
           category: selectedModule.category,
           name: selectedModule.name,
           prompt: selectedModule.prompt,

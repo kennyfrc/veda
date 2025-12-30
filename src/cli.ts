@@ -309,7 +309,9 @@ Options:
   --deep, -d              Enable deep thinking mode
   -k <num>                Number of parallel solvers (default: 4, max: 8)
   --categories <list>     Reasoning categories (comma-separated)
-  --modules <list>        Exact reasoning modules (comma-separated)
+  --modules <list>        Module specifiers (comma-separated)
+                          Formats: category/module, category (random), module_id
+                          Example: analytical/so_what_test,creative,systematic
   --no-verify             Skip verification in deep mode
   --force-verify          Run verification even with high confidence (≥70%)
   --trace <file>          Save trace to YAML file (deep mode)

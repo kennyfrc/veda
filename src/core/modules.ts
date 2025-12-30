@@ -29,206 +29,221 @@ export interface SelectModulesOptions {
   registry?: ModuleRegistry; // Optional custom registry
 }
 
-// Default module catalog - 32 modules across 8 categories
+// Default module catalog - 33 modules across 8 categories
+// Sources: Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", McKinsey frameworks
 const DEFAULT_MODULES: ReasoningModule[] = [
+  // === ANALYTICAL (5) ===
   {
     id: 'critical_thinking',
     category: 'analytical',
     name: 'Critical Thinking',
-    prompt: 'Use critical thinking: Analyze from different perspectives, question assumptions, evaluate evidence, and identify potential biases or flaws in reasoning.',
+    prompt: 'Analyze from multiple angles: question assumptions, evaluate evidence, and identify potential biases or flaws in reasoning.',
   },
   {
     id: 'assumption_analysis',
     category: 'analytical',
     name: 'Assumption Analysis',
-    prompt: 'Identify and examine the key assumptions underlying this problem. What must be true for this to work?',
+    prompt: 'Identify and examine the key assumptions underlying this problem. What must be true for any solution to work?',
   },
   {
     id: 'causal_analysis',
     category: 'analytical',
     name: 'Causal Analysis',
-    prompt: 'Analyze the underlying causes and factors contributing to this problem. What is driving this?',
+    prompt: 'Trace the causal chain: What is driving this problem? Keep asking "why" until you reach root causes.',
   },
   {
-    id: 'core_issue',
+    id: 'so_what_test',
     category: 'analytical',
-    name: 'Core Issue Identification',
-    prompt: 'Cut through complexity to identify the core issue that needs to be addressed. What is the real problem here?',
+    name: 'So What Test',
+    prompt: 'For each observation, ask "So what?" Push every insight to its actionable implication. No finding without consequence.',
+  },
+  {
+    id: 'eighty_twenty_focus',
+    category: 'analytical',
+    name: '80/20 Focus',
+    prompt: 'Identify the vital few factors that drive most of the outcome. Focus on high-leverage areas; deprioritize the trivial many.',
   },
 
+  // === CREATIVE (5) ===
   {
     id: 'creative_thinking',
     category: 'creative',
     name: 'Creative Thinking',
-    prompt: 'Use creative thinking: Generate innovative, out-of-the-box ideas. Explore unconventional solutions beyond traditional boundaries.',
+    prompt: 'Generate innovative, out-of-the-box ideas. Explore unconventional solutions beyond traditional boundaries.',
   },
   {
     id: 'novel_solution',
     category: 'creative',
-    name: 'Novel Solution',
-    prompt: 'Ignoring any existing solutions, create an entirely new approach to this problem from first principles.',
+    name: 'First Principles',
+    prompt: 'Ignore existing solutions. Rebuild the solution from first principles—what would you design if starting from scratch?',
   },
   {
     id: 'radical_rethinking',
     category: 'creative',
     name: 'Radical Rethinking',
-    prompt: 'Imagine the obvious solution is completely wrong. What other ways are there to think about this problem?',
+    prompt: 'Assume the obvious solution is wrong. What completely different approaches exist? Challenge the problem framing itself.',
   },
   {
     id: 'alternative_perspectives',
     category: 'creative',
     name: 'Alternative Perspectives',
-    prompt: 'Consider alternative perspectives and viewpoints. How would different stakeholders or experts see this problem?',
+    prompt: 'View this through different lenses: How would a beginner see it? An expert in another field? A critic? A user?',
+  },
+  {
+    id: 'invert_the_problem',
+    category: 'creative',
+    name: 'Invert the Problem',
+    prompt: 'Flip it around: Instead of solving X, ask what would make X impossible? What is the opposite of X? Solve that instead.',
   },
 
+  // === SYSTEMATIC (5) ===
   {
-    id: 'problem_decomposition',
+    id: 'mece_decomposition',
     category: 'systematic',
-    name: 'Problem Decomposition',
-    prompt: 'Break down this problem into smaller, more manageable parts. Solve each part systematically.',
+    name: 'MECE Decomposition',
+    prompt: 'Divide this problem into parts that are mutually exclusive (no overlap) and collectively exhaustive (no gaps). Cover every possibility exactly once.',
   },
   {
-    id: 'step_by_step',
+    id: 'issue_tree',
     category: 'systematic',
-    name: 'Step by Step',
-    prompt: 'Think step by step, showing your reasoning clearly at each stage.',
+    name: 'Issue Tree',
+    prompt: 'Build a logic tree: break the main question into sub-questions, each sub-question into components. Solve the leaves, then synthesize upward.',
   },
   {
-    id: 'simplification',
+    id: 'vary_the_problem',
     category: 'systematic',
-    name: 'Simplification',
-    prompt: 'How can this problem be simplified to make it easier to solve? Remove unnecessary complexity.',
+    name: 'Vary the Problem',
+    prompt: 'Modify the problem: make it more general, more specific, or change one constraint. Solve the variant, then transfer insights back.',
   },
   {
     id: 'systems_thinking',
     category: 'systematic',
     name: 'Systems Thinking',
-    prompt: 'Consider this problem as part of a larger system. Identify interconnections, feedback loops, and dependencies.',
+    prompt: 'Map this problem within its larger system. Identify interconnections, feedback loops, second-order effects, and dependencies.',
+  },
+  {
+    id: 'working_backward',
+    category: 'systematic',
+    name: 'Working Backward',
+    prompt: 'Start from the desired end state. What must be true immediately before the goal is achieved? Work backward step by step to the current state.',
   },
 
+  // === STRATEGIC (5) ===
+  {
+    id: 'hypothesis_first',
+    category: 'strategic',
+    name: 'Hypothesis First',
+    prompt: 'State a clear hypothesis about the answer before deep analysis. Use it to focus reasoning, then confirm or revise based on evidence.',
+  },
+  {
+    id: 'analogical_transfer',
+    category: 'strategic',
+    name: 'Analogical Transfer',
+    prompt: 'Identify a similar solved problem in any domain. Extract its method or structure and adapt it to this problem.',
+  },
   {
     id: 'iterative_solving',
     category: 'strategic',
     name: 'Iterative Solving',
-    prompt: 'Generate multiple solution ideas, then apply them one by one to see which makes progress.',
-  },
-  {
-    id: 'typical_solutions',
-    category: 'strategic',
-    name: 'Typical Solutions',
-    prompt: 'What solutions are typically produced for this kind of problem? Start from established patterns.',
+    prompt: 'Generate multiple candidate solutions. Test each against the problem constraints. Refine the most promising one.',
   },
   {
     id: 'solution_modification',
     category: 'strategic',
     name: 'Solution Modification',
-    prompt: 'Given what you know about this problem type, what is the best way to modify or improve an initial solution?',
+    prompt: 'Take a partial or flawed solution. What minimal modifications would fix its weaknesses while preserving its strengths?',
   },
   {
     id: 'planning',
     category: 'strategic',
     name: 'Planning',
-    prompt: 'Create a step-by-step plan before implementing. Structure your approach with clear milestones.',
+    prompt: 'Create a structured plan before solving: define milestones, sequence steps logically, identify dependencies between steps.',
   },
 
+  // === EVALUATIVE (4) ===
   {
     id: 'risk_assessment',
     category: 'evaluative',
     name: 'Risk Assessment',
-    prompt: 'What are the potential risks and drawbacks of each solution? What could go wrong?',
-  },
-  {
-    id: 'obstacle_identification',
-    category: 'evaluative',
-    name: 'Obstacle Identification',
-    prompt: 'What obstacles or challenges might arise in solving this problem? Plan for them.',
+    prompt: 'What could go wrong? Identify failure modes, edge cases, and potential unintended consequences of each approach.',
   },
   {
     id: 'tradeoff_analysis',
     category: 'evaluative',
     name: 'Tradeoff Analysis',
-    prompt: 'Evaluate the tradeoffs between different approaches. What do you gain and lose with each option?',
+    prompt: 'Evaluate tradeoffs explicitly: What do you gain and lose with each option? What is the cost of being wrong?',
+  },
+  {
+    id: 'check_completeness',
+    category: 'evaluative',
+    name: 'Check Completeness',
+    prompt: 'Verify: Have you used all the given information? Have you addressed the entire problem? What remains unaccounted for?',
   },
   {
     id: 'long_term_implications',
     category: 'evaluative',
     name: 'Long-term Implications',
-    prompt: 'Consider the long-term implications of this problem and its solutions. What happens over time?',
+    prompt: 'Project forward: What happens over time? Will this solution scale? What maintenance or evolution will it require?',
   },
 
+  // === CONTEXTUAL (3) ===
   {
     id: 'stakeholder_analysis',
     category: 'contextual',
     name: 'Stakeholder Analysis',
-    prompt: 'Who is affected by this problem? What are their perspectives and needs?',
+    prompt: 'Who is affected by this problem and solution? What are their needs, incentives, and potential objections?',
   },
   {
-    id: 'resource_analysis',
+    id: 'resource_constraints',
     category: 'contextual',
-    name: 'Resource Analysis',
-    prompt: 'What resources (time, money, people, technology) are needed? What constraints exist?',
-  },
-  {
-    id: 'constraints',
-    category: 'contextual',
-    name: 'Constraints',
-    prompt: 'What physical, technical, or organizational constraints apply to this problem?',
+    name: 'Resource & Constraints',
+    prompt: 'Map available resources (time, budget, skills, tools) against constraints (technical, organizational, physical). What boundaries shape the solution space?',
   },
   {
     id: 'behavioral_factors',
     category: 'contextual',
     name: 'Behavioral Factors',
-    prompt: 'Are there human behavioral factors (social, cultural, psychological) that affect this problem?',
+    prompt: 'What human factors affect this problem? Consider habits, incentives, cognitive biases, and social dynamics.',
   },
 
+  // === EMPIRICAL (3) ===
   {
     id: 'experimental_design',
     category: 'empirical',
     name: 'Experimental Design',
-    prompt: 'How could you devise an experiment or test to validate your solution?',
+    prompt: 'How would you test this solution? Design a concrete experiment or validation that would prove or disprove it works.',
   },
   {
     id: 'historical_analysis',
     category: 'empirical',
     name: 'Historical Analysis',
-    prompt: 'Have similar solutions been tried before? What were the outcomes and lessons learned?',
+    prompt: 'What similar problems have been solved before? Extract patterns from prior solutions and their outcomes.',
   },
   {
-    id: 'data_analysis',
+    id: 'data_driven',
     category: 'empirical',
-    name: 'Data Analysis',
-    prompt: 'What data or evidence can provide insights? How should it be analyzed?',
-  },
-  {
-    id: 'progress_measurement',
-    category: 'empirical',
-    name: 'Progress Measurement',
-    prompt: 'How can progress toward solving this problem be measured? What metrics matter?',
+    name: 'Data-Driven Analysis',
+    prompt: 'What data or evidence bears on this problem? Identify key metrics, analyze patterns, and let evidence guide conclusions.',
   },
 
+  // === REFLECTIVE (3) ===
   {
     id: 'reflective_thinking',
     category: 'reflective',
     name: 'Reflective Thinking',
-    prompt: 'Step back and examine your own reasoning. What biases or assumptions might be influencing your approach?',
+    prompt: 'Step back and examine your reasoning process. Where might you be wrong? What are you not seeing?',
   },
   {
-    id: 'success_metrics',
+    id: 'success_criteria',
     category: 'reflective',
-    name: 'Success Metrics',
-    prompt: 'How will you know if the solution is successful? Define clear success criteria.',
+    name: 'Success Criteria',
+    prompt: 'Define what success looks like concretely. What specific outcomes would indicate the problem is solved?',
   },
   {
-    id: 'decision_making',
+    id: 'decision_under_uncertainty',
     category: 'reflective',
-    name: 'Decision Making',
-    prompt: 'This involves decision-making under uncertainty. How should you handle competing objectives?',
-  },
-  {
-    id: 'collaborative_thinking',
-    category: 'reflective',
-    name: 'Collaborative Thinking',
-    prompt: 'Consider diverse perspectives and expertise. What would different experts contribute?',
+    name: 'Decision Under Uncertainty',
+    prompt: 'Acknowledge what is unknown. How should you decide given incomplete information? What would change your mind?',
   },
 ];
 
@@ -322,6 +337,19 @@ function validateModuleIntegrity(modules: ReasoningModule[]): void {
 }
 
 
+/**
+ * Select reasoning modules for the ensemble.
+ * 
+ * Module specifiers support three formats:
+ * - `category/module_id` - exact module (e.g., "analytical/so_what_test")
+ * - `category` - random module from category (e.g., "analytical")
+ * - `module_id` - exact module by ID (legacy, e.g., "so_what_test")
+ * 
+ * Examples:
+ *   modules: ['analytical/so_what_test', 'creative', 'systematic/mece_decomposition']
+ *   modules: ['analytical', 'creative', 'systematic'] // random from each
+ *   modules: ['so_what_test', 'invert_the_problem']   // legacy exact IDs
+ */
 export function selectModules(options: SelectModulesOptions): ReasoningModule[] {
   const { k, categories, modules, registry = DEFAULT_REGISTRY } = options;
 
@@ -330,12 +358,12 @@ export function selectModules(options: SelectModulesOptions): ReasoningModule[] 
     throw new Error(`k must be between 1 and 8, got ${k}`);
   }
 
-  // Case 1: Exact modules specified
+  // Case 1: Module specifiers provided (supports category/module format)
   if (modules && modules.length > 0) {
-    return selectExactModules(modules, registry);
+    return selectFromSpecifiers(modules, registry);
   }
 
-  // Case 2: Categories specified
+  // Case 2: Categories specified (legacy, random module from each)
   if (categories && categories.length > 0) {
     return selectFromCategories(k, categories, registry);
   }
@@ -344,21 +372,94 @@ export function selectModules(options: SelectModulesOptions): ReasoningModule[] 
   return selectDefault(k, registry);
 }
 
-function selectExactModules(moduleIds: string[], registry: ModuleRegistry): ReasoningModule[] {
-  const normalized = moduleIds.map(normalizeId);
+/**
+ * Parse a module specifier into category and optional module ID.
+ * Formats:
+ * - "category/module_id" → { category, moduleId }
+ * - "category" (if valid category) → { category, moduleId: undefined }
+ * - "module_id" (legacy) → { category: undefined, moduleId }
+ */
+function parseModuleSpecifier(
+  specifier: string,
+  registry: ModuleRegistry
+): { category?: ModuleCategory; moduleId?: string } {
+  const normalized = specifier.toLowerCase().trim().replace(/-/g, '_');
+  
+  // Check for category/module format
+  if (normalized.includes('/')) {
+    const [catPart, modPart] = normalized.split('/', 2);
+    const category = catPart as ModuleCategory;
+    
+    if (!registry.allCategories.includes(category)) {
+      throw new Error(
+        `Unknown category '${catPart}' in specifier '${specifier}'. ` +
+        `Available: ${registry.allCategories.join(', ')}`
+      );
+    }
+    
+    return { category, moduleId: modPart };
+  }
+  
+  // Check if it's a valid category name (random selection from category)
+  if (registry.allCategories.includes(normalized as ModuleCategory)) {
+    return { category: normalized as ModuleCategory, moduleId: undefined };
+  }
+  
+  // Assume it's a legacy module ID
+  return { category: undefined, moduleId: normalized };
+}
+
+function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): ReasoningModule[] {
   const result: ReasoningModule[] = [];
   const seenCategories = new Set<ModuleCategory>();
 
-  for (const id of normalized) {
-    const module = registry.byId[id];
-    if (!module) {
-      throw new Error(
-        `Unknown module: ${id}. Available: ${Object.keys(registry.byId).join(', ')}. ` +
-        `Note: Custom modules must be provided via createModuleRegistry()`
-      );
+  for (const specifier of specifiers) {
+    const { category, moduleId } = parseModuleSpecifier(specifier, registry);
+    
+    let module: ReasoningModule | undefined;
+    
+    if (category && moduleId) {
+      // Exact: category/module_id format
+      module = registry.byId[moduleId];
+      if (!module) {
+        throw new Error(
+          `Unknown module '${moduleId}' in category '${category}'. ` +
+          `Available in ${category}: ${registry.byCategory[category].map(m => m.id).join(', ')}`
+        );
+      }
+      if (module.category !== category) {
+        throw new Error(
+          `Module '${moduleId}' belongs to '${module.category}', not '${category}'`
+        );
+      }
+    } else if (category) {
+      // Random from category
+      const categoryModules = registry.byCategory[category];
+      if (!categoryModules || categoryModules.length === 0) {
+        throw new Error(`No modules available in category '${category}'`);
+      }
+      const randomIndex = Math.floor(Math.random() * categoryModules.length);
+      module = categoryModules[randomIndex];
+    } else if (moduleId) {
+      // Legacy: just module ID
+      module = registry.byId[moduleId];
+      if (!module) {
+        throw new Error(
+          `Unknown module: ${moduleId}. Available: ${Object.keys(registry.byId).join(', ')}`
+        );
+      }
     }
+    
+    if (!module) {
+      throw new Error(`Invalid module specifier: ${specifier}`);
+    }
+    
+    // Check for duplicate categories
     if (seenCategories.has(module.category)) {
-      throw new Error(`Duplicate category: ${module.category}. Each solver must use a different category.`);
+      throw new Error(
+        `Duplicate category '${module.category}'. Each solver must use a different category. ` +
+        `Conflict at specifier: ${specifier}`
+      );
     }
     seenCategories.add(module.category);
     result.push(module);

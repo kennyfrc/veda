@@ -206,22 +206,28 @@ console.log(result.checks, result.results, result.revision);
 
 ### Reasoning Modules
 
-Each solver uses a different cognitive strategy from 8 categories:
+Each solver uses a different cognitive strategy from 8 categories. Modules are sourced from Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", and McKinsey problem-solving frameworks.
 
-| Category | Focus |
-|----------|-------|
-| `analytical` | Critical thinking, assumption analysis, causal reasoning |
-| `creative` | Novel solutions, alternative perspectives |
-| `systematic` | Step-by-step decomposition, simplification |
-| `strategic` | Planning, iterative solving |
-| `evaluative` | Risk assessment, tradeoff analysis |
-| `contextual` | Stakeholder analysis, constraints |
-| `empirical` | Data analysis, experimental design |
-| `reflective` | Meta-cognition, success metrics |
+| Category | Focus | Example Modules |
+|----------|-------|-----------------|
+| `analytical` | Critical thinking, root cause analysis | so_what_test, eighty_twenty_focus, causal_analysis |
+| `creative` | Novel solutions, reframing | invert_the_problem, first_principles, radical_rethinking |
+| `systematic` | Structured decomposition | mece_decomposition, issue_tree, working_backward |
+| `strategic` | Planning, hypothesis-driven | hypothesis_first, analogical_transfer, planning |
+| `evaluative` | Risk assessment, tradeoffs | risk_assessment, check_completeness, tradeoff_analysis |
+| `contextual` | Stakeholder analysis, constraints | stakeholder_analysis, resource_constraints |
+| `empirical` | Evidence-based validation | experimental_design, historical_analysis, data_driven |
+| `reflective` | Meta-cognition, success criteria | reflective_thinking, success_criteria, decision_under_uncertainty |
 
 ```bash
+# By category (random module from each)
 veda deep --categories analytical,evaluative "Should we use microservices?"
-veda deep --modules critical_thinking,step_by_step "Analyze this design"
+
+# Exact modules with category/id format
+veda deep --modules analytical/so_what_test,systematic/mece_decomposition "Analyze design"
+
+# Mix exact and random: exact analytical, random creative, exact systematic
+veda deep --modules analytical/so_what_test,creative,systematic/working_backward "Complex question"
 ```
 
 ### Backends
@@ -261,7 +267,7 @@ Options:
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
   -k <n>                 Solver count for deep mode (default: 3, max: 8)
   --categories <list>    Reasoning categories (comma-separated)
-  --modules <list>       Exact module IDs (comma-separated)
+  --modules <list>       Module specifiers: category/id, category, or id
   --no-verify            Skip verification in deep mode
   --trace <file>         Save trace to YAML file
   --no-sel               Ignore selection
