@@ -11,19 +11,19 @@ import {
 
 describe('Reasoning Modules', () => {
   describe('catalog', () => {
-    test('has 33 modules across 8 categories', () => {
-      expect(REASONING_MODULES.length).toBe(33);
+    test('has 41 modules across 8 categories', () => {
+      expect(REASONING_MODULES.length).toBe(41);
     });
 
     test('has 8 categories', () => {
       expect(ALL_CATEGORIES.length).toBe(8);
     });
 
-    test('each category has 3-5 modules', () => {
+    test('each category has 3-7 modules', () => {
       for (const cat of ALL_CATEGORIES) {
         const count = MODULES_BY_CATEGORY[cat].length;
         expect(count).toBeGreaterThanOrEqual(3);
-        expect(count).toBeLessThanOrEqual(5);
+        expect(count).toBeLessThanOrEqual(7);
       }
     });
 
@@ -41,6 +41,36 @@ describe('Reasoning Modules', () => {
       const ids = REASONING_MODULES.map(m => m.id);
       const unique = new Set(ids);
       expect(unique.size).toBe(ids.length);
+    });
+
+    test('new physics/estimation modules exist', () => {
+      expect(MODULE_BY_ID['fermi_estimation']).toBeDefined();
+      expect(MODULE_BY_ID['fermi_estimation'].category).toBe('empirical');
+      
+      expect(MODULE_BY_ID['limiting_case']).toBeDefined();
+      expect(MODULE_BY_ID['limiting_case'].category).toBe('analytical');
+      
+      expect(MODULE_BY_ID['thought_experiment']).toBeDefined();
+      expect(MODULE_BY_ID['thought_experiment'].category).toBe('creative');
+    });
+
+    test('new strategic/systems modules exist', () => {
+      expect(MODULE_BY_ID['premortem']).toBeDefined();
+      expect(MODULE_BY_ID['premortem'].category).toBe('evaluative');
+      
+      expect(MODULE_BY_ID['leverage_points']).toBeDefined();
+      expect(MODULE_BY_ID['leverage_points'].category).toBe('systematic');
+      
+      expect(MODULE_BY_ID['contradiction_resolution']).toBeDefined();
+      expect(MODULE_BY_ID['contradiction_resolution'].category).toBe('strategic');
+    });
+
+    test('debugging modules exist', () => {
+      expect(MODULE_BY_ID['binary_search_debug']).toBeDefined();
+      expect(MODULE_BY_ID['binary_search_debug'].category).toBe('empirical');
+      
+      expect(MODULE_BY_ID['simplify_the_problem']).toBeDefined();
+      expect(MODULE_BY_ID['simplify_the_problem'].category).toBe('systematic');
     });
   });
 
@@ -233,7 +263,7 @@ describe('Reasoning Modules', () => {
 describe('ModuleRegistry (additive design)', () => {
   test('creates default registry from DEFAULT_MODULES', () => {
     const registry = createModuleRegistry();
-    expect(registry.modules.length).toBe(33);
+    expect(registry.modules.length).toBe(41);
     expect(registry.allCategories.length).toBe(8);
   });
 
@@ -363,7 +393,7 @@ describe('ModuleRegistry (additive design)', () => {
   });
 
   test('DEFAULT_REGISTRY is a singleton using DEFAULT_MODULES', () => {
-    expect(DEFAULT_REGISTRY.modules).toHaveLength(33);
+    expect(DEFAULT_REGISTRY.modules).toHaveLength(41);
     expect(DEFAULT_REGISTRY.allCategories).toHaveLength(8);
 
     // Verify backward compatibility aliases work

@@ -135,19 +135,19 @@ veda -S deep-api-design deep --trace /tmp/deep-trace.yaml --no-verify "Compare R
 
 ## Reasoning Categories
 
-Deep mode uses **SELF-DISCOVER reasoning modules** to create cognitive diversity across solvers. Each solver gets a different reasoning approach. Modules are sourced from Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", and McKinsey problem-solving frameworks.
+Deep mode uses **SELF-DISCOVER reasoning modules** to create cognitive diversity across solvers. Each solver gets a different reasoning approach. Modules are sourced from Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", McKinsey problem-solving frameworks, Fermi estimation, TRIZ inventive principles, Meadows' leverage points, and Klein's premortem.
 
-**8 categories, 33 total modules (3-5 per category):**
+**8 categories, 41 total modules (3-7 per category):**
 
 | Category | Best For | Modules |
 |----------|----------|---------|
-| `analytical` | Breaking down problems, finding root causes | critical_thinking, assumption_analysis, causal_analysis, so_what_test, eighty_twenty_focus |
-| `creative` | Novel solutions, unconventional approaches | creative_thinking, novel_solution, radical_rethinking, alternative_perspectives, invert_the_problem |
-| `systematic` | Structured problem-solving, decomposition | mece_decomposition, issue_tree, vary_the_problem, systems_thinking, working_backward |
-| `strategic` | Planning, iterating on solutions | hypothesis_first, analogical_transfer, iterative_solving, solution_modification, planning |
-| `evaluative` | Risk assessment, tradeoff analysis | risk_assessment, tradeoff_analysis, check_completeness, long_term_implications |
+| `analytical` | Breaking down problems, finding root causes | critical_thinking, assumption_analysis, causal_analysis, so_what_test, eighty_twenty_focus, limiting_case |
+| `creative` | Novel solutions, unconventional approaches | creative_thinking, novel_solution, radical_rethinking, alternative_perspectives, invert_the_problem, thought_experiment |
+| `systematic` | Structured problem-solving, decomposition | mece_decomposition, issue_tree, vary_the_problem, systems_thinking, working_backward, leverage_points, simplify_the_problem |
+| `strategic` | Planning, iterating on solutions | hypothesis_first, analogical_transfer, iterative_solving, solution_modification, planning, contradiction_resolution |
+| `evaluative` | Risk assessment, tradeoff analysis | risk_assessment, tradeoff_analysis, check_completeness, long_term_implications, premortem |
 | `contextual` | Understanding constraints, stakeholders | stakeholder_analysis, resource_constraints, behavioral_factors |
-| `empirical` | Evidence-based validation, testing | experimental_design, historical_analysis, data_driven |
+| `empirical` | Evidence-based validation, testing | experimental_design, historical_analysis, data_driven, fermi_estimation, binary_search_debug |
 | `reflective` | Meta-cognition, success criteria | reflective_thinking, success_criteria, decision_under_uncertainty |
 
 ### Choosing Categories

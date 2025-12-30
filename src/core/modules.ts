@@ -29,10 +29,11 @@ export interface SelectModulesOptions {
   registry?: ModuleRegistry; // Optional custom registry
 }
 
-// Default module catalog - 33 modules across 8 categories
-// Sources: Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", McKinsey frameworks
+// Default module catalog - 41 modules across 8 categories
+// Sources: Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", McKinsey frameworks,
+//          Fermi estimation, TRIZ inventive principles, Meadows' leverage points, Klein's premortem
 const DEFAULT_MODULES: ReasoningModule[] = [
-  // === ANALYTICAL (5) ===
+  // === ANALYTICAL (6) ===
   {
     id: 'critical_thinking',
     category: 'analytical',
@@ -63,8 +64,14 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     name: '80/20 Focus',
     prompt: 'Identify the vital few factors that drive most of the outcome. Focus on high-leverage areas; deprioritize the trivial many.',
   },
+  {
+    id: 'limiting_case',
+    category: 'analytical',
+    name: 'Limiting Case Analysis',
+    prompt: 'Test your answer at extreme values: What happens when key variables go to zero, infinity, or hit boundaries? Does the solution behave correctly in these limits? Use extremes to validate or catch errors.',
+  },
 
-  // === CREATIVE (5) ===
+  // === CREATIVE (6) ===
   {
     id: 'creative_thinking',
     category: 'creative',
@@ -95,8 +102,14 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     name: 'Invert the Problem',
     prompt: 'Flip it around: Instead of solving X, ask what would make X impossible? What is the opposite of X? Solve that instead.',
   },
+  {
+    id: 'thought_experiment',
+    category: 'creative',
+    name: 'Thought Experiment',
+    prompt: 'Construct an idealized hypothetical: remove friction, assume perfect information, take a variable to an extreme. Mentally simulate the scenario step by step. What does this reveal about the real problem?',
+  },
 
-  // === SYSTEMATIC (5) ===
+  // === SYSTEMATIC (7) ===
   {
     id: 'mece_decomposition',
     category: 'systematic',
@@ -127,8 +140,20 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     name: 'Working Backward',
     prompt: 'Start from the desired end state. What must be true immediately before the goal is achieved? Work backward step by step to the current state.',
   },
+  {
+    id: 'leverage_points',
+    category: 'systematic',
+    name: 'Leverage Points',
+    prompt: 'Where would a small intervention produce disproportionately large effects? Look past obvious parameters to underlying rules, goals, and feedback structures. Find the trim tab—the small rudder that turns the big rudder.',
+  },
+  {
+    id: 'simplify_the_problem',
+    category: 'systematic',
+    name: 'Simplify the Problem',
+    prompt: 'Strip away complexity layer by layer. Remove components, reduce inputs, simplify the environment. Does the problem still occur? Find the minimal reproduction.',
+  },
 
-  // === STRATEGIC (5) ===
+  // === STRATEGIC (6) ===
   {
     id: 'hypothesis_first',
     category: 'strategic',
@@ -159,8 +184,14 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     name: 'Planning',
     prompt: 'Create a structured plan before solving: define milestones, sequence steps logically, identify dependencies between steps.',
   },
+  {
+    id: 'contradiction_resolution',
+    category: 'strategic',
+    name: 'Contradiction Resolution',
+    prompt: 'Name the core tradeoff: two desirable properties that appear mutually exclusive. Then refuse the tradeoff—find a way to have both by separating them in time, space, scale, or condition.',
+  },
 
-  // === EVALUATIVE (4) ===
+  // === EVALUATIVE (5) ===
   {
     id: 'risk_assessment',
     category: 'evaluative',
@@ -185,6 +216,12 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     name: 'Long-term Implications',
     prompt: 'Project forward: What happens over time? Will this solution scale? What maintenance or evolution will it require?',
   },
+  {
+    id: 'premortem',
+    category: 'evaluative',
+    name: 'Premortem',
+    prompt: 'It is one year later and this approach has failed completely. What went wrong? Write the postmortem now. Use this "prospective hindsight" to surface risks you would otherwise overlook.',
+  },
 
   // === CONTEXTUAL (3) ===
   {
@@ -206,7 +243,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'What human factors affect this problem? Consider habits, incentives, cognitive biases, and social dynamics.',
   },
 
-  // === EMPIRICAL (3) ===
+  // === EMPIRICAL (5) ===
   {
     id: 'experimental_design',
     category: 'empirical',
@@ -224,6 +261,18 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     category: 'empirical',
     name: 'Data-Driven Analysis',
     prompt: 'What data or evidence bears on this problem? Identify key metrics, analyze patterns, and let evidence guide conclusions.',
+  },
+  {
+    id: 'fermi_estimation',
+    category: 'empirical',
+    name: 'Fermi Estimation',
+    prompt: 'Estimate unknown quantities by decomposing into factors you can guess. What 3-5 sub-quantities multiply to give the answer? Make rough estimates for each, multiply, and sanity-check the order of magnitude.',
+  },
+  {
+    id: 'binary_search_debug',
+    category: 'empirical',
+    name: 'Binary Search Debugging',
+    prompt: 'Divide the search space in half. Which half contains the problem? Repeat until isolated. Works for code, commits, inputs, or time—anywhere you can split and test.',
   },
 
   // === REFLECTIVE (3) ===
