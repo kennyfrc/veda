@@ -174,10 +174,11 @@ export function formatToolStart(
  */
 export function formatCandidateSeparator(
   index: number,
+  solverInfo?: string,
   width: number = FORMAT_CONFIG.lineWidth
 ): string {
   const { symbols } = FORMAT_CONFIG;
-  const prefix = `#${index + 1} `;
+  const prefix = solverInfo ? `#${index + 1} ${solverInfo} ` : `#${index + 1} `;
   const dashes = symbols.separator.repeat(Math.max(0, width - prefix.length - 2));
   return c.dim(`\n  ${prefix}${dashes}`);
 }

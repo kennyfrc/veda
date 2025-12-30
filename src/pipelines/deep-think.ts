@@ -862,14 +862,26 @@ export async function* runDeepThink(
       trace.judge.consensusAnalysis = judgeResult.decision.consensusAnalysis;
       trace.judge.reasoning = judgeResult.decision.reasoning;
 
+      // Emit shuffled note before candidates
+      queue.push({
+        type: 'candidate',
+        stage: 'solve',
+        content: '(candidates shuffled to reduce position bias)',
+      });
+
       // Emit candidate summary events in the SAME shuffled order the judge sees
       // This ensures candidate numbers in the judge's reasoning match what the user sees
       for (let displayIdx = 0; displayIdx < judgeResult.indexMapping.length; displayIdx++) {
         const originalIdx = judgeResult.indexMapping[displayIdx];
+        // Map successful index back to outputs index to get solver metadata
+        const outputsIdx = successfulToOutputsMap.get(originalIdx);
+        const candidateMemberId = outputsIdx !== undefined ? ensembleResult.outputs[outputsIdx]?.id : undefined;
+        const candidateMeta = candidateMemberId ? solverMetaMap.get(candidateMemberId) : undefined;
         queue.push({
           type: 'candidate',
           stage: 'solve',
           content: `Candidate ${displayIdx + 1}: ${truncate(ensembleResult.successful[originalIdx], 200)}`,
+          member: candidateMeta,
         });
       }
 

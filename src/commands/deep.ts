@@ -419,10 +419,13 @@ async function handleEvent(
       if (match) {
         const candidateIndex = parseInt(match[1], 10) - 1;
         const content = match[2];
-        console.error(formatCandidateSeparator(candidateIndex));
+        // Show candidate separator with solver info if available
+        const m = event.member;
+        const solverInfo = m ? `[solver-${m.index + 1}:${m.backend}:${m.model}:${m.module}]` : '';
+        console.error(formatCandidateSeparator(candidateIndex, solverInfo));
         console.error(formatCandidateContent(content));
       } else {
-        // Fallback: just show content
+        // Fallback: just show content (e.g., shuffle note)
         console.error(c.dim(`  ${event.content}`));
       }
       break;
