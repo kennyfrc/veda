@@ -145,6 +145,38 @@ describe('Reasoning Modules', () => {
       })).toThrow(/Unknown module 'unknown_module' in category 'analytical'/);
     });
 
+    test('category/module format: errors on empty module_id', () => {
+      expect(() => selectModules({
+        k: 1,
+        modules: ['analytical/'],
+      })).toThrow(/Missing module_id in specifier/);
+    });
+
+    test('category/module format: errors on multiple slashes', () => {
+      expect(() => selectModules({
+        k: 1,
+        modules: ['analytical/so_what_test/extra'],
+      })).toThrow(/too many slashes/);
+    });
+
+    test('legacy module IDs are aliased to new IDs', () => {
+      // step_by_step was renamed to issue_tree
+      const result = selectModules({
+        k: 1,
+        modules: ['step_by_step'],
+      });
+      expect(result[0].id).toBe('issue_tree');
+    });
+
+    test('legacy module IDs work with category/id format', () => {
+      // problem_decomposition was renamed to mece_decomposition
+      const result = selectModules({
+        k: 1,
+        modules: ['systematic/problem_decomposition'],
+      });
+      expect(result[0].id).toBe('mece_decomposition');
+    });
+
     test('categories: distributes k across specified categories', () => {
       const result = selectModules({
         k: 4,

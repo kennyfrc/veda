@@ -24,7 +24,8 @@ import {
 
 /**
  * Standardized member ID format: type-index-backend-model-module
- * Examples: solver-0-claude-code-opus-analytical, judge-0-gemini-cli-gemini-pro-NA, verifier-0-codex-gpt-5.2-factual
+ * Examples: solver-0-claude-code-opus-analytical/so_what_test, judge-0-gemini-cli-gemini-pro-NA, verifier-0-codex-gpt-5.2-factual
+ * Note: module portion uses category/module_id format for solvers.
  */
 interface MemberIdParts {
   type: 'solver' | 'judge' | 'verifier';

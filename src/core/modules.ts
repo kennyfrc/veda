@@ -373,6 +373,27 @@ export function selectModules(options: SelectModulesOptions): ReasoningModule[] 
 }
 
 /**
+ * Legacy module ID aliases - map old IDs to new ones for backward compatibility.
+ */
+const LEGACY_MODULE_ALIASES: Record<string, string> = {
+  // Renamed modules
+  'step_by_step': 'issue_tree',
+  'problem_decomposition': 'mece_decomposition',
+  'core_issue': 'so_what_test',
+  'simplification': 'vary_the_problem',
+  'typical_solutions': 'analogical_transfer',
+  'obstacle_identification': 'risk_assessment',
+  // Merged modules
+  'constraints': 'resource_constraints',
+  'resource_analysis': 'resource_constraints',
+  'data_analysis': 'data_driven',
+  'progress_measurement': 'success_criteria',
+  'success_metrics': 'success_criteria',
+  'decision_making': 'decision_under_uncertainty',
+  'collaborative_thinking': 'alternative_perspectives',
+};
+
+/**
  * Parse a module specifier into category and optional module ID.
  * Formats:
  * - "category/module_id" → { category, moduleId }
@@ -387,8 +408,18 @@ function parseModuleSpecifier(
   
   // Check for category/module format
   if (normalized.includes('/')) {
+    // Reject multiple slashes
+    const slashCount = (normalized.match(/\//g) || []).length;
+    if (slashCount > 1) {
+      throw new Error(
+        `Invalid specifier '${specifier}': too many slashes. ` +
+        `Use format 'category/module_id' or 'category' or 'module_id'.`
+      );
+    }
+    
     const [catPart, modPart] = normalized.split('/', 2);
-    const category = catPart as ModuleCategory;
+    const category = catPart.trim() as ModuleCategory;
+    const moduleId = modPart.trim();
     
     if (!registry.allCategories.includes(category)) {
       throw new Error(
@@ -397,7 +428,18 @@ function parseModuleSpecifier(
       );
     }
     
-    return { category, moduleId: modPart };
+    // Check for empty module ID (e.g., "analytical/")
+    if (!moduleId) {
+      throw new Error(
+        `Missing module_id in specifier '${specifier}'. ` +
+        `Use 'category/module_id' for exact module or just 'category' for random selection.`
+      );
+    }
+    
+    // Apply legacy alias if needed
+    const resolvedModuleId = LEGACY_MODULE_ALIASES[moduleId] ?? moduleId;
+    
+    return { category, moduleId: resolvedModuleId };
   }
   
   // Check if it's a valid category name (random selection from category)
@@ -405,8 +447,11 @@ function parseModuleSpecifier(
     return { category: normalized as ModuleCategory, moduleId: undefined };
   }
   
+  // Apply legacy alias if needed
+  const resolvedId = LEGACY_MODULE_ALIASES[normalized] ?? normalized;
+  
   // Assume it's a legacy module ID
-  return { category: undefined, moduleId: normalized };
+  return { category: undefined, moduleId: resolvedId };
 }
 
 function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): ReasoningModule[] {
