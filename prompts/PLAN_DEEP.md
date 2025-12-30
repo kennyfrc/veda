@@ -125,7 +125,7 @@ veda -S deep-api-design deep --trace /tmp/deep-trace.yaml --no-verify "Compare R
 | `--solver-backends LIST` | Comma-separated backends for `--distribute-solvers` | all available |
 | `--solver-backend NAME` | Force all solvers to use this backend | base backend |
 | `--categories` | Reasoning categories to use (comma-separated) | random sampling |
-| `--modules` | Exact module IDs to use (overrides k and categories) | none |
+| `--modules` | Module specifiers: `category/id`, `category`, or `id` | none |
 | `--no-verify` | Skip Chain-of-Verification | verification enabled |
 | `-f file` | Add ad-hoc context file(s) | none |
 | `--json` | Output structured JSON result | text output |
@@ -135,20 +135,20 @@ veda -S deep-api-design deep --trace /tmp/deep-trace.yaml --no-verify "Compare R
 
 ## Reasoning Categories
 
-Deep mode uses **SELF-DISCOVER reasoning modules** to create cognitive diversity across solvers. Each solver gets a different reasoning approach.
+Deep mode uses **SELF-DISCOVER reasoning modules** to create cognitive diversity across solvers. Each solver gets a different reasoning approach. Modules are sourced from Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", and McKinsey problem-solving frameworks.
 
-**8 categories, 4 modules each (32 total):**
+**8 categories, 33 total modules (3-5 per category):**
 
 | Category | Best For | Modules |
 |----------|----------|---------|
-| `analytical` | Breaking down problems, finding root causes | critical_thinking, assumption_analysis, causal_analysis, core_issue |
-| `creative` | Novel solutions, unconventional approaches | creative_thinking, novel_solution, radical_rethinking, alternative_perspectives |
-| `systematic` | Structured problem-solving, step-by-step | problem_decomposition, step_by_step, simplification, systems_thinking |
-| `strategic` | Planning, iterating on solutions | iterative_solving, typical_solutions, solution_modification, planning |
-| `evaluative` | Risk assessment, tradeoff analysis | risk_assessment, obstacle_identification, tradeoff_analysis, long_term_implications |
-| `contextual` | Understanding constraints, stakeholders | stakeholder_analysis, resource_analysis, constraints, behavioral_factors |
-| `empirical` | Evidence-based validation, testing | experimental_design, historical_analysis, data_analysis, progress_measurement |
-| `reflective` | Meta-cognition, success criteria | reflective_thinking, success_metrics, decision_making, collaborative_thinking |
+| `analytical` | Breaking down problems, finding root causes | critical_thinking, assumption_analysis, causal_analysis, so_what_test, eighty_twenty_focus |
+| `creative` | Novel solutions, unconventional approaches | creative_thinking, novel_solution, radical_rethinking, alternative_perspectives, invert_the_problem |
+| `systematic` | Structured problem-solving, decomposition | mece_decomposition, issue_tree, vary_the_problem, systems_thinking, working_backward |
+| `strategic` | Planning, iterating on solutions | hypothesis_first, analogical_transfer, iterative_solving, solution_modification, planning |
+| `evaluative` | Risk assessment, tradeoff analysis | risk_assessment, tradeoff_analysis, check_completeness, long_term_implications |
+| `contextual` | Understanding constraints, stakeholders | stakeholder_analysis, resource_constraints, behavioral_factors |
+| `empirical` | Evidence-based validation, testing | experimental_design, historical_analysis, data_driven |
+| `reflective` | Meta-cognition, success criteria | reflective_thinking, success_criteria, decision_under_uncertainty |
 
 ### Choosing Categories
 
@@ -171,15 +171,39 @@ veda deep --categories systematic,strategic "How should we implement this featur
 veda deep "General question"
 ```
 
-### Using Exact Modules
+### Using Module Specifiers
 
-For fine-grained control, specify exact module IDs:
+For fine-grained control, use the `--modules` flag with flexible specifier formats:
+
+| Format | Example | Behavior |
+|--------|---------|----------|
+| `category/module_id` | `analytical/so_what_test` | Exact module from category |
+| `category` | `analytical` | Random module from category |
+| `module_id` | `so_what_test` | Exact module by ID (legacy) |
 
 ```bash
-veda deep --modules critical_thinking,step_by_step,risk_assessment "Analyze this design"
+# Exact modules with category/id format
+veda deep --modules analytical/so_what_test,creative/invert_the_problem "Analyze this"
+
+# Mix exact and random selection
+veda deep --modules analytical/so_what_test,creative,systematic/mece_decomposition "Design question"
+
+# Random from specific categories (one random module each)
+veda deep --modules analytical,creative,systematic "Compare approaches"
+
+# Legacy format (still works)
+veda deep --modules critical_thinking,issue_tree,risk_assessment "Analyze design"
 ```
 
-**Note:** When using `--modules`, each module must be from a different category (max 8 modules, one per category).
+**Note:** Each module must be from a different category (max 8 modules, one per category).
+
+**Output shows selected modules:**
+```
+▸ solve ─────────────────────────────────────────────────────────────────────────
+  [solver-1:codex:gpt-5.2:analytical/so_what_test] → shell: rg -n "test"
+  [solver-1:codex:gpt-5.2:analytical/so_what_test] → done (683 out)
+  [solver-2:codex:gpt-5.2:creative/invert_the_problem] → done (512 out)
+```
 
 ### How It Works
 
