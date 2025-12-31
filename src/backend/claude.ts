@@ -12,14 +12,14 @@ function toClaudePermissionMode(sandbox: SandboxMode): string {
 
 /**
  * Map veda reasoning levels to Claude's MAX_THINKING_TOKENS.
- * Literal interpretation: 8k-1 = 7999, 16k-1 = 15999, 32k-1 = 31999, 64k-1 = 63999
+ * 0 = no thinking, then 16k-1, 32k-1, 64k-1, 64k-1
  */
 function toClaudeReasoningTokens(reasoning: ReasoningLevel): string {
   switch (reasoning) {
     case 'minimal': return '0';
-    case 'low': return '7999';      // 8k-1
-    case 'medium': return '15999';  // 16k-1
-    case 'high': return '31999';    // 32k-1
+    case 'low': return '15999';     // 16k-1
+    case 'medium': return '31999';  // 32k-1
+    case 'high': return '63999';    // 64k-1
     case 'xhigh': return '63999';   // 64k-1
   }
 }
