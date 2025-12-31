@@ -125,7 +125,7 @@ veda -S deep-api-design deep --trace /tmp/deep-trace.yaml --no-verify "Compare R
 | `--solver-backends LIST` | Comma-separated backends for `--distribute-solvers` | all available |
 | `--solver-backend NAME` | Force all solvers to use this backend | base backend |
 | `--categories` | Reasoning categories to use (comma-separated) | random sampling |
-| `--modules` | Module specifiers: `category/id`, `category`, or `id` | none |
+| `--modules` | Module specifiers (prefer `category/module_id` format) | none |
 | `--no-verify` | Skip Chain-of-Verification | verification enabled |
 | `-f file` | Add ad-hoc context file(s) | none |
 | `--json` | Output structured JSON result | text output |
@@ -173,26 +173,26 @@ veda deep "General question"
 
 ### Using Module Specifiers
 
-For fine-grained control, use the `--modules` flag with flexible specifier formats:
+For fine-grained control, use the `--modules` flag. **Always use `category/module_id` format** so the LLM can choose the modules best suited to the problem:
 
 | Format | Example | Behavior |
 |--------|---------|----------|
-| `category/module_id` | `analytical/so_what_test` | Exact module from category |
+| `category/module_id` | `analytical/so_what_test` | Exact module from category **(preferred)** |
 | `category` | `analytical` | Random module from category |
-| `module_id` | `so_what_test` | Exact module by ID (legacy) |
+| `module_id` | `so_what_test` | Exact module by ID (legacy, avoid) |
 
 ```bash
-# Exact modules with category/id format
-veda deep --modules analytical/so_what_test,creative/invert_the_problem "Analyze this"
+# Architecture decision → analytical + evaluative modules
+veda deep --modules analytical/assumption_analysis,evaluative/risk_assessment,strategic/hypothesis_first "Should we use microservices?"
 
-# Mix exact and random selection
-veda deep --modules analytical/so_what_test,creative,systematic/mece_decomposition "Design question"
+# Debugging → empirical + systematic modules  
+veda deep --modules empirical/binary_search_debug,systematic/simplify_the_problem,analytical/causal_analysis "Why is this failing?"
 
-# Random from specific categories (one random module each)
-veda deep --modules analytical,creative,systematic "Compare approaches"
+# Design tradeoffs → evaluative + strategic modules
+veda deep --modules evaluative/tradeoff_analysis,strategic/contradiction_resolution,systematic/mece_decomposition "REST vs GraphQL?"
 
-# Legacy format (still works)
-veda deep --modules critical_thinking,issue_tree,risk_assessment "Analyze design"
+# Creative exploration → creative + reflective modules
+veda deep --modules creative/invert_the_problem,creative/thought_experiment,reflective/decision_under_uncertainty "Novel caching approaches?"
 ```
 
 **Note:** Each module must be from a different category (max 8 modules, one per category).
