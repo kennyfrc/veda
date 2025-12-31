@@ -29,7 +29,7 @@ export interface SelectModulesOptions {
   registry?: ModuleRegistry; // Optional custom registry
 }
 
-// Default module catalog - 41 modules across 8 categories
+// Default module catalog - 42 modules across 8 categories
 // Sources: Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", McKinsey frameworks,
 //          Fermi estimation, TRIZ inventive principles, Meadows' leverage points, Klein's premortem
 const DEFAULT_MODULES: ReasoningModule[] = [
@@ -243,7 +243,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'What human factors affect this problem? Consider habits, incentives, cognitive biases, and social dynamics.',
   },
 
-  // === EMPIRICAL (5) ===
+  // === EMPIRICAL (6) ===
   {
     id: 'experimental_design',
     category: 'empirical',
@@ -273,6 +273,12 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     category: 'empirical',
     name: 'Binary Search Debugging',
     prompt: 'Divide the search space in half. Which half contains the problem? Repeat until isolated. Works for code, commits, inputs, or time—anywhere you can split and test.',
+  },
+  {
+    id: 'print_debugging',
+    category: 'empirical',
+    name: 'Print Debugging',
+    prompt: 'Create a minimal reproduction script in /tmp that imports the relevant modules. Add logging at every stage: print inputs, intermediate state, and outputs at each transformation. Run the script headlessly and trace how data changes step by step. Look for where actual values diverge from expected. Clean up the script after.',
   },
 
   // === REFLECTIVE (3) ===

@@ -351,7 +351,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     model: options.solverModel,
     backendModels,
     reasoning: options.solverReasoning ?? 'medium',
-    sandbox: 'read-only',
+    sandbox: 'full',
     cwd: options.cwd ?? process.cwd(),
     context: options.context,
   };
@@ -388,7 +388,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     model: judge.model,
     systemPrompt: JUDGE_SYSTEM_PROMPT,
     reasoning: options.judgeReasoning ?? 'medium',
-    sandbox: 'read-only',
+    sandbox: 'full',
     cwd: options.cwd ?? process.cwd(),
   };
 
