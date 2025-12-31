@@ -231,8 +231,7 @@ describe('integration: parseAndValidate', () => {
       expect(result.mode).toBe('simple');
       if (result.mode === 'simple') {
         expect(result.config.prompt).toBe('hello world');
-        // Backend depends on user config (MODEL in ~/.config/veda/config)
-        expect(typeof result.config.backend).toBe('string');
+        expect(result.config.backend).toBe('codex');
       }
     }
   });
