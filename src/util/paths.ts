@@ -20,6 +20,11 @@ export function getThreadPath(sessionId: string, baseDir?: string): string {
   return join(getSessionDir(sessionId, baseDir), 'thread.json');
 }
 
+/** Get checkpoint file path for deep mode resume */
+export function getCheckpointPath(sessionId: string, baseDir?: string): string {
+  return join(getSessionDir(sessionId, baseDir), 'checkpoint.yaml');
+}
+
 /** Legacy path for migration from old format */
 export function getLegacyThreadPath(sessionId: string, baseDir?: string): string {
   return join(getSessionDir(sessionId, baseDir), 'codex_thread_id');

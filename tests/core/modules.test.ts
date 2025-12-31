@@ -7,6 +7,7 @@ import {
   MODULE_BY_ID,
   createModuleRegistry,
   DEFAULT_REGISTRY,
+  getModuleById,
 } from '../../src/core/modules';
 
 describe('Reasoning Modules', () => {
@@ -403,5 +404,30 @@ describe('ModuleRegistry (additive design)', () => {
     expect(REASONING_MODULES).toBe(DEFAULT_REGISTRY.modules);
     expect(MODULES_BY_CATEGORY).toBe(DEFAULT_REGISTRY.byCategory);
     expect(MODULE_BY_ID).toBe(DEFAULT_REGISTRY.byId);
+  });
+});
+
+describe('getModuleById', () => {
+  test('returns module when found', () => {
+    const module = getModuleById('critical_thinking');
+    expect(module).toBeDefined();
+    expect(module?.id).toBe('critical_thinking');
+    expect(module?.category).toBe('analytical');
+    expect(module?.prompt).toBeTruthy();
+  });
+
+  test('returns undefined when not found', () => {
+    const module = getModuleById('nonexistent_module');
+    expect(module).toBeUndefined();
+  });
+
+  test('is case-sensitive (normalized IDs are lowercase)', () => {
+    // Module IDs in registry are normalized to lowercase
+    const lower = getModuleById('critical_thinking');
+    expect(lower).toBeDefined();
+    
+    // Mixed case won't match
+    const mixed = getModuleById('Critical_Thinking');
+    expect(mixed).toBeUndefined();
   });
 });

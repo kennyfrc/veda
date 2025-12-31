@@ -368,6 +368,15 @@ export const MODULES_BY_CATEGORY = DEFAULT_REGISTRY.byCategory;
 export const MODULE_BY_ID = DEFAULT_REGISTRY.byId;
 
 /**
+ * Look up a module by ID from the default registry.
+ * Used for reconstructing module prompts on resume.
+ * Returns undefined if module not found (e.g., if module catalog changed between runs).
+ */
+export function getModuleById(id: string): ReasoningModule | undefined {
+  return DEFAULT_REGISTRY.byId[id];
+}
+
+/**
  * Validate module integrity: unique IDs, valid categories
  */
 function validateModuleIntegrity(modules: ReasoningModule[]): void {

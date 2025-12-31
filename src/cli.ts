@@ -33,6 +33,11 @@ export interface CliOptions {
 
   distributeSolvers?: boolean;
   solverBackends?: string[];
+  
+  // Deep mode resume/checkpoint flags
+  resume?: boolean;        // Resume from checkpoint
+  force?: boolean;         // Overwrite existing checkpoint on new run
+  forceResume?: boolean;   // Resume despite run identity mismatch
 }
 
 export interface ParsedArgs {
@@ -184,6 +189,18 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.distributeSolvers = true;
         i++;
         continue;
+      case '--resume':
+        options.resume = true;
+        i++;
+        continue;
+      case '--force':
+        options.force = true;
+        i++;
+        continue;
+      case '--force-resume':
+        options.forceResume = true;
+        i++;
+        continue;
       case '--json':
         options.json = true;
         i++;
@@ -315,6 +332,9 @@ Options:
   --no-verify             Skip verification in deep mode
   --force-verify          Run verification even with high confidence (≥70%)
   --trace <file>          Save trace to YAML file (deep mode)
+  --resume                Resume from checkpoint (deep mode)
+  --force                 Overwrite existing checkpoint on new run
+  --force-resume          Resume despite run identity mismatch
   --json                  Output raw JSON
   --dry-run               Show resolved config without executing
   --help, -h              Show help

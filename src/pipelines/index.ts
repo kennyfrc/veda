@@ -8,6 +8,7 @@ export {
   type DeepThinkResult,
   type DeepThinkEvent,
   type DeepThinkTrace,
+  type DeepThinkCheckpointData,
   type SolverOptions,
   type JudgeOptions,
   type VerifierOptions,
