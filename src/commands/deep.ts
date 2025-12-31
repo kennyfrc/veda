@@ -5,7 +5,7 @@ import { CheckpointStore, computeRunIdentityHash } from '../checkpoint';
 import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
-import { loadGlobalConfig, resolveBackendModel } from '../agent/config';
+import { loadGlobalConfig, resolveBackendModel, resolveReasoning } from '../agent/config';
 import {
   c,
   createFormatterState,
@@ -315,6 +315,12 @@ export async function handleDeep(
       })
     : verifier;
 
+  // Resolve effective reasoning for solver (CLI -r > per-backend config > default)
+  const effectiveSolverReasoning = options.reasoning ?? resolveReasoning({
+    backend: solverBackendForNotification,
+    globalConfig,
+  });
+
   let finalResult: DeepThinkResult | undefined;
   
   // Create formatter state for progressive disclosure output
@@ -346,6 +352,7 @@ export async function handleDeep(
     // Per-stage overrides (CLI > config > defaults)
     solverBackends: solverBackendsResult.backends,
     solverModel: options.solverModel,
+    solverReasoning: effectiveSolverReasoning,
     judgeBackend: effectiveJudgeBackend,
     judgeModel: effectiveJudgeModel,
     verifierBackend: effectiveVerifierBackend,
@@ -382,7 +389,7 @@ export async function handleDeep(
       usageAtCheckpoint: existingCheckpoint.usageAtCheckpoint,
     } : undefined,
   })) {
-    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model, verifier.backend, verifier.model, revision.backend, revision.model, formatterState);
+    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, effectiveSolverReasoning, judge.backend, judge.model, verifier.backend, verifier.model, revision.backend, revision.model, formatterState);
 
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
@@ -421,6 +428,7 @@ async function handleEvent(
   globalNotify?: boolean,
   solverBackend?: string,
   solverModel?: string,
+  solverReasoning?: string,
   judgeBackend?: string,
   judgeModel?: string,
   verifierBackend?: string,
@@ -436,7 +444,8 @@ async function handleEvent(
     case 'stage_start': {
       // Emit phase header with dotted separator
       if (event.stage === 'solve') {
-        console.error(formatPhaseHeader('solve'));
+        const suffix = solverReasoning ? `reasoning: ${solverReasoning}` : undefined;
+        console.error(formatPhaseHeader('solve', suffix));
         state.phase = 'solve';
       } else if (event.stage === 'verify') {
         const suffix = verifierModel ?? verifierBackend;
