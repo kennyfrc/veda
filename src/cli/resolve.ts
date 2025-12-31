@@ -100,6 +100,22 @@ export function resolveBackendModel(opts: ResolveOptions): ResolvedBackendModel 
   } else if (globalConfig?.backend) {
     backend = globalConfig.backend;
     source = 'config';
+  } else if (globalConfig?.model) {
+    // Try to resolve global model as alias or prefix
+    const globalAlias = resolveModelAlias(globalConfig.model);
+    if (globalAlias) {
+      backend = globalAlias.backend;
+      source = 'config';
+    } else {
+      const inferred = inferBackendFromPrefix(globalConfig.model);
+      if (inferred) {
+        backend = inferred;
+        source = 'config';
+      } else {
+        backend = 'codex';
+        source = 'default';
+      }
+    }
   } else {
     backend = 'codex';
     source = 'default';
