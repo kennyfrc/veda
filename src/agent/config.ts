@@ -44,6 +44,8 @@ export interface GlobalConfig {
   backendModels?: Record<string, string>;
   backendReasoning?: Record<string, ReasoningLevel>;
   deep?: DeepModeConfig;
+  defaultReasoning?: ReasoningLevel;
+  defaultSandbox?: SandboxMode;
 }
 
 const DEFAULT_PERSONA = 'navigator-chat';

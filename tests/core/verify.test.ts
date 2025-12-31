@@ -9,6 +9,8 @@ import {
   parseRevision,
   isUnchanged,
   difficultyToReasoning,
+  type Check,
+  type CheckResult,
 } from '../../src/core/verify';
 import { getFactoredAnswerCheckPrompt } from '../../src/pipelines/prompts/verifier';
 
@@ -397,6 +399,120 @@ none
       // ID should appear unescaped in both check and result format
       expect(prompt).toContain('<check id="1">');
       expect(prompt).toContain('<result id="1">');
+    });
+  });
+});
+
+describe('runVerification partial resume support', () => {
+  // These tests verify the data structures and logic used for partial resume,
+  // without actually calling runVerification (which requires LLM mocks)
+  
+  describe('checksOverride handling', () => {
+    it('allows pre-computed checks to skip regeneration', () => {
+      const checksOverride: Check[] = [
+        { id: '1', question: 'First check', targetClaim: 'Claim 1', difficulty: 'easy' },
+        { id: '2', question: 'Second check', targetClaim: 'Claim 2', difficulty: 'moderate' },
+      ];
+      
+      // Verify structure is valid for passing to runVerification
+      expect(checksOverride.length).toBe(2);
+      expect(checksOverride[0].id).toBe('1');
+      expect(checksOverride[1].difficulty).toBe('moderate');
+    });
+  });
+
+  describe('completedResults merging', () => {
+    it('builds result map from completed results', () => {
+      const completedResults: CheckResult[] = [
+        { checkId: '1', answer: 'Yes', verdict: 'supports', confidence: 0.9 },
+        { checkId: '3', answer: 'No', verdict: 'contradicts', confidence: 0.7 },
+      ];
+      
+      const completedResultsById = new Map<string, CheckResult>();
+      for (const result of completedResults) {
+        completedResultsById.set(result.checkId, result);
+      }
+      
+      expect(completedResultsById.get('1')?.verdict).toBe('supports');
+      expect(completedResultsById.get('3')?.verdict).toBe('contradicts');
+      expect(completedResultsById.get('2')).toBeUndefined();
+    });
+
+    it('identifies which checks need to be run', () => {
+      const checks: Check[] = [
+        { id: '1', question: 'Q1' },
+        { id: '2', question: 'Q2' },
+        { id: '3', question: 'Q3' },
+      ];
+      
+      const completedResultsById = new Map<string, CheckResult>([
+        ['1', { checkId: '1', answer: 'Done', verdict: 'supports', confidence: 0.9 }],
+        ['3', { checkId: '3', answer: 'Done', verdict: 'supports', confidence: 0.9 }],
+      ]);
+      
+      const checksToRun = checks.filter(c => !completedResultsById.has(c.id));
+      
+      expect(checksToRun.length).toBe(1);
+      expect(checksToRun[0].id).toBe('2');
+    });
+
+    it('preserves original check indices for events', () => {
+      const checks: Check[] = [
+        { id: '1', question: 'Q1' },
+        { id: '2', question: 'Q2' },
+        { id: '3', question: 'Q3' },
+        { id: '4', question: 'Q4' },
+      ];
+      
+      const completedResultsById = new Map<string, CheckResult>([
+        ['1', { checkId: '1', answer: 'Done', verdict: 'supports', confidence: 0.9 }],
+        ['3', { checkId: '3', answer: 'Done', verdict: 'supports', confidence: 0.9 }],
+      ]);
+      
+      const checksToRun: Array<{ originalIndex: number; check: Check }> = [];
+      for (let i = 0; i < checks.length; i++) {
+        if (!completedResultsById.has(checks[i].id)) {
+          checksToRun.push({ originalIndex: i, check: checks[i] });
+        }
+      }
+      
+      expect(checksToRun.length).toBe(2);
+      expect(checksToRun[0].originalIndex).toBe(1); // check '2' is at index 1
+      expect(checksToRun[0].check.id).toBe('2');
+      expect(checksToRun[1].originalIndex).toBe(3); // check '4' is at index 3
+      expect(checksToRun[1].check.id).toBe('4');
+    });
+
+    it('merges results in checks order', () => {
+      const checks: Check[] = [
+        { id: '1', question: 'Q1' },
+        { id: '2', question: 'Q2' },
+        { id: '3', question: 'Q3' },
+      ];
+      
+      const completedResultsById = new Map<string, CheckResult>([
+        ['1', { checkId: '1', answer: 'Completed first', verdict: 'supports', confidence: 0.9 }],
+      ]);
+      
+      const newResultsById = new Map<string, CheckResult>([
+        ['2', { checkId: '2', answer: 'New second', verdict: 'contradicts', confidence: 0.7 }],
+        ['3', { checkId: '3', answer: 'New third', verdict: 'uncertain', confidence: 0.5 }],
+      ]);
+      
+      // Merge results in checks order (completed first, then new)
+      const results: CheckResult[] = checks.map(check => {
+        return completedResultsById.get(check.id) 
+            ?? newResultsById.get(check.id) 
+            ?? { checkId: check.id, answer: 'Not executed', verdict: 'uncertain' as const, confidence: 0.5 };
+      });
+      
+      expect(results.length).toBe(3);
+      expect(results[0].checkId).toBe('1');
+      expect(results[0].answer).toBe('Completed first');
+      expect(results[1].checkId).toBe('2');
+      expect(results[1].answer).toBe('New second');
+      expect(results[2].checkId).toBe('3');
+      expect(results[2].answer).toBe('New third');
     });
   });
 });

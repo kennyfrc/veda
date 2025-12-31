@@ -1,6 +1,7 @@
 import { ContextStore, readSliceText, parseSlice } from '../context';
 import { runDeepThink, getDeepThinkStages, type DeepThinkEvent, type DeepThinkResult } from '../pipelines';
 import { ConversationStore } from '../conversation';
+import { CheckpointStore, computeRunIdentityHash } from '../checkpoint';
 import type { CliOptions } from '../cli';
 import { stringify as yamlStringify } from 'yaml';
 import { resolve } from 'path';
@@ -177,6 +178,52 @@ export async function handleDeep(
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
 
+  // === Checkpoint conflict detection ===
+  const checkpointStore = new CheckpointStore({ sessionId: options.session });
+  const existingCheckpoint = await checkpointStore.load();
+
+  if (existingCheckpoint) {
+    if (options.resume) {
+      // Validate run identity (unless --force-resume)
+      const currentIdentity = computeRunIdentityHash({
+        prompt,
+        context,
+        options: {
+          k: options.k,
+          verify: !options.noVerify,
+          categories: options.categories,
+          modules: options.modules,
+        },
+      });
+
+      if (existingCheckpoint.runIdentityHash !== currentIdentity && !options.forceResume) {
+        console.error(`${c.red('[error]')} Checkpoint run identity mismatch.`);
+        console.error(`  Checkpoint was created with different prompt/context/options.`);
+        console.error(`  Use ${c.cyan('--force-resume')} to resume anyway, or ${c.cyan('--force')} to start fresh.`);
+        process.exit(1);
+      }
+
+      // Resume from checkpoint - will be passed to runDeepThink below
+      console.error(c.cyan('[deep]') + ` Resuming from checkpoint (completed: ${existingCheckpoint.completedStage}, failed: ${existingCheckpoint.failedStage ?? 'none'})...\n`);
+      // Don't clear - we'll use the checkpoint data
+    } else if (options.force) {
+      // Clear and start fresh
+      console.error(c.cyan('[deep]') + ' Overwriting existing checkpoint (--force)...\n');
+      await checkpointStore.clear();
+    } else {
+      // Error with helpful message
+      const summary = await checkpointStore.getSummary();
+      console.error(`${c.red('[error]')} Checkpoint exists from previous run.`);
+      console.error(`  Stage: ${summary?.completedStage} → ${summary?.failedStage ?? 'complete'}`);
+      console.error(`  Candidates: ${summary?.candidateCount}`);
+      console.error(`  Timestamp: ${summary?.timestamp}`);
+      console.error('');
+      console.error(`  Use ${c.cyan('--resume')} to continue from checkpoint`);
+      console.error(`  Use ${c.cyan('--force')} to start fresh (overwrites checkpoint)`);
+      process.exit(1);
+    }
+  }
+
   console.error(c.cyan('[deep]') + ' Starting deep thinking mode...\n');
 
   // Resolve backend/model for notifications upfront
@@ -273,6 +320,18 @@ export async function handleDeep(
   // Create formatter state for progressive disclosure output
   const formatterState = createFormatterState();
 
+  // Compute run identity hash for checkpointing
+  const runIdentityHash = computeRunIdentityHash({
+    prompt,
+    context,
+    options: {
+      k: options.k,
+      verify: !options.noVerify,
+      categories: options.categories,
+      modules: options.modules,
+    },
+  });
+
   // Run the pipeline
   for await (const event of runDeepThink(prompt, {
     backend: base.backend,  // Pass resolved backend to avoid duplicate resolution
@@ -293,6 +352,35 @@ export async function handleDeep(
     verifierModel: effectiveVerifierModel,
     revisionBackend: effectiveRevisionBackend,
     revisionModel: effectiveRevisionModel,
+    // Checkpoint support
+    runIdentityHash,
+    onCheckpoint: async (checkpointData) => {
+      // Build full checkpoint with version and identity
+      const checkpoint = {
+        checkpoint_version: 1 as const,
+        runIdentityHash,
+        ...checkpointData,
+        timestamp: new Date().toISOString(),
+      };
+      await checkpointStore.save(checkpoint);
+    },
+    // Resume from checkpoint if --resume flag is set
+    resumeCheckpoint: options.resume && existingCheckpoint ? {
+      trace: existingCheckpoint.trace,
+      status: existingCheckpoint.status,
+      completedStage: existingCheckpoint.completedStage,
+      failedStage: existingCheckpoint.failedStage,
+      error: existingCheckpoint.error,
+      successfulCandidateIds: existingCheckpoint.successfulCandidateIds,
+      judgeSeed: existingCheckpoint.judgeSeed,
+      judgeIndexMapping: existingCheckpoint.judgeIndexMapping,
+      judgeSelectedIndex: existingCheckpoint.judgeSelectedIndex,
+      judgeSelectedDisplayIndex: existingCheckpoint.judgeSelectedDisplayIndex,
+      selectedCandidateId: existingCheckpoint.selectedCandidateId,
+      verifyChecks: existingCheckpoint.verifyChecks,
+      partialVerifyResults: existingCheckpoint.partialVerifyResults,
+      usageAtCheckpoint: existingCheckpoint.usageAtCheckpoint,
+    } : undefined,
   })) {
     await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, judge.backend, judge.model, verifier.backend, verifier.model, revision.backend, revision.model, formatterState);
 
@@ -305,6 +393,11 @@ export async function handleDeep(
   // Write trace if requested
   if (options.trace && finalResult?.trace) {
     await writeTrace(options.trace, finalResult);
+  }
+
+  // Clear checkpoint on success
+  if (finalResult) {
+    await checkpointStore.clear();
   }
 
   // Persist session for resumability
@@ -469,7 +562,10 @@ async function handleEvent(
       if (event.selectedModule) {
         const mod = event.selectedModule;
         console.error(c.dim(`    Module: ${mod.name}`));
-        console.error(c.dim(`    Prompt: "${mod.prompt}"`));
+        // Prompt may be missing when resuming from checkpoint (not stored in trace)
+        if (mod.prompt) {
+          console.error(c.dim(`    Prompt: "${mod.prompt}"`));
+        }
       }
       
       // Confidence

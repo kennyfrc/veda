@@ -11,10 +11,13 @@ import {
   combineUsage,
   selectModules,
   isUnchanged,
+  getModuleById,
   type EnsembleMember,
   type EnsembleEvent,
   type Reasoning,
   type ReasoningModule,
+  type Check,
+  type CheckResult,
 } from '../core';
 import {
   buildDeepSolverSystemPrompt,
@@ -75,6 +78,30 @@ export interface DeepThinkOptions {
   verifierModel?: string;
   revisionBackend?: string;
   revisionModel?: string;
+  /** Run identity hash for checkpoint validation */
+  runIdentityHash?: string;
+  /** Callback for checkpoint persistence (called after each stage) */
+  onCheckpoint?: (checkpoint: DeepThinkCheckpointData) => Promise<void>;
+  /** Checkpoint to resume from (skips completed stages) */
+  resumeCheckpoint?: DeepThinkCheckpointData;
+}
+
+/** Data emitted for checkpoint persistence */
+export interface DeepThinkCheckpointData {
+  trace: DeepThinkTrace;
+  status: 'partial' | 'complete';
+  completedStage: 'solve' | 'judge' | 'verify';
+  failedStage?: 'judge' | 'verify' | 'revision';
+  error?: string;
+  successfulCandidateIds: string[];
+  judgeSeed?: string;
+  judgeIndexMapping?: number[];
+  judgeSelectedIndex?: number;
+  judgeSelectedDisplayIndex?: number;
+  selectedCandidateId?: string;
+  verifyChecks?: Check[];
+  partialVerifyResults?: CheckResult[];
+  usageAtCheckpoint: UsageStats;
 }
 
 export interface SolverOptions {
@@ -205,7 +232,7 @@ export interface DeepThinkTrace {
 }
 
 export interface DeepThinkEvent {
-  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete' | 'solver_complete' | 'verify_questions' | 'verify_check_complete' | 'revision_complete';
+  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete' | 'solver_complete' | 'verify_questions' | 'verify_check_complete' | 'revision_complete' | 'checkpoint';
   stage?: string;
   content?: string;
   source?: string;
@@ -227,6 +254,7 @@ export interface DeepThinkEvent {
   checkId?: string;     // ID of current check
   checks?: Array<{ id: string; question: string; targetClaim?: string; difficulty?: string }>;  // For verify_questions event
   verdict?: 'supports' | 'contradicts' | 'uncertain';  // For verify_check_complete
+  checkpoint?: DeepThinkCheckpointData;  // For checkpoint event
 }
 
 export interface RunSolverEnsembleResult {
@@ -661,281 +689,450 @@ export async function* runDeepThink(
 
   // Run the main logic in the background
   (async () => {
+    // Stage tracking for error checkpoints
+    // currentStage: where we are now (for failure attribution)
+    // lastCompletedStage: last successfully completed stage (safe resume point)
+    type CurrentStage = 'init' | 'solve' | 'judge' | 'verify' | 'revision';
+    type LastCompletedStage = 'none' | 'solve' | 'judge' | 'verify';
+    let currentStage: CurrentStage = 'init';
+    let lastCompletedStage: LastCompletedStage = 'none';
+    
+    // These need to be accessible in catch block for error checkpoints
+    // trace is assigned early in the try block before any use
+    let trace!: DeepThinkTrace;
+    let successfulCandidateIds: string[] = [];
+    let judgeSeed = '';
+    let judgeIndexMapping: number[] = [];
+    let judgeSelectedIndex = 0;
+    let selectedDisplayIdx = 0;
+    let selectedMemberId: string | undefined;
+    
     try {
       // Step 1: Expand options into configured structs
       const { solver, judge, verifier, revision, verifyEnabled, forceVerify, traceOptions } = await expandDeepThinkOptions(options);
 
-      // Step 2: Build trace with expanded options
-      const trace: DeepThinkTrace = {
-        trace_version: 2,  // Bumped from 1 to 2 for new ID format
-        prompt,
-        context: solver.context,
-        options: traceOptions,
-        solve: { candidates: [] },
-        judge: { selectedIndex: 0, selectedDisplayIndex: 0, confidence: 0 },
-      };
+      // Check if resuming from checkpoint
+      const resumeFrom = options.resumeCheckpoint?.completedStage;
+      const isResuming = !!resumeFrom;
+      
+      // Stage order for resume logic (higher = further along)
+      const stageOrder: Record<string, number> = { solve: 1, judge: 2, verify: 3 };
+      const resumeStageNum = resumeFrom ? stageOrder[resumeFrom] ?? 0 : 0;
 
-      // Step 3: Run solver ensemble
-      queue.push({ type: 'stage_start', stage: 'solve' });
-
-      const modules = selectModules({
-        k: solver.k,
-        categories: solver.categories,
-        modules: solver.modules,
-      });
-
-      const members: EnsembleMember[] = modules.map((module, i) => {
-        const backend = solver.backends[i % solver.backends.length];
-        const model = solver.backendModels.get(backend) ?? solver.model;
-        const memberId = formatMemberId({
-          type: 'solver',
-          backend,
-          model: model ?? 'unknown',
-          index: i,
-          module: `${module.category}/${module.id}`,
-        });
-        return {
-          id: memberId,
-          request: {
-            backend,
-            model,
+      // Step 2: Build trace with expanded options (or restore from checkpoint)
+      // When resuming, deep clone to avoid mutating checkpoint data.
+      // Note: JSON clone drops undefined/Map/non-JSON values - trace is JSON-safe today.
+      trace = isResuming && options.resumeCheckpoint?.trace
+        ? JSON.parse(JSON.stringify(options.resumeCheckpoint.trace))
+        : {
+            trace_version: 2,
             prompt,
             context: solver.context,
-            systemPrompt: buildDeepSolverSystemPrompt({ module }),
-            reasoning: solver.reasoning,
-            sandbox: solver.sandbox,
-            cwd: solver.cwd,
-          },
-        };
-      });
+            options: traceOptions,
+            solve: { candidates: [] },
+            judge: { selectedIndex: 0, selectedDisplayIndex: 0, confidence: 0 },
+          };
+      // === Variables that carry across stages ===
+      let successfulCandidates: string[] = [];
+      let successfulToOutputsMap = new Map<number, number>();
+      let solverMetaMap = new Map<string, MemberMeta>();
+      let modules: ReasoningModule[] = [];
 
-      // Create mapping from memberId to MemberMeta for events
-      const solverMetaMap = new Map<string, MemberMeta>();
-      for (let i = 0; i < modules.length; i++) {
-        const backend = solver.backends[i % solver.backends.length];
-        const model = solver.backendModels.get(backend) ?? solver.model;
-        const moduleSpec = `${modules[i].category}/${modules[i].id}`;
-        const memberId = formatMemberId({
-          type: 'solver',
-          backend,
-          model: model ?? 'unknown',
-          index: i,
-          module: moduleSpec,
-        });
-        solverMetaMap.set(memberId, {
-          type: 'solver',
-          backend,
-          model: model ?? 'unknown',
-          index: i,
-          module: moduleSpec,
-          id: memberId,
-        });
-      }
-
-      const ensembleResult = await runEnsemble(members, (event: EnsembleEvent) => {
-        const memberMeta = solverMetaMap.get(event.memberId);
-
-        const toolEvent = makeToolEvent(event.memberId, event.message);
-        if (toolEvent) {
-          toolEvent.member = memberMeta;
-          queue.push(toolEvent);
-        }
-
-        if (event.message.type === 'done') {
-          queue.push({
-            type: 'solver_complete',
-            stage: 'solve',
-            source: event.memberId,
-            backend: memberMeta?.backend,
-            model: memberMeta?.model,
-            member: memberMeta,
-            usage: event.message.usage,
-          });
-        }
-      });
-
-      usages.push(ensembleResult.totalUsage);
-      queue.push({ type: 'ensemble_complete', usage: ensembleResult.totalUsage });
-
-      // Log individual solver failures with context (but don't fail pipeline if others succeeded)
-      for (let i = 0; i < ensembleResult.outputs.length; i++) {
-        const output = ensembleResult.outputs[i];
-        const errors = output.backendErrors ?? [];
-        const exceptionError = output.error;
+      // Step 3: Run solver ensemble (or restore from checkpoint)
+      // Skip solve if we've completed it (stage >= 1)
+      const skipSolve = isResuming && resumeStageNum >= 1;
+      currentStage = 'solve';
+      
+      if (skipSolve && options.resumeCheckpoint) {
+        // Restore state from checkpoint
+        console.error(c.cyan('[deep]') + ' Skipping solve stage (restored from checkpoint)');
+        lastCompletedStage = 'solve'; // We're resuming from at least solve
         
-        if (errors.length > 0 || exceptionError) {
-          const meta = solverMetaMap.get(output.id);
-          const errorMsg = errors[0] ?? exceptionError ?? 'Unknown error';
-          const context = meta 
-            ? `[solver-${meta.index + 1}:${meta.backend}:${meta.model}:${meta.module}]`
-            : `[${output.id}]`;
-          console.error(`${c.yellow('[warning]')} ${context} Solver failed: ${errorMsg}`);
+        successfulCandidateIds = options.resumeCheckpoint.successfulCandidateIds;
+        
+        // Reconstruct successful candidates from trace
+        const candidateIdSet = new Set(successfulCandidateIds);
+        successfulCandidates = trace.solve.candidates
+          .filter(c => candidateIdSet.has(c.id))
+          .map(c => c.response);
+        
+        // Reconstruct successfulToOutputsMap
+        let successIdx = 0;
+        for (let i = 0; i < trace.solve.candidates.length; i++) {
+          if (candidateIdSet.has(trace.solve.candidates[i].id)) {
+            successfulToOutputsMap.set(successIdx++, i);
+          }
         }
-      }
-
-      // Only fail if ALL solvers failed (no successful candidates)
-      if (ensembleResult.successful.length === 0) {
-        const allErrors = ensembleResult.outputs.flatMap(o => [
-          ...(o.backendErrors ?? []),
-          ...(o.error ? [o.error] : []),
-        ]);
-        queue.push({
-          type: 'error',
-          stage: 'solve',
-          content: allErrors[0] ?? 'All solvers failed to produce output',
+        
+        // Reconstruct modules from trace, looking up prompts from registry
+        modules = trace.solve.candidates.map(c => {
+          // Look up full module from registry to get the prompt
+          const registryModule = getModuleById(c.module.id);
+          return {
+            id: c.module.id,
+            category: c.module.category as ReasoningModule['category'],
+            name: c.module.name,
+            prompt: registryModule?.prompt ?? '', // Fallback to empty if module not found
+          };
         });
-        queue.done();
-        return;
-      }
-
-      // Populate trace with solver outputs
-      // Build mapping from successful index to outputs index for correct trace.judge.selectedIndex reference
-      const successfulToOutputsMap = new Map<number, number>();
-      let successIdx = 0;
-      for (let i = 0; i < ensembleResult.outputs.length; i++) {
-        const output = ensembleResult.outputs[i];
-        const module = modules[i];
-        // Include legacy ID for backward compatibility
-        const legacyId = `solver-${i}-${module.category}`;
-        trace.solve.candidates.push({
-          id: output.id,
-          legacyId,
-          module: {
-            id: module.id,
-            category: module.category,
-            name: module.name,
-          },
-          response: output.text,
-          usage: output.usage,
-        });
-
-        // Track successful outputs for index mapping
-        if (!output.error && !output.backendErrors?.length && output.text) {
-          successfulToOutputsMap.set(successIdx++, i);
-        }
-      }
-
-      // Step 4: Run judge selection
-      const judgeResult = await runJudge({
-        backend: judge.backend,
-        model: judge.model,
-        systemPrompt: judge.systemPrompt,
-        reasoning: judge.reasoning,
-        sandbox: judge.sandbox,
-        cwd: judge.cwd,
-        candidates: ensembleResult.successful,
-        originalTask: prompt,
-        seed: `${prompt}-${Date.now()}`, // Salt the seed with timestamp to prevent simple predictability
-        onMessage: (msg: Message) => {
-          const judgeId = formatMemberId({
-            type: 'judge',
-            backend: judge.backend,
-            model: judge.model ?? 'unknown',
-            index: 0,
-            module: 'NA',
+        
+        // Reconstruct solverMetaMap from trace
+        for (let i = 0; i < trace.solve.candidates.length; i++) {
+          const candidate = trace.solve.candidates[i];
+          solverMetaMap.set(candidate.id, {
+            type: 'solver',
+            backend: 'unknown', // Not stored in trace
+            model: 'unknown',
+            index: i,
+            module: `${candidate.module.category}/${candidate.module.id}`,
+            id: candidate.id,
           });
-          const toolEvent = makeToolEvent(judgeId, msg);
+        }
+        
+        // Restore usage from checkpoint
+        usages.push(options.resumeCheckpoint.usageAtCheckpoint);
+      } else {
+        // Run solve stage normally
+        queue.push({ type: 'stage_start', stage: 'solve' });
+
+        modules = selectModules({
+          k: solver.k,
+          categories: solver.categories,
+          modules: solver.modules,
+        });
+
+        const members: EnsembleMember[] = modules.map((module, i) => {
+          const backend = solver.backends[i % solver.backends.length];
+          const model = solver.backendModels.get(backend) ?? solver.model;
+          const memberId = formatMemberId({
+            type: 'solver',
+            backend,
+            model: model ?? 'unknown',
+            index: i,
+            module: `${module.category}/${module.id}`,
+          });
+          return {
+            id: memberId,
+            request: {
+              backend,
+              model,
+              prompt,
+              context: solver.context,
+              systemPrompt: buildDeepSolverSystemPrompt({ module }),
+              reasoning: solver.reasoning,
+              sandbox: solver.sandbox,
+              cwd: solver.cwd,
+            },
+          };
+        });
+
+        // Create mapping from memberId to MemberMeta for events
+        for (let i = 0; i < modules.length; i++) {
+          const backend = solver.backends[i % solver.backends.length];
+          const model = solver.backendModels.get(backend) ?? solver.model;
+          const moduleSpec = `${modules[i].category}/${modules[i].id}`;
+          const memberId = formatMemberId({
+            type: 'solver',
+            backend,
+            model: model ?? 'unknown',
+            index: i,
+            module: moduleSpec,
+          });
+          solverMetaMap.set(memberId, {
+            type: 'solver',
+            backend,
+            model: model ?? 'unknown',
+            index: i,
+            module: moduleSpec,
+            id: memberId,
+          });
+        }
+
+        const ensembleResult = await runEnsemble(members, (event: EnsembleEvent) => {
+          const memberMeta = solverMetaMap.get(event.memberId);
+
+          const toolEvent = makeToolEvent(event.memberId, event.message);
           if (toolEvent) {
-            toolEvent.member = {
+            toolEvent.member = memberMeta;
+            queue.push(toolEvent);
+          }
+
+          if (event.message.type === 'done') {
+            queue.push({
+              type: 'solver_complete',
+              stage: 'solve',
+              source: event.memberId,
+              backend: memberMeta?.backend,
+              model: memberMeta?.model,
+              member: memberMeta,
+              usage: event.message.usage,
+            });
+          }
+        });
+
+        usages.push(ensembleResult.totalUsage);
+        queue.push({ type: 'ensemble_complete', usage: ensembleResult.totalUsage });
+
+        // Log individual solver failures with context (but don't fail pipeline if others succeeded)
+        for (let i = 0; i < ensembleResult.outputs.length; i++) {
+          const output = ensembleResult.outputs[i];
+          const errors = output.backendErrors ?? [];
+          const exceptionError = output.error;
+          
+          if (errors.length > 0 || exceptionError) {
+            const meta = solverMetaMap.get(output.id);
+            const errorMsg = errors[0] ?? exceptionError ?? 'Unknown error';
+            const ctx = meta 
+              ? `[solver-${meta.index + 1}:${meta.backend}:${meta.model}:${meta.module}]`
+              : `[${output.id}]`;
+            console.error(`${c.yellow('[warning]')} ${ctx} Solver failed: ${errorMsg}`);
+          }
+        }
+
+        // Only fail if ALL solvers failed (no successful candidates)
+        if (ensembleResult.successful.length === 0) {
+          const allErrors = ensembleResult.outputs.flatMap(o => [
+            ...(o.backendErrors ?? []),
+            ...(o.error ? [o.error] : []),
+          ]);
+          queue.push({
+            type: 'error',
+            stage: 'solve',
+            content: allErrors[0] ?? 'All solvers failed to produce output',
+          });
+          queue.done();
+          return;
+        }
+
+        // Store successful candidates
+        successfulCandidates = ensembleResult.successful;
+
+        // Populate trace with solver outputs
+        // Build mapping from successful index to outputs index for correct trace.judge.selectedIndex reference
+        let successIdx = 0;
+        for (let i = 0; i < ensembleResult.outputs.length; i++) {
+          const output = ensembleResult.outputs[i];
+          const module = modules[i];
+          // Include legacy ID for backward compatibility
+          const legacyId = `solver-${i}-${module.category}`;
+          trace.solve.candidates.push({
+            id: output.id,
+            legacyId,
+            module: {
+              id: module.id,
+              category: module.category,
+              name: module.name,
+            },
+            response: output.text,
+            usage: output.usage,
+          });
+
+          // Track successful outputs for index mapping
+          if (!output.error && !output.backendErrors?.length && output.text) {
+            successfulToOutputsMap.set(successIdx++, i);
+          }
+        }
+
+        // Extract successful candidate IDs for checkpoint
+        successfulCandidateIds = ensembleResult.outputs
+          .filter(o => !o.error && !o.backendErrors?.length && o.text)
+          .map(o => o.id);
+
+        // === CHECKPOINT: After solvers complete ===
+        if (options.onCheckpoint) {
+          const checkpointData: DeepThinkCheckpointData = {
+            trace,
+            status: 'partial',
+            completedStage: 'solve',
+            successfulCandidateIds,
+            usageAtCheckpoint: ensembleResult.totalUsage,
+          };
+          await options.onCheckpoint(checkpointData);
+          queue.push({ type: 'checkpoint', checkpoint: checkpointData });
+        }
+        lastCompletedStage = 'solve';
+      }
+
+      // === Variables that carry from judge stage ===
+      let finalAnswer = '';
+      let judgeConfidence = 0;
+      let judgeSessionId: string | undefined;
+
+      // Step 4: Run judge selection (or restore from checkpoint)
+      // Skip judge if we've completed it (stage >= 2)
+      const skipJudge = isResuming && resumeStageNum >= 2;
+      currentStage = 'judge';
+      
+      if (skipJudge && options.resumeCheckpoint) {
+        // Restore judge state from checkpoint
+        console.error(c.cyan('[deep]') + ' Skipping judge stage (restored from checkpoint)');
+        lastCompletedStage = 'judge'; // We're resuming from at least judge
+        
+        // Get selected candidate from checkpoint
+        const selectedIdx = options.resumeCheckpoint.judgeSelectedIndex ?? trace.judge.selectedIndex;
+        const outputsIdx = successfulToOutputsMap.get(selectedIdx) ?? selectedIdx;
+        finalAnswer = trace.solve.candidates[outputsIdx]?.response ?? '';
+        judgeConfidence = trace.judge.confidence;
+        selectedDisplayIdx = (options.resumeCheckpoint.judgeSelectedDisplayIndex ?? trace.judge.selectedDisplayIndex) - 1;
+        selectedMemberId = options.resumeCheckpoint.selectedCandidateId ?? trace.solve.candidates[outputsIdx]?.id;
+        judgeSeed = options.resumeCheckpoint.judgeSeed ?? '';
+        judgeIndexMapping = options.resumeCheckpoint.judgeIndexMapping ?? [];
+        judgeSelectedIndex = selectedIdx;
+      } else {
+        // Run judge stage normally
+        const judgeResult = await runJudge({
+          backend: judge.backend,
+          model: judge.model,
+          systemPrompt: judge.systemPrompt,
+          reasoning: judge.reasoning,
+          sandbox: judge.sandbox,
+          cwd: judge.cwd,
+          candidates: successfulCandidates,
+          originalTask: prompt,
+          seed: `${prompt}-${Date.now()}`,
+          onMessage: (msg: Message) => {
+            const judgeId = formatMemberId({
               type: 'judge',
               backend: judge.backend,
               model: judge.model ?? 'unknown',
               index: 0,
               module: 'NA',
-              id: judgeId,
-            };
-            queue.push(toolEvent);
-          }
-        },
-      });
-      usages.push(judgeResult.usage);
+            });
+            const toolEvent = makeToolEvent(judgeId, msg);
+            if (toolEvent) {
+              toolEvent.member = {
+                type: 'judge',
+                backend: judge.backend,
+                model: judge.model ?? 'unknown',
+                index: 0,
+                module: 'NA',
+                id: judgeId,
+              };
+              queue.push(toolEvent);
+            }
+          },
+        });
+        usages.push(judgeResult.usage);
 
-      // Find the display index (what the judge saw and referenced in its reasoning)
-      const selectedDisplayIdx = judgeResult.indexMapping.findIndex(
-        origIdx => origIdx === judgeResult.decision.selectedIndex
-      );
+        // Store judge results
+        finalAnswer = judgeResult.selected;
+        judgeConfidence = judgeResult.decision.confidence;
+        judgeSelectedIndex = judgeResult.decision.selectedIndex;
+        judgeIndexMapping = judgeResult.indexMapping;
+        judgeSessionId = judgeResult.sessionId;
+        judgeSeed = `${prompt}-${Date.now()}`;
 
-      // Map successful index to outputs index for correct trace reference
-      trace.judge.selectedIndex = successfulToOutputsMap.get(judgeResult.decision.selectedIndex) ?? 0;
-      trace.judge.selectedDisplayIndex = selectedDisplayIdx + 1;  // 1-indexed for user clarity
-      trace.judge.confidence = judgeResult.decision.confidence;
-      trace.judge.consensusAnalysis = judgeResult.decision.consensusAnalysis;
-      trace.judge.reasoning = judgeResult.decision.reasoning;
+        // Find the display index (what the judge saw and referenced in its reasoning)
+        selectedDisplayIdx = judgeResult.indexMapping.findIndex(
+          origIdx => origIdx === judgeResult.decision.selectedIndex
+        );
 
-      // Emit shuffled note before candidates
-      queue.push({
-        type: 'candidate',
-        stage: 'solve',
-        content: '(candidates shuffled to reduce position bias)',
-      });
+        // Map successful index to outputs index for correct trace reference
+        trace.judge.selectedIndex = successfulToOutputsMap.get(judgeResult.decision.selectedIndex) ?? 0;
+        trace.judge.selectedDisplayIndex = selectedDisplayIdx + 1;
+        trace.judge.confidence = judgeResult.decision.confidence;
+        trace.judge.consensusAnalysis = judgeResult.decision.consensusAnalysis;
+        trace.judge.reasoning = judgeResult.decision.reasoning;
 
-      // Emit candidate summary events in the SAME shuffled order the judge sees
-      // This ensures candidate numbers in the judge's reasoning match what the user sees
-      for (let displayIdx = 0; displayIdx < judgeResult.indexMapping.length; displayIdx++) {
-        const originalIdx = judgeResult.indexMapping[displayIdx];
-        // Map successful index back to outputs index to get solver metadata
-        const outputsIdx = successfulToOutputsMap.get(originalIdx);
-        const candidateMemberId = outputsIdx !== undefined ? ensembleResult.outputs[outputsIdx]?.id : undefined;
-        const candidateMeta = candidateMemberId ? solverMetaMap.get(candidateMemberId) : undefined;
+        // Look up selected solver metadata
+        const selectedOriginalIdx = judgeResult.decision.selectedIndex;
+        const selectedOutputsIdx = successfulToOutputsMap.get(selectedOriginalIdx) ?? 0;
+        selectedMemberId = trace.solve.candidates[selectedOutputsIdx]?.id;
+
+        // Emit shuffled note before candidates
         queue.push({
           type: 'candidate',
           stage: 'solve',
-          content: `Candidate ${displayIdx + 1}: ${truncate(ensembleResult.successful[originalIdx], 200)}`,
-          member: candidateMeta,
+          content: '(candidates shuffled to reduce position bias)',
+        });
+
+        // Emit candidate summary events in the SAME shuffled order the judge sees
+        for (let displayIdx = 0; displayIdx < judgeResult.indexMapping.length; displayIdx++) {
+          const originalIdx = judgeResult.indexMapping[displayIdx];
+          const outputsIdx = successfulToOutputsMap.get(originalIdx);
+          const candidateMemberId = outputsIdx !== undefined ? trace.solve.candidates[outputsIdx]?.id : undefined;
+          const candidateMeta = candidateMemberId ? solverMetaMap.get(candidateMemberId) : undefined;
+          queue.push({
+            type: 'candidate',
+            stage: 'solve',
+            content: `Candidate ${displayIdx + 1}: ${truncate(successfulCandidates[originalIdx], 200)}`,
+            member: candidateMeta,
+          });
+        }
+
+        // Look up selected solver metadata for display
+        const selectedModule = modules[selectedOutputsIdx];
+        const selectedMeta = selectedMemberId ? solverMetaMap.get(selectedMemberId) : undefined;
+        
+        queue.push({
+          type: 'selected',
+          stage: 'solve',
+          content: judgeResult.selected,
+          confidence: judgeResult.decision.confidence,
+          selectedIndex: selectedDisplayIdx >= 0 ? selectedDisplayIdx : 0,
+          reasoning: judgeResult.decision.reasoning,
+          consensusAnalysis: judgeResult.decision.consensusAnalysis,
+          selectedMember: selectedMeta ? {
+            backend: selectedMeta.backend,
+            model: selectedMeta.model,
+            index: selectedMeta.index,
+          } : undefined,
+          selectedModule: selectedModule ? {
+            id: selectedModule.id,
+            category: selectedModule.category,
+            name: selectedModule.name,
+            prompt: selectedModule.prompt,
+          } : undefined,
+        });
+
+        queue.push({
+          type: 'stage_complete',
+          stage: 'solve',
+          confidence: judgeResult.decision.confidence,
+          usage: combineUsage(usages),
         });
       }
 
-      // Find the display index (what the judge saw and referenced in its reasoning)
-      // This is the number the user should see to match the judge's output
-      const selectedDisplayIndex = judgeResult.indexMapping.findIndex(
-        origIdx => origIdx === judgeResult.decision.selectedIndex
-      );
-
-      // Look up selected solver metadata for display
-      const selectedOriginalIdx = judgeResult.decision.selectedIndex;
-      const selectedOutputsIdx = successfulToOutputsMap.get(selectedOriginalIdx) ?? 0;
-      const selectedModule = modules[selectedOutputsIdx];
-      const selectedMemberId = ensembleResult.outputs[selectedOutputsIdx]?.id;
-      const selectedMeta = selectedMemberId ? solverMetaMap.get(selectedMemberId) : undefined;
-      
-      queue.push({
-        type: 'selected',
-        stage: 'solve',
-        content: judgeResult.selected,
-        confidence: judgeResult.decision.confidence,
-        selectedIndex: selectedDisplayIndex >= 0 ? selectedDisplayIndex : 0,
-        reasoning: judgeResult.decision.reasoning,
-        consensusAnalysis: judgeResult.decision.consensusAnalysis,
-        selectedMember: selectedMeta ? {
-          backend: selectedMeta.backend,
-          model: selectedMeta.model,
-          index: selectedMeta.index,
-        } : undefined,
-        selectedModule: selectedModule ? {
-          id: selectedModule.id,
-          category: selectedModule.category,
-          name: selectedModule.name,
-          prompt: selectedModule.prompt,
-        } : undefined,
-      });
-
-      queue.push({
-        type: 'stage_complete',
-        stage: 'solve',
-        confidence: judgeResult.decision.confidence,
-        usage: ensembleResult.totalUsage,
-      });
+      // === CHECKPOINT: After judge completes (only if we ran judge) ===
+      if (options.onCheckpoint && !skipJudge) {
+        const checkpointData: DeepThinkCheckpointData = {
+          trace,
+          status: 'partial',
+          completedStage: 'judge',
+          successfulCandidateIds,
+          judgeSeed,
+          judgeIndexMapping,
+          judgeSelectedIndex,
+          judgeSelectedDisplayIndex: selectedDisplayIdx + 1,
+          selectedCandidateId: selectedMemberId,
+          usageAtCheckpoint: combineUsage(usages),
+        };
+        await options.onCheckpoint(checkpointData);
+        queue.push({ type: 'checkpoint', checkpoint: checkpointData });
+      }
+      lastCompletedStage = 'judge';
 
       // Step 5: Optionally run verification
-      let finalAnswer = judgeResult.selected;
       let wasRevised = false;
-      let lastSessionId = judgeResult.sessionId;
+      let lastSessionId = judgeSessionId;
       let lastBackend = judge.backend;
 
-      const shouldVerify = verifyEnabled && verifier !== null && (judgeResult.decision.confidence < 0.7 || forceVerify);
+      const shouldVerify = verifyEnabled && verifier !== null && (judgeConfidence < 0.7 || forceVerify);
 
       if (shouldVerify && verifier) {
+        currentStage = 'verify';
         queue.push({ type: 'stage_start', stage: 'verify' });
+
+        // Check if resuming with partial verify state
+        // If we have verifyChecks from checkpoint, use them to ensure deterministic resume
+        // If we have partialVerifyResults, skip those checks
+        const checksOverride = options.resumeCheckpoint?.verifyChecks;
+        const completedResults = options.resumeCheckpoint?.partialVerifyResults;
+        
+        if (checksOverride && checksOverride.length > 0) {
+          const completedCount = completedResults?.length ?? 0;
+          console.error(c.cyan('[deep]') + ` Resuming verify stage (${completedCount}/${checksOverride.length} checks completed)`);
+        }
 
         const verifyResult = await runVerification({
           backend: verifier.backend,
@@ -947,6 +1144,9 @@ export async function* runDeepThink(
           type: verifier.type,
           draft: finalAnswer,
           originalTask: prompt,
+          // Resume support: use pre-computed checks and skip completed results
+          checksOverride,
+          completedResults,
           // Factory creates per-check handlers that capture index/id in closure.
           // This fixes the race condition where parallel checks interleave events.
           createCheckMessageHandler: ({ index, check }) => {
@@ -1031,8 +1231,30 @@ export async function* runDeepThink(
               : 'all checks passed',
         });
 
+        // === CHECKPOINT: After verify completes ===
+        if (options.onCheckpoint) {
+          const checkpointData: DeepThinkCheckpointData = {
+            trace,
+            status: 'partial',
+            completedStage: 'verify',
+            successfulCandidateIds,
+            judgeSeed,
+            judgeIndexMapping,
+            judgeSelectedIndex,
+            judgeSelectedDisplayIndex: selectedDisplayIdx + 1,
+            selectedCandidateId: selectedMemberId,
+            verifyChecks: verifyResult.checks,
+            partialVerifyResults: verifyResult.results,
+            usageAtCheckpoint: combineUsage(usages),
+          };
+          await options.onCheckpoint(checkpointData);
+          queue.push({ type: 'checkpoint', checkpoint: checkpointData });
+        }
+        lastCompletedStage = 'verify';
+
         // Run revision if there are contradictions and we have a revision config
         if (contradictions > 0 && revision) {
+          currentStage = 'revision';
           // Emit revise phase start
           queue.push({ type: 'stage_start', stage: 'revise' });
 
@@ -1104,8 +1326,8 @@ export async function* runDeepThink(
 
       const result: DeepThinkResult = {
         answer: finalAnswer,
-        confidence: judgeResult.decision.confidence,
-        candidates: ensembleResult.successful,
+        confidence: judgeConfidence,
+        candidates: successfulCandidates,
         wasRevised,
         usage: totalUsage,
         trace,
@@ -1119,14 +1341,50 @@ export async function* runDeepThink(
       });
       queue.done();
     } catch (e) {
-      // Convert non-Error objects to Error with proper message extraction
+      // Extract error message
+      let errorMessage: string;
+      if (e instanceof Error) {
+        errorMessage = e.message;
+      } else if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+        errorMessage = (e as { message: string }).message;
+      } else {
+        errorMessage = String(e);
+      }
+
+      // Save failure checkpoint if we have a completed stage to resume from
+      // Only record failedStage for stages that can meaningfully fail (judge, verify, revision)
+      if (options.onCheckpoint && lastCompletedStage !== 'none' && trace) {
+        const failedStage = currentStage === 'judge' || currentStage === 'verify' || currentStage === 'revision'
+          ? currentStage
+          : undefined;
+        
+        try {
+          const failureCheckpoint: DeepThinkCheckpointData = {
+            trace,
+            status: 'partial',
+            completedStage: lastCompletedStage,
+            failedStage,
+            error: errorMessage,
+            successfulCandidateIds,
+            judgeSeed: judgeSeed || undefined,
+            judgeIndexMapping: judgeIndexMapping.length > 0 ? judgeIndexMapping : undefined,
+            judgeSelectedIndex: judgeSelectedIndex || undefined,
+            judgeSelectedDisplayIndex: selectedDisplayIdx ? selectedDisplayIdx + 1 : undefined,
+            selectedCandidateId: selectedMemberId,
+            usageAtCheckpoint: combineUsage(usages),
+          };
+          await options.onCheckpoint(failureCheckpoint);
+        } catch (checkpointError) {
+          // Don't let checkpoint write failures swallow the original error
+          console.error(c.yellow('[deep]') + ' Failed to save error checkpoint:', checkpointError);
+        }
+      }
+
+      // Convert to Error and fail the queue
       if (e instanceof Error) {
         queue.fail(e);
-      } else if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
-        // Handle structured error objects like { type: 'UNKNOWN_MODEL', message: '...' }
-        queue.fail(new Error((e as { message: string }).message));
       } else {
-        queue.fail(new Error(String(e)));
+        queue.fail(new Error(errorMessage));
       }
     }
   })();

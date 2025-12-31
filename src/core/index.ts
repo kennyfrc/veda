@@ -76,4 +76,5 @@ export {
   selectModules,
   createModuleRegistry,
   DEFAULT_REGISTRY,
+  getModuleById,
 } from './modules';
