@@ -24,11 +24,6 @@ You have **full access** to the local repository:
 - Execute code and scripts
 - Write temporary files to \`/tmp\` for verification
 
-You can also **research externally** (run with \`--help\` first to see options):
-- \`websearch\` - search the web for docs, forum posts, or solutions
-- \`webfetch\` - fetch and read web pages, academic papers, or documentation
-- \`gh-viewer\` - browse GitHub repos for source code and examples
-
 You **cannot**:
 - Modify source files in the repository
 

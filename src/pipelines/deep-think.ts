@@ -379,7 +379,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     model: options.solverModel,
     backendModels,
     reasoning: options.solverReasoning ?? 'medium',
-    sandbox: 'full',
+    sandbox: 'read-only',
     cwd: options.cwd ?? process.cwd(),
     context: options.context,
   };
@@ -416,7 +416,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     model: judge.model,
     systemPrompt: JUDGE_SYSTEM_PROMPT,
     reasoning: options.judgeReasoning ?? 'medium',
-    sandbox: 'full',
+    sandbox: 'read-only',
     cwd: options.cwd ?? process.cwd(),
   };
 
@@ -477,7 +477,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
         model: revisionResolved.model,
         systemPrompt: VERIFIER_SYSTEM_PROMPT,  // Same system prompt as verifier
         reasoning: options.revisionReasoning ?? options.verifyReasoning ?? 'high',
-        sandbox: 'full',
+        sandbox: 'read-only',
         cwd: options.cwd ?? process.cwd(),
       };
     }
