@@ -6,6 +6,7 @@ export type ModuleCategory =
   | 'evaluative'
   | 'contextual'
   | 'empirical'
+  | 'debugging'
   | 'reflective';
 
 export interface ReasoningModule {
@@ -29,7 +30,7 @@ export interface SelectModulesOptions {
   registry?: ModuleRegistry; // Optional custom registry
 }
 
-// Default module catalog - 42 modules across 8 categories
+// Default module catalog - 43 modules across 9 categories
 // Sources: Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", McKinsey frameworks,
 //          Fermi estimation, TRIZ inventive principles, Meadows' leverage points, Klein's premortem
 const DEFAULT_MODULES: ReasoningModule[] = [
@@ -190,6 +191,12 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     name: 'Contradiction Resolution',
     prompt: 'Name the core tradeoff: two desirable properties that appear mutually exclusive. Then refuse the tradeoff—find a way to have both by separating them in time, space, scale, or condition.',
   },
+  {
+    id: 'scenario_planning',
+    category: 'strategic',
+    name: 'Scenario Planning',
+    prompt: 'Construct 2-3 plausible future scenarios based on key uncertainties. What early signals would indicate each scenario? What decisions are robust across scenarios?',
+  },
 
   // === EVALUATIVE (5) ===
   {
@@ -243,7 +250,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'What human factors affect this problem? Consider habits, incentives, cognitive biases, and social dynamics.',
   },
 
-  // === EMPIRICAL (6) ===
+  // === EMPIRICAL (4) ===
   {
     id: 'experimental_design',
     category: 'empirical',
@@ -268,15 +275,17 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     name: 'Fermi Estimation',
     prompt: 'Estimate unknown quantities by decomposing into factors you can guess. What 3-5 sub-quantities multiply to give the answer? Make rough estimates for each, multiply, and sanity-check the order of magnitude.',
   },
+
+  // === DEBUGGING (2) ===
   {
     id: 'binary_search_debug',
-    category: 'empirical',
+    category: 'debugging',
     name: 'Binary Search Debugging',
     prompt: 'Divide the search space in half. Which half contains the problem? Repeat until isolated. Works for code, commits, inputs, or time—anywhere you can split and test.',
   },
   {
     id: 'print_debugging',
-    category: 'empirical',
+    category: 'debugging',
     name: 'Print Debugging',
     prompt: 'Create a minimal reproduction script in /tmp that imports the relevant modules. Add logging at every stage: print inputs, intermediate state, and outputs at each transformation. Run the script headlessly and trace how data changes step by step. Look for where actual values diverge from expected. Clean up the script after.',
   },
@@ -303,7 +312,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
 ];
 
 
-// Fixed ontology - 8 categories for solver diversity
+// Fixed ontology - 9 categories for solver diversity
 export const ALL_CATEGORIES: ModuleCategory[] = [
   'analytical',
   'creative',
@@ -312,6 +321,7 @@ export const ALL_CATEGORIES: ModuleCategory[] = [
   'evaluative',
   'contextual',
   'empirical',
+  'debugging',
   'reflective',
 ];
 

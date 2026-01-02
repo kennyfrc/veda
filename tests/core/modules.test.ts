@@ -12,18 +12,18 @@ import {
 
 describe('Reasoning Modules', () => {
   describe('catalog', () => {
-    test('has 42 modules across 8 categories', () => {
-      expect(REASONING_MODULES.length).toBe(42);
+    test('has 43 modules across 9 categories', () => {
+      expect(REASONING_MODULES.length).toBe(43);
     });
 
-    test('has 8 categories', () => {
-      expect(ALL_CATEGORIES.length).toBe(8);
+    test('has 9 categories', () => {
+      expect(ALL_CATEGORIES.length).toBe(9);
     });
 
-    test('each category has 3-7 modules', () => {
+    test('each category has 2-7 modules', () => {
       for (const cat of ALL_CATEGORIES) {
         const count = MODULES_BY_CATEGORY[cat].length;
-        expect(count).toBeGreaterThanOrEqual(3);
+        expect(count).toBeGreaterThanOrEqual(2);
         expect(count).toBeLessThanOrEqual(7);
       }
     });
@@ -66,15 +66,20 @@ describe('Reasoning Modules', () => {
       expect(MODULE_BY_ID['contradiction_resolution'].category).toBe('strategic');
     });
 
-    test('debugging modules exist', () => {
+    test('debugging modules exist in debugging category', () => {
       expect(MODULE_BY_ID['binary_search_debug']).toBeDefined();
-      expect(MODULE_BY_ID['binary_search_debug'].category).toBe('empirical');
+      expect(MODULE_BY_ID['binary_search_debug'].category).toBe('debugging');
       
       expect(MODULE_BY_ID['print_debugging']).toBeDefined();
-      expect(MODULE_BY_ID['print_debugging'].category).toBe('empirical');
+      expect(MODULE_BY_ID['print_debugging'].category).toBe('debugging');
       
       expect(MODULE_BY_ID['simplify_the_problem']).toBeDefined();
       expect(MODULE_BY_ID['simplify_the_problem'].category).toBe('systematic');
+    });
+
+    test('scenario_planning module exists', () => {
+      expect(MODULE_BY_ID['scenario_planning']).toBeDefined();
+      expect(MODULE_BY_ID['scenario_planning'].category).toBe('strategic');
     });
   });
 
@@ -267,8 +272,8 @@ describe('Reasoning Modules', () => {
 describe('ModuleRegistry (additive design)', () => {
   test('creates default registry from DEFAULT_MODULES', () => {
     const registry = createModuleRegistry();
-    expect(registry.modules.length).toBe(42);
-    expect(registry.allCategories.length).toBe(8);
+    expect(registry.modules.length).toBe(43);
+    expect(registry.allCategories.length).toBe(9);
   });
 
   test('creates custom registry with injected modules', () => {
@@ -397,8 +402,8 @@ describe('ModuleRegistry (additive design)', () => {
   });
 
   test('DEFAULT_REGISTRY is a singleton using DEFAULT_MODULES', () => {
-    expect(DEFAULT_REGISTRY.modules).toHaveLength(42);
-    expect(DEFAULT_REGISTRY.allCategories).toHaveLength(8);
+    expect(DEFAULT_REGISTRY.modules).toHaveLength(43);
+    expect(DEFAULT_REGISTRY.allCategories).toHaveLength(9);
 
     // Verify backward compatibility aliases work
     expect(REASONING_MODULES).toBe(DEFAULT_REGISTRY.modules);
