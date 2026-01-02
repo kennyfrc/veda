@@ -131,6 +131,30 @@ veda -S deep-api-design deep --trace /tmp/deep-trace.yaml --no-verify "Compare R
 | `--json` | Output structured JSON result | text output |
 | `-o file` | Save response to file | stdout |
 
+### Per-Stage Reasoning
+
+Control reasoning level per stage (minimal, low, medium, high, xhigh):
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--solver-reasoning LEVEL` | Reasoning for solvers | medium |
+| `--judge-reasoning LEVEL` | Reasoning for judge | medium |
+| `--verifier-reasoning LEVEL` | Reasoning for verifier | high |
+| `--revision-reasoning LEVEL` | Reasoning for revision | verifier value |
+
+```bash
+# High reasoning for solvers on critical decisions
+veda deep --solver-reasoning high "Critical architecture decision"
+
+# Use xhigh for all verification stages
+veda deep --verifier-reasoning xhigh "Need thorough fact-checking"
+
+# Mix: fast solvers, careful verification
+veda deep --solver-reasoning low --verifier-reasoning xhigh "Quick candidates, careful check"
+```
+
+**Config file support:** Set defaults via `DEEP_SOLVER_REASONING`, `DEEP_JUDGE_REASONING`, `DEEP_VERIFIER_REASONING`, `DEEP_REVISION_REASONING` in `~/.config/veda/config`.
+
 ---
 
 ## Reasoning Categories
