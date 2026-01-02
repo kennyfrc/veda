@@ -47,6 +47,25 @@ function inferBackendFromPrefix(model: string): string | undefined {
 }
 
 // =============================================================================
+// Base Pinning Detection
+// =============================================================================
+
+/**
+ * Check if the base backend/model was explicitly pinned by the user.
+ * 
+ * A "pinned" base means the user intentionally selected a backend via:
+ * - `-b <backend>` (explicit)
+ * - `-m <alias>` where alias implies backend (e.g., opus → claude-code)
+ * - `-m <model>` where model prefix implies backend (e.g., gpt-5 → codex)
+ * 
+ * When base is pinned, config-driven distribution should be suppressed
+ * unless the user explicitly enables it with --distribute-solvers.
+ */
+function isBasePinned(source: ResolutionSource): boolean {
+  return source === 'explicit' || source === 'alias' || source === 'prefix';
+}
+
+// =============================================================================
 // Backend/Model Resolution
 // =============================================================================
 
@@ -175,8 +194,14 @@ function resolveSolverConfig(
     }
   }
   
-  // Distributed mode: CLI flag > config > false
-  const useDistributed = flags.distributeSolvers ?? deepConfig?.distributeSolvers ?? false;
+  // Distributed mode: CLI flag > pinned base suppression > config > false
+  // When base is pinned (user passed -b or -m that infers backend), suppress config distribution
+  // unless user explicitly enables it with --distribute-solvers
+  const useDistributed = flags.distributeSolvers !== undefined
+    ? flags.distributeSolvers  // Explicit CLI flag always wins
+    : isBasePinned(base.source)
+      ? false  // Pinned base suppresses config distribution
+      : (deepConfig?.distributeSolvers ?? false);
   
   // Resolve reasoning for solver stage
   const reasoning = resolveStageReasoning(flags, 'solver', globalConfig);
@@ -232,9 +257,10 @@ function resolveSolverConfig(
     };
   }
   
-  // Fixed mode: solver backend CLI > alias-inferred > base
+  // Fixed mode: solver backend CLI > alias-inferred > pinned base > resolved
   const effectiveBackend = flags.solverBackend 
-    ?? (solverModelAlias ? solverModelAlias.backend : undefined);
+    ?? (solverModelAlias ? solverModelAlias.backend : undefined)
+    ?? (isBasePinned(base.source) ? base.backend : undefined);
   
   const resolved = resolveBackendModel({
     explicitBackend: effectiveBackend,
