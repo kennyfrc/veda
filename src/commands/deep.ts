@@ -315,11 +315,22 @@ export async function handleDeep(
       })
     : verifier;
 
-  // Resolve effective reasoning for solver (CLI -r > per-backend config > default)
-  const effectiveSolverReasoning = options.reasoning ?? resolveReasoning({
-    backend: solverBackendForNotification,
-    globalConfig,
-  });
+  // Resolve effective reasoning for each stage (CLI > config > default)
+  const effectiveSolverReasoning = options.solverReasoning 
+    ?? deepConfig.solverReasoning 
+    ?? resolveReasoning({ backend: solverBackendForNotification, globalConfig });
+
+  const effectiveJudgeReasoning = options.judgeReasoning 
+    ?? deepConfig.judgeReasoning 
+    ?? 'medium';
+
+  const effectiveVerifierReasoning = options.verifierReasoning 
+    ?? deepConfig.verifierReasoning 
+    ?? 'high';
+
+  const effectiveRevisionReasoning = options.revisionReasoning 
+    ?? deepConfig.revisionReasoning 
+    ?? effectiveVerifierReasoning;
 
   let finalResult: DeepThinkResult | undefined;
   
@@ -353,6 +364,9 @@ export async function handleDeep(
     solverBackends: solverBackendsResult.backends,
     solverModel: options.solverModel,
     solverReasoning: effectiveSolverReasoning,
+    judgeReasoning: effectiveJudgeReasoning,
+    verifyReasoning: effectiveVerifierReasoning,
+    revisionReasoning: effectiveRevisionReasoning,
     judgeBackend: effectiveJudgeBackend,
     judgeModel: effectiveJudgeModel,
     verifierBackend: effectiveVerifierBackend,

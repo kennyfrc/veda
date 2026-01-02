@@ -24,6 +24,7 @@ export interface AgentConfig {
 export interface DeepModeConfig {
   distributeSolvers?: boolean;
   solverBackends?: string[];
+  solverReasoning?: ReasoningLevel;
   judgeBackend?: string;
   judgeModel?: string;
   judgeReasoning?: ReasoningLevel;
@@ -73,6 +74,9 @@ export function parseConfigFile(content: string): GlobalConfig {
             break;
           case 'DEEP_SOLVER_BACKENDS':
             deep.solverBackends = value.split(',').map(s => s.trim()).filter(s => s);
+            break;
+          case 'DEEP_SOLVER_REASONING':
+            if (isValidReasoning(value)) deep.solverReasoning = value;
             break;
           case 'DEEP_JUDGE_BACKEND':
             deep.judgeBackend = value;

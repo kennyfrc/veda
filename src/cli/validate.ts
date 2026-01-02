@@ -23,6 +23,10 @@ const DEEP_ONLY_FLAGS = [
   'judgeModel',
   'verifierBackend',
   'verifierModel',
+  'solverReasoning',
+  'judgeReasoning',
+  'verifierReasoning',
+  'revisionReasoning',
   'distributeSolvers',
   'solverBackends',
 ] as const;
@@ -43,6 +47,10 @@ const FLAG_DISPLAY_NAMES: Record<string, string> = {
   verifierModel: '--verifier-model',
   revisionBackend: '--revision-backend',
   revisionModel: '--revision-model',
+  solverReasoning: '--solver-reasoning',
+  judgeReasoning: '--judge-reasoning',
+  verifierReasoning: '--verifier-reasoning',
+  revisionReasoning: '--revision-reasoning',
   distributeSolvers: '--distribute-solvers',
   solverBackends: '--solver-backends',
   persona: '--persona',
@@ -90,10 +98,13 @@ export function validateApplicability(
     for (const flag of SIMPLE_ONLY_FLAGS) {
       if (hasFlag(flags, flag)) {
         const displayName = FLAG_DISPLAY_NAMES[flag] ?? `--${flag}`;
+        const hint = flag === 'reasoning'
+          ? 'Use --solver-reasoning, --judge-reasoning, --verifier-reasoning, --revision-reasoning instead'
+          : 'Deep mode uses fixed sandbox per stage';
         throw new CliValidationError(
           `${displayName} is not used in deep mode`,
           'FLAG_NOT_APPLICABLE',
-          'Deep mode uses fixed reasoning/sandbox per stage'
+          hint
         );
       }
     }

@@ -34,6 +34,12 @@ export interface CliOptions {
   distributeSolvers?: boolean;
   solverBackends?: string[];
   
+  // Deep mode per-stage reasoning
+  solverReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  judgeReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  verifierReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  revisionReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  
   // Deep mode resume/checkpoint flags
   resume?: boolean;        // Resume from checkpoint
   force?: boolean;         // Overwrite existing checkpoint on new run
@@ -66,6 +72,9 @@ const FLAGS_WITH_VALUES = new Set([
   '--judge-backend', '--judge-model',
   '--verifier-backend', '--verifier-model',
   '--revision-backend', '--revision-model',
+  // Per-stage reasoning for deep mode
+  '--solver-reasoning', '--judge-reasoning',
+  '--verifier-reasoning', '--revision-reasoning',
   // Randomization options for deep mode
   '--solver-backends',
 ]);
@@ -161,6 +170,18 @@ export function parseArgs(argv: string[]): ParsedArgs {
           break;
         case '--solver-backends':
           options.solverBackends = value.split(',').map(s => s.trim());
+          break;
+        case '--solver-reasoning':
+          options.solverReasoning = value as CliOptions['solverReasoning'];
+          break;
+        case '--judge-reasoning':
+          options.judgeReasoning = value as CliOptions['judgeReasoning'];
+          break;
+        case '--verifier-reasoning':
+          options.verifierReasoning = value as CliOptions['verifierReasoning'];
+          break;
+        case '--revision-reasoning':
+          options.revisionReasoning = value as CliOptions['revisionReasoning'];
           break;
       }
       i += 2;
@@ -349,6 +370,12 @@ Deep Mode Stage Overrides:
   --verifier-model <name>   Model for verifier (default: -m value)
   --revision-backend <name> Backend for revision (default: verifier value)
   --revision-model <name>   Model for revision (default: verifier value)
+
+Deep Mode Reasoning:
+  --solver-reasoning <level>    Reasoning for solvers (default: medium)
+  --judge-reasoning <level>     Reasoning for judge (default: medium)
+  --verifier-reasoning <level>  Reasoning for verifier (default: high)
+  --revision-reasoning <level>  Reasoning for revision (default: verifier value)
 
 Deep Mode Backends:
   --distribute-solvers      Distribute solver backends evenly (round-robin)

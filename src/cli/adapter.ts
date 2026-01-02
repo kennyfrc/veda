@@ -86,6 +86,20 @@ export function deepConfigToCliOptions(config: DeepConfig): CliOptions {
   options.categories = config.categories;
   options.modules = config.modules;
 
+  // Handle per-stage reasoning
+  if (config.stages.solver.reasoning) {
+    options.solverReasoning = config.stages.solver.reasoning;
+  }
+  if (config.stages.judge.reasoning) {
+    options.judgeReasoning = config.stages.judge.reasoning;
+  }
+  if (config.stages.verifier.reasoning) {
+    options.verifierReasoning = config.stages.verifier.reasoning;
+  }
+  if (config.stages.revision.reasoning) {
+    options.revisionReasoning = config.stages.revision.reasoning;
+  }
+
   return options;
 }
 

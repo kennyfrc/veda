@@ -17,6 +17,7 @@ import type {
   SolverConfig,
   VerifyConfig,
   StageConfigs,
+  ReasoningLevel,
 } from './types';
 import { CliValidationError } from './types';
 import { resolveModelAlias, MODEL_ALIASES } from '../agent/model-aliases';
@@ -177,6 +178,9 @@ function resolveSolverConfig(
   // Distributed mode: CLI flag > config > false
   const useDistributed = flags.distributeSolvers ?? deepConfig?.distributeSolvers ?? false;
   
+  // Resolve reasoning for solver stage
+  const reasoning = resolveStageReasoning(flags, 'solver', globalConfig);
+  
   if (useDistributed) {
     // If solver model is an alias, it determines the backend (can't use sonnet on codex)
     // This overrides distributed backends from config
@@ -185,6 +189,7 @@ function resolveSolverConfig(
         mode: 'fixed',
         backend: solverModelAlias.backend,
         model: solverModelAlias.model,
+        reasoning,
       };
     }
     
@@ -223,6 +228,7 @@ function resolveSolverConfig(
       mode: 'distributed',
       backends,
       modelPerBackend,
+      reasoning,
     };
   }
   
@@ -240,6 +246,7 @@ function resolveSolverConfig(
     mode: 'fixed',
     backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
+    reasoning,
   };
 }
 
@@ -279,6 +286,7 @@ function resolveJudgeConfig(
   return {
     backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
+    reasoning: resolveStageReasoning(flags, 'judge', globalConfig),
   };
 }
 
@@ -318,6 +326,7 @@ function resolveVerifierConfig(
   return {
     backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
+    reasoning: resolveStageReasoning(flags, 'verifier', globalConfig),
   };
 }
 
@@ -359,6 +368,7 @@ function resolveRevisionConfig(
   return {
     backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
+    reasoning: resolveStageReasoning(flags, 'revision', globalConfig),
   };
 }
 
@@ -371,4 +381,67 @@ export function resolveVerifyConfig(flags: RawFlags): VerifyConfig {
     return { enabled: false };
   }
   return { enabled: true, forced: flags.forceVerify };
+}
+
+// =============================================================================
+// Reasoning Resolution
+// =============================================================================
+
+const VALID_REASONING_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+
+function isValidReasoning(level: string): level is ReasoningLevel {
+  return VALID_REASONING_LEVELS.includes(level as ReasoningLevel);
+}
+
+/**
+ * Resolve reasoning level for a deep mode stage.
+ * Precedence: CLI flag > config file > stage default
+ * 
+ * For revision stage, if not explicitly set, falls back to verifier's effective reasoning.
+ */
+export function resolveStageReasoning(
+  flags: RawFlags,
+  stage: 'solver' | 'judge' | 'verifier' | 'revision',
+  globalConfig?: GlobalConfig
+): ReasoningLevel {
+  const deepConfig = globalConfig?.deep;
+  
+  // Stage-specific defaults
+  const STAGE_DEFAULTS: Record<string, ReasoningLevel> = {
+    solver: 'medium',
+    judge: 'medium',
+    verifier: 'high',
+    revision: 'high',  // Only used if verifier reasoning also not set
+  };
+  
+  // CLI flag (explicit)
+  const cliValue = {
+    solver: flags.solverReasoning,
+    judge: flags.judgeReasoning,
+    verifier: flags.verifierReasoning,
+    revision: flags.revisionReasoning,
+  }[stage];
+  
+  if (cliValue && isValidReasoning(cliValue)) {
+    return cliValue;
+  }
+  
+  // Config file
+  const configValue = {
+    solver: deepConfig?.solverReasoning,
+    judge: deepConfig?.judgeReasoning,
+    verifier: deepConfig?.verifierReasoning,
+    revision: deepConfig?.revisionReasoning,
+  }[stage];
+  
+  if (configValue) {
+    return configValue;
+  }
+  
+  // For revision, fall back to verifier's effective reasoning
+  if (stage === 'revision') {
+    return resolveStageReasoning(flags, 'verifier', globalConfig);
+  }
+  
+  return STAGE_DEFAULTS[stage];
 }

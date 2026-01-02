@@ -77,12 +77,13 @@ export interface StageConfigs {
  * Prevents --solver-backend + --distribute-solvers at type level.
  */
 export type SolverConfig =
-  | { mode: 'fixed'; backend: string; model: string }
-  | { mode: 'distributed'; backends: string[]; modelPerBackend: Map<string, string> }
+  | { mode: 'fixed'; backend: string; model: string; reasoning?: ReasoningLevel }
+  | { mode: 'distributed'; backends: string[]; modelPerBackend: Map<string, string>; reasoning?: ReasoningLevel }
 
 export interface StageConfig {
   backend: string;
   model: string;
+  reasoning?: ReasoningLevel;
 }
 
 // =============================================================================
@@ -197,6 +198,12 @@ export interface RawFlags {
   verifierModel?: string;
   revisionBackend?: string;
   revisionModel?: string;
+  
+  // Deep mode per-stage reasoning overrides
+  solverReasoning?: string;
+  judgeReasoning?: string;
+  verifierReasoning?: string;
+  revisionReasoning?: string;
   
   // Deep mode distribution
   distributeSolvers?: boolean;  // undefined = not set by CLI (use config)
