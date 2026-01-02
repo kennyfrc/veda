@@ -30,7 +30,7 @@ export interface SelectModulesOptions {
   registry?: ModuleRegistry; // Optional custom registry
 }
 
-// Default module catalog - 43 modules across 9 categories
+// Default module catalog - 44 modules across 9 categories
 // Sources: Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", McKinsey frameworks,
 //          Fermi estimation, TRIZ inventive principles, Meadows' leverage points, Klein's premortem
 const DEFAULT_MODULES: ReasoningModule[] = [
@@ -250,7 +250,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'What human factors affect this problem? Consider habits, incentives, cognitive biases, and social dynamics.',
   },
 
-  // === EMPIRICAL (4) ===
+  // === EMPIRICAL (5) ===
   {
     id: 'experimental_design',
     category: 'empirical',
@@ -274,6 +274,12 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     category: 'empirical',
     name: 'Fermi Estimation',
     prompt: 'Estimate unknown quantities by decomposing into factors you can guess. What 3-5 sub-quantities multiply to give the answer? Make rough estimates for each, multiply, and sanity-check the order of magnitude.',
+  },
+  {
+    id: 'sanity_check',
+    category: 'empirical',
+    name: 'Sanity Check',
+    prompt: 'Before accepting any answer, verify it against known reference points. Is the order of magnitude plausible? Does it pass the "smell test" compared to similar known quantities? What would have to be true for this answer to be wrong by 10x?',
   },
 
   // === DEBUGGING (2) ===

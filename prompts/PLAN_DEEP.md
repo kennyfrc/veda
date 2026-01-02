@@ -161,7 +161,7 @@ veda deep --solver-reasoning low --verifier-reasoning xhigh "Quick candidates, c
 
 Deep mode uses **SELF-DISCOVER reasoning modules** to create cognitive diversity across solvers. Each solver gets a different reasoning approach. Modules are sourced from Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", McKinsey problem-solving frameworks, Fermi estimation, TRIZ inventive principles, Meadows' leverage points, and Klein's premortem.
 
-**9 categories, 43 total modules (2-7 per category):**
+**9 categories, 44 total modules (2-7 per category):**
 
 | Category | Best For | Modules |
 |----------|----------|---------|
@@ -171,7 +171,7 @@ Deep mode uses **SELF-DISCOVER reasoning modules** to create cognitive diversity
 | `strategic` | Planning, iterating, forecasting | hypothesis_first, analogical_transfer, iterative_solving, solution_modification, planning, contradiction_resolution, scenario_planning |
 | `evaluative` | Risk assessment, tradeoff analysis | risk_assessment, tradeoff_analysis, check_completeness, long_term_implications, premortem |
 | `contextual` | Understanding constraints, stakeholders | stakeholder_analysis, resource_constraints, behavioral_factors |
-| `empirical` | Evidence-based validation, testing | experimental_design, historical_analysis, data_driven, fermi_estimation |
+| `empirical` | Evidence-based validation, testing | experimental_design, historical_analysis, data_driven, fermi_estimation, sanity_check |
 | `debugging` | Code-specific debugging techniques | binary_search_debug, print_debugging |
 | `reflective` | Meta-cognition, success criteria | reflective_thinking, success_criteria, decision_under_uncertainty |
 
