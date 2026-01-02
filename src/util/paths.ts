@@ -45,6 +45,11 @@ export function getConfigPath(baseDir?: string): string {
   return join(baseDir ?? getVedaHome(), 'config');
 }
 
+/** Get judge statistics file path (JSONL format) */
+export function getJudgeStatsPath(baseDir?: string): string {
+  return join(baseDir ?? getVedaHome(), 'judge-stats.jsonl');
+}
+
 /** Default session ID */
 export const DEFAULT_SESSION = 'default';
 

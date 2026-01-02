@@ -18,6 +18,8 @@ import type {
   SimpleConfig,
   DeepConfig,
   ResumeConfig,
+  StatsConfig,
+  StatsGroupBy,
   ContextConfig,
   OutputConfig,
   SelSubcommand,
@@ -71,6 +73,9 @@ export async function parseAndValidate(argv: string[]): Promise<VedaInput> {
       args: parsed.args,
       session: flags.session!,
     };
+  }
+  if (parsed.command === 'stats') {
+    return constructStatsInput(flags);
   }
   
   // Step 4: Validate applicability
@@ -299,6 +304,22 @@ function extractFlagsForDryRun(flags: RawFlags): Record<string, unknown> {
   if (flags.solverBackends) result.solverBackends = flags.solverBackends;
   
   return result;
+}
+
+function constructStatsInput(flags: RawFlags): VedaInput {
+  // Determine groupBy mode from flags (--module is default)
+  let groupBy: StatsGroupBy = 'module';
+  if (flags.statsCategory) groupBy = 'category';
+  else if (flags.statsBackend) groupBy = 'backend';
+  // --module is already the default
+
+  const config: StatsConfig = {
+    groupBy,
+    limit: flags.limit ?? 20,
+    json: flags.json,
+  };
+
+  return { command: 'stats', config };
 }
 
 // =============================================================================

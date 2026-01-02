@@ -24,6 +24,7 @@ import {
   JUDGE_SYSTEM_PROMPT,
   VERIFIER_SYSTEM_PROMPT,
 } from './prompts';
+import { StatsStore, type StatEntry } from '../stats';
 
 /**
  * Standardized member ID format: type-index-backend-model-module
@@ -1063,7 +1064,31 @@ export async function* runDeepThink(
         // Look up selected solver metadata for display
         const selectedModule = modules[selectedOutputsIdx];
         const selectedMeta = selectedMemberId ? solverMetaMap.get(selectedMemberId) : undefined;
-        
+
+        // Record judge decision for statistics (best-effort, never fails pipeline)
+        if (selectedModule && selectedMeta) {
+          const statsEntry: StatEntry = {
+            version: 1,
+            timestamp: new Date().toISOString(),
+            promptHash: Bun.hash(prompt).toString(16).padStart(16, '0').slice(0, 16),
+            judge: {
+              backend: judge.backend,
+              model: judge.model,
+            },
+            winner: {
+              category: selectedModule.category,
+              moduleId: selectedModule.id,
+              backend: selectedMeta.backend,
+              model: selectedMeta.model,
+            },
+            confidence: {
+              level: judgeResult.decision.confidenceLevel,
+              score: judgeResult.decision.confidence,
+            },
+          };
+          new StatsStore().append(statsEntry).catch(() => {});
+        }
+
         queue.push({
           type: 'selected',
           stage: 'solve',

@@ -30,6 +30,7 @@ const FLAGS_WITH_VALUES = new Set([
   '--solver-reasoning', '--judge-reasoning',
   '--verifier-reasoning', '--revision-reasoning',
   '--solver-backends',
+  '--limit',  // For stats command
 ]);
 
 const BOOLEAN_FLAGS = new Set([
@@ -44,6 +45,10 @@ const BOOLEAN_FLAGS = new Set([
   '--help', '-h',
   '--version', '-v',
   '--dry-run',
+  // Stats command grouping modes
+  '--by-module',
+  '--by-category',
+  '--by-backend',
 ]);
 
 // =============================================================================
@@ -61,6 +66,9 @@ export function tokenizeArgv(argv: string[]): { flags: RawFlags; positionals: st
     noVerify: false,
     forceVerify: false,
     distributeSolvers: undefined,  // undefined = not set by CLI, use config
+    statsModule: false,
+    statsCategory: false,
+    statsBackend: false,
     help: false,
     version: false,
     dryRun: false,
@@ -203,6 +211,9 @@ function parseFlagWithValue(flags: RawFlags, flag: string, value: string): void 
     case '--revision-reasoning':
       flags.revisionReasoning = value;
       break;
+    case '--limit':
+      flags.limit = parseInt(value, 10);
+      break;
   }
 }
 
@@ -243,6 +254,15 @@ function parseBooleanFlag(flags: RawFlags, flag: string): void {
       break;
     case '--dry-run':
       flags.dryRun = true;
+      break;
+    case '--by-module':
+      flags.statsModule = true;
+      break;
+    case '--by-category':
+      flags.statsCategory = true;
+      break;
+    case '--by-backend':
+      flags.statsBackend = true;
       break;
   }
 }
@@ -294,6 +314,13 @@ export function classifyCommand(positionals: string[], flags: RawFlags): ParsedP
       return {
         command: 'personas',
         subcommand: positionals[1],
+        args: positionals.slice(2),
+      };
+    
+    case 'stats':
+      return {
+        command: 'stats',
+        subcommand: positionals[1],  // --module, --category, or --backend
         args: positionals.slice(2),
       };
   }

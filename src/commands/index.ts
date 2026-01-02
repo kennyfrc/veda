@@ -4,3 +4,4 @@ export { handleRun } from './run';
 export { handleResume } from './resume';
 export { handleInit } from './init';
 export { handleDeep } from './deep';
+export { handleStats, type StatsOptions } from './stats';

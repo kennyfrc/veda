@@ -14,6 +14,7 @@ export type VedaInput =
   | { command: 'prompt'; mode: 'deep'; config: DeepConfig }
   | { command: 'resume'; config: ResumeConfig }
   | { command: 'sel'; subcommand: SelSubcommand; args: string[]; session: string }
+  | { command: 'stats'; config: StatsConfig }
   | { command: 'init' }
   | { command: 'personas'; subcommand?: string }
   | { command: 'help' }
@@ -99,6 +100,18 @@ export interface ResumeConfig {
   sandbox?: SandboxMode;
   output: OutputConfig;
   notify: boolean;
+}
+
+// =============================================================================
+// Stats Config
+// =============================================================================
+
+export type StatsGroupBy = 'module' | 'category' | 'backend';
+
+export interface StatsConfig {
+  groupBy: StatsGroupBy;
+  limit: number;
+  json: boolean;
 }
 
 // =============================================================================
@@ -209,6 +222,12 @@ export interface RawFlags {
   distributeSolvers?: boolean;  // undefined = not set by CLI (use config)
   solverBackends?: string[];
   
+  // Stats command options
+  statsModule: boolean;
+  statsCategory: boolean;
+  statsBackend: boolean;
+  limit?: number;
+
   // Meta
   help: boolean;
   version: boolean;
