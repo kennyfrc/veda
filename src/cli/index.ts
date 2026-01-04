@@ -7,7 +7,7 @@
 
 export * from './types';
 export { tokenizeArgv, classifyCommand } from './parse';
-export { validateApplicability, detectConflicts } from './validate';
+export { validateApplicability, detectConflicts, detectConfigConflicts } from './validate';
 export { resolveBackendModel, resolveDeepStages, resolveVerifyConfig } from './resolve';
 export { simpleConfigToCliOptions, deepConfigToCliOptions, resumeConfigToCliOptions } from './adapter';
 
@@ -26,7 +26,7 @@ import type {
 } from './types';
 import { CliValidationError } from './types';
 import { tokenizeArgv, classifyCommand } from './parse';
-import { validateApplicability, detectConflicts } from './validate';
+import { validateApplicability, detectConflicts, detectConfigConflicts } from './validate';
 import { resolveBackendModel, resolveDeepStages, resolveVerifyConfig } from './resolve';
 import { loadGlobalConfig } from '../agent/config';
 
@@ -87,8 +87,13 @@ export async function parseAndValidate(argv: string[]): Promise<VedaInput> {
   // Step 6: Load global config
   const globalConfig = await loadGlobalConfig();
   
-  // Step 7: Resolve and construct
+  // Step 7: Detect config-aware conflicts
   const isDeepMode = parsed.command === 'prompt' && parsed.subcommand === 'deep';
+  if (isDeepMode) {
+    detectConfigConflicts(flags, globalConfig);
+  }
+  
+  // Step 8: Resolve and construct
   
   if (isDeepMode) {
     return constructDeepInput(parsed, flags, globalConfig);

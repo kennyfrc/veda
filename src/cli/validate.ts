@@ -188,3 +188,31 @@ export function detectConflicts(flags: RawFlags): void {
   // --notify vs --no-notify (last one wins, but flag both if explicit)
   // This is actually fine - we'll use the last value. No conflict.
 }
+
+// =============================================================================
+// Config-Aware Conflicts
+// =============================================================================
+
+/**
+ * Detect conflicts between CLI flags and config file settings.
+ * Called after config is loaded.
+ */
+export function detectConfigConflicts(
+  flags: RawFlags,
+  globalConfig?: { deep?: { distributeSolvers?: boolean } }
+): void {
+  // --solver-backend conflicts with distributeSolvers from config
+  // (unless user explicitly disables it with --distribute-solvers=false, but we don't support that syntax)
+  // If user didn't pass --distribute-solvers flag, but config enables it, warn about --solver-backend
+  if (
+    flags.solverBackend &&
+    flags.distributeSolvers === undefined &&
+    globalConfig?.deep?.distributeSolvers
+  ) {
+    throw new CliValidationError(
+      '--solver-backend is ignored when distributeSolvers is enabled in config',
+      'MUTUALLY_EXCLUSIVE_FLAGS',
+      'Use --solver-backends to override distributed backends, or remove distributeSolvers from config'
+    );
+  }
+}

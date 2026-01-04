@@ -4,6 +4,7 @@ import {
   classifyCommand,
   validateApplicability,
   detectConflicts,
+  detectConfigConflicts,
   resolveBackendModel,
   CliValidationError,
   parseAndValidate,
@@ -57,6 +58,31 @@ describe('tokenizeArgv', () => {
   test('parses --dry-run flag', () => {
     const { flags } = tokenizeArgv(['node', 'veda', '--dry-run', 'hello']);
     expect(flags.dryRun).toBe(true);
+  });
+  
+  test('throws on unknown flag', () => {
+    expect(() => tokenizeArgv(['node', 'veda', '--unknown-flag', 'hello'])).toThrow(CliValidationError);
+    expect(() => tokenizeArgv(['node', 'veda', '--unknown-flag', 'hello'])).toThrow('Unknown flag: --unknown-flag');
+  });
+  
+  test('suggests similar flag for typos', () => {
+    // --solver-backend instead of --solver-backends
+    try {
+      tokenizeArgv(['node', 'veda', '--solver-backnd', 'codex', 'hello']);
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(CliValidationError);
+      expect((e as CliValidationError).suggestion).toBe('Did you mean --solver-backend?');
+    }
+  });
+  
+  test('throws on single-dash unknown flags', () => {
+    expect(() => tokenizeArgv(['node', 'veda', '-x', 'hello'])).toThrow('Unknown flag: -x');
+  });
+  
+  test('allows unknown-looking positionals after --', () => {
+    const { positionals } = tokenizeArgv(['node', 'veda', '--', '--not-a-flag', 'hello']);
+    expect(positionals).toEqual(['--not-a-flag', 'hello']);
   });
 });
 
@@ -168,6 +194,37 @@ describe('detectConflicts', () => {
   test('allows --solver-backends with --distribute-solvers', () => {
     const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--distribute-solvers', '--solver-backends', 'gemini-cli,codex', 'solve']);
     expect(() => detectConflicts(flags)).not.toThrow();
+  });
+});
+
+describe('detectConfigConflicts', () => {
+  test('rejects --solver-backend when config enables distributeSolvers', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--solver-backend', 'codex', 'solve']);
+    const config = { deep: { distributeSolvers: true } };
+    expect(() => detectConfigConflicts(flags, config)).toThrow(CliValidationError);
+    expect(() => detectConfigConflicts(flags, config)).toThrow(/--solver-backend is ignored when distributeSolvers is enabled in config/);
+  });
+  
+  test('allows --solver-backend when config does not enable distributeSolvers', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--solver-backend', 'codex', 'solve']);
+    const config = { deep: { distributeSolvers: false } };
+    expect(() => detectConfigConflicts(flags, config)).not.toThrow();
+  });
+  
+  test('allows --solver-backend when no deep config exists', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--solver-backend', 'codex', 'solve']);
+    expect(() => detectConfigConflicts(flags, {})).not.toThrow();
+    expect(() => detectConfigConflicts(flags, undefined)).not.toThrow();
+  });
+  
+  test('allows --distribute-solvers flag to override config conflict', () => {
+    // If user explicitly passes --distribute-solvers, they are in control
+    // The existing detectConflicts will catch --solver-backend + --distribute-solvers
+    // detectConfigConflicts only fires when distributeSolvers=undefined (not passed via CLI)
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--distribute-solvers', 'solve']);
+    const config = { deep: { distributeSolvers: true } };
+    // flags.distributeSolvers is true (not undefined), so config conflict doesn't apply
+    expect(() => detectConfigConflicts(flags, config)).not.toThrow();
   });
 });
 

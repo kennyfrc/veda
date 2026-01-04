@@ -51,6 +51,71 @@ const BOOLEAN_FLAGS = new Set([
   '--by-backend',
 ]);
 
+// All known flags for suggestion matching
+const ALL_FLAGS = new Set([...FLAGS_WITH_VALUES, ...BOOLEAN_FLAGS]);
+
+/**
+ * Suggest a similar flag using Levenshtein distance.
+ * Returns undefined if no close match found.
+ */
+function suggestSimilarFlag(unknown: string): string | undefined {
+  // Normalize: strip leading dashes for comparison
+  const normalizedUnknown = unknown.replace(/^-+/, '');
+  
+  let bestMatch: string | undefined;
+  let bestDistance = Infinity;
+  const threshold = 3;  // Max edit distance to suggest
+  
+  for (const known of ALL_FLAGS) {
+    // Only compare long-form flags (--foo) for better suggestions
+    if (!known.startsWith('--')) continue;
+    
+    const normalizedKnown = known.replace(/^-+/, '');
+    const distance = levenshteinDistance(normalizedUnknown, normalizedKnown);
+    
+    if (distance < bestDistance && distance <= threshold) {
+      bestDistance = distance;
+      bestMatch = known;
+    }
+  }
+  
+  return bestMatch ? `Did you mean ${bestMatch}?` : undefined;
+}
+
+/**
+ * Compute Levenshtein edit distance between two strings.
+ */
+function levenshteinDistance(a: string, b: string): number {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  
+  const matrix: number[][] = [];
+  
+  // Initialize first column
+  for (let i = 0; i <= a.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  // Initialize first row
+  for (let j = 0; j <= b.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  // Fill in the rest
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,      // deletion
+        matrix[i][j - 1] + 1,      // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+  
+  return matrix[a.length][b.length];
+}
+
 // =============================================================================
 // Tokenize Argv
 // =============================================================================
@@ -106,6 +171,16 @@ export function tokenizeArgv(argv: string[]): { flags: RawFlags; positionals: st
       parseBooleanFlag(flags, arg);
       i++;
       continue;
+    }
+    
+    // Check for unknown flags (anything starting with -)
+    if (arg.startsWith('-')) {
+      const suggestion = suggestSimilarFlag(arg);
+      throw new CliValidationError(
+        `Unknown flag: ${arg}`,
+        'UNKNOWN_FLAG',
+        suggestion
+      );
     }
     
     // Anything else is a positional
