@@ -21,9 +21,10 @@ describe('parseArgs', () => {
       expect(result.prompt).toBe('hello world');
     });
 
-    test('parses multi-word prompt', () => {
+    test('rejects multi-word unquoted prompt (returns undefined for validation to reject)', () => {
       const result = parseArgs(['bun', 'script', 'explain', 'the', 'code']);
-      expect(result.prompt).toBe('explain the code');
+      // Multiple positionals no longer get joined; validation will reject this
+      expect(result.prompt).toBeUndefined();
     });
 
     test('returns undefined prompt when empty', () => {
@@ -107,10 +108,16 @@ describe('parseArgs', () => {
       expect(result.subcommand).toBe('ls');
     });
 
-    test('parses resume command', () => {
-      const result = parseArgs(['bun', 'script', 'resume', 'follow', 'up']);
+    test('parses resume command with quoted prompt', () => {
+      const result = parseArgs(['bun', 'script', 'resume', 'follow up']);
       expect(result.command).toBe('resume');
       expect(result.prompt).toBe('follow up');
+    });
+
+    test('rejects resume command with unquoted multi-word prompt (returns undefined)', () => {
+      const result = parseArgs(['bun', 'script', 'resume', 'follow', 'up']);
+      expect(result.command).toBe('resume');
+      expect(result.prompt).toBeUndefined();
     });
 
     test('parses resume without prompt', () => {
@@ -119,10 +126,16 @@ describe('parseArgs', () => {
       expect(result.prompt).toBeUndefined();
     });
 
-    test('parses deep command', () => {
-      const result = parseArgs(['bun', 'script', 'deep', 'solve', 'this']);
+    test('parses deep command with quoted prompt', () => {
+      const result = parseArgs(['bun', 'script', 'deep', 'solve this']);
       expect(result.command).toBe('deep');
       expect(result.prompt).toBe('solve this');
+    });
+
+    test('rejects deep command with unquoted multi-word prompt (returns undefined)', () => {
+      const result = parseArgs(['bun', 'script', 'deep', 'solve', 'this']);
+      expect(result.command).toBe('deep');
+      expect(result.prompt).toBeUndefined();
     });
   });
 

@@ -71,10 +71,12 @@ const SIMPLE_ONLY_FLAGS = [
 
 export function validateApplicability(
   parsed: ParsedPositionals,
-  flags: RawFlags
+  flags: RawFlags,
+  positionals: string[] = []
 ): void {
   const isDeepMode = parsed.command === 'prompt' && parsed.subcommand === 'deep';
   const isSimplePrompt = parsed.command === 'prompt' && parsed.subcommand !== 'deep';
+  const isImplicitPrompt = isSimplePrompt && !flags.deep;
   const isSel = parsed.command === 'sel';
   const isInit = parsed.command === 'init';
   const isPersonas = parsed.command === 'personas';
@@ -135,6 +137,38 @@ export function validateApplicability(
         'INVALID_K_VALUE'
       );
     }
+  }
+  
+  // Check for ambiguous prompt (2+ positionals where prompt is expected)
+  // This must come before the missing prompt check to give a more specific error
+  const isResume = parsed.command === 'resume';
+  
+  // For implicit prompt: positionals.length >= 2 means ambiguous
+  // For deep/resume: positionals after the command word, so >= 2 means the prompt part has 2+ words
+  if (isImplicitPrompt && positionals.length >= 2) {
+    throw new CliValidationError(
+      'Ambiguous prompt: multiple positional arguments',
+      'AMBIGUOUS_PROMPT',
+      'Did you mean to quote your prompt? Use: veda "your prompt here"'
+    );
+  }
+  
+  // For 'deep' command: check if there are 2+ positionals after 'deep'
+  if (isDeepMode && positionals.length >= 1 && positionals[0] === 'deep' && positionals.length >= 3) {
+    throw new CliValidationError(
+      'Ambiguous prompt: multiple positional arguments',
+      'AMBIGUOUS_PROMPT',
+      'Did you mean to quote your prompt? Use: veda deep "your prompt here"'
+    );
+  }
+  
+  // For 'resume' command: check if there are 2+ positionals after 'resume'
+  if (isResume && positionals.length >= 1 && positionals[0] === 'resume' && positionals.length >= 3) {
+    throw new CliValidationError(
+      'Ambiguous prompt: multiple positional arguments',
+      'AMBIGUOUS_PROMPT',
+      'Did you mean to quote your prompt? Use: veda resume "your prompt here"'
+    );
   }
   
   // Check for missing prompt

@@ -367,20 +367,26 @@ export function classifyCommand(positionals: string[], flags: RawFlags): ParsedP
         args: positionals.slice(2),
       };
     
-    case 'resume':
+    case 'resume': {
+      // Only accept single positional after 'resume'; 2+ will be rejected by validation
+      const resumeArgs = positionals.slice(1);
       return {
         command: 'resume',
         args: [],
-        prompt: positionals.slice(1).join(' ') || undefined,
+        prompt: resumeArgs.length === 1 ? resumeArgs[0] : undefined,
       };
+    }
     
-    case 'deep':
+    case 'deep': {
+      // Only accept single positional after 'deep'; 2+ will be rejected by validation
+      const deepArgs = positionals.slice(1);
       return {
         command: 'prompt',
         args: [],
-        prompt: positionals.slice(1).join(' ') || undefined,
+        prompt: deepArgs.length === 1 ? deepArgs[0] : undefined,
         subcommand: 'deep',  // Use subcommand to indicate deep mode
       };
+    }
     
     case 'init':
       return { command: 'init', args: [] };
@@ -402,7 +408,8 @@ export function classifyCommand(positionals: string[], flags: RawFlags): ParsedP
   
   // Implicit prompt command
   // If --deep flag is set, mode is deep
-  const prompt = positionals.join(' ') || undefined;
+  // Only accept single positional as prompt; 2+ positionals will be rejected by validation
+  const prompt = positionals.length === 1 ? positionals[0] : undefined;
   
   return {
     command: 'prompt',

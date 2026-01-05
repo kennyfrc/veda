@@ -79,7 +79,7 @@ export async function parseAndValidate(argv: string[]): Promise<VedaInput> {
   }
   
   // Step 4: Validate applicability
-  validateApplicability(parsed, flags);
+  validateApplicability(parsed, flags, positionals);
   
   // Step 5: Detect conflicts
   detectConflicts(flags);

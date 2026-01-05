@@ -280,4 +280,5 @@ export type CliErrorCode =
   | 'INVALID_K_VALUE'
   | 'UNKNOWN_COMMAND'
   | 'MISSING_PROMPT'
-  | 'UNKNOWN_FLAG';
+  | 'UNKNOWN_FLAG'
+  | 'AMBIGUOUS_PROMPT';

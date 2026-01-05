@@ -87,12 +87,20 @@ describe('tokenizeArgv', () => {
 });
 
 describe('classifyCommand', () => {
-  test('classifies explicit deep command', () => {
+  test('classifies explicit deep command with single quoted prompt', () => {
+    const { flags } = tokenizeArgv(['node', 'veda', 'deep', 'solve this']);
+    const parsed = classifyCommand(['deep', 'solve this'], flags);
+    expect(parsed.command).toBe('prompt');
+    expect(parsed.subcommand).toBe('deep');
+    expect(parsed.prompt).toBe('solve this');
+  });
+  
+  test('leaves deep prompt undefined for multiple positionals (validation will reject)', () => {
     const { flags } = tokenizeArgv(['node', 'veda', 'deep', 'solve', 'this']);
     const parsed = classifyCommand(['deep', 'solve', 'this'], flags);
     expect(parsed.command).toBe('prompt');
     expect(parsed.subcommand).toBe('deep');
-    expect(parsed.prompt).toBe('solve this');
+    expect(parsed.prompt).toBeUndefined();
   });
   
   test('classifies --deep flag as deep mode', () => {
@@ -110,19 +118,34 @@ describe('classifyCommand', () => {
     expect(parsed.args).toEqual(['file.ts']);
   });
   
-  test('classifies resume command', () => {
-    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'resume', 'follow', 'up']);
+  test('classifies resume command with single quoted prompt', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'resume', 'follow up']);
     const parsed = classifyCommand(positionals, flags);
     expect(parsed.command).toBe('resume');
     expect(parsed.prompt).toBe('follow up');
   });
   
-  test('defaults to simple prompt', () => {
+  test('leaves resume prompt undefined for multiple positionals (validation will reject)', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'resume', 'follow', 'up']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(parsed.command).toBe('resume');
+    expect(parsed.prompt).toBeUndefined();
+  });
+  
+  test('defaults to simple prompt with single positional', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'hello']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(parsed.command).toBe('prompt');
+    expect(parsed.subcommand).toBeUndefined();
+    expect(parsed.prompt).toBe('hello');
+  });
+  
+  test('leaves prompt undefined for multiple positionals (validation will reject)', () => {
     const { flags, positionals } = tokenizeArgv(['node', 'veda', 'hello', 'world']);
     const parsed = classifyCommand(positionals, flags);
     expect(parsed.command).toBe('prompt');
     expect(parsed.subcommand).toBeUndefined();
-    expect(parsed.prompt).toBe('hello world');
+    expect(parsed.prompt).toBeUndefined();
   });
 });
 
@@ -130,42 +153,92 @@ describe('validateApplicability', () => {
   test('allows deep-only flags in deep mode', () => {
     const { flags, positionals } = tokenizeArgv(['node', 'veda', '--deep', '-k', '4', '--trace', 'out.yaml', 'solve']);
     const parsed = classifyCommand(positionals, flags);
-    expect(() => validateApplicability(parsed, flags)).not.toThrow();
+    expect(() => validateApplicability(parsed, flags, positionals)).not.toThrow();
   });
   
   test('rejects deep-only flags in simple mode', () => {
     const { flags, positionals } = tokenizeArgv(['node', 'veda', '-k', '4', 'hello']);
     const parsed = classifyCommand(positionals, flags);
-    expect(() => validateApplicability(parsed, flags)).toThrow(CliValidationError);
-    expect(() => validateApplicability(parsed, flags)).toThrow(/requires deep mode/);
+    expect(() => validateApplicability(parsed, flags, positionals)).toThrow(CliValidationError);
+    expect(() => validateApplicability(parsed, flags, positionals)).toThrow(/requires deep mode/);
   });
   
   test('rejects --trace without deep mode', () => {
     const { flags, positionals } = tokenizeArgv(['node', 'veda', '--trace', 'out.yaml', 'hello']);
     const parsed = classifyCommand(positionals, flags);
-    expect(() => validateApplicability(parsed, flags)).toThrow(/requires deep mode/);
+    expect(() => validateApplicability(parsed, flags, positionals)).toThrow(/requires deep mode/);
   });
   
   test('rejects --persona in deep mode', () => {
     const { flags, positionals } = tokenizeArgv(['node', 'veda', '--deep', '-p', 'navigator-plan', 'solve']);
     const parsed = classifyCommand(positionals, flags);
-    expect(() => validateApplicability(parsed, flags)).toThrow(/not used in deep mode/);
+    expect(() => validateApplicability(parsed, flags, positionals)).toThrow(/not used in deep mode/);
   });
   
   test('validates -k range', () => {
     const { flags: flags1, positionals: pos1 } = tokenizeArgv(['node', 'veda', '--deep', '-k', '0', 'solve']);
     const parsed1 = classifyCommand(pos1, flags1);
-    expect(() => validateApplicability(parsed1, flags1)).toThrow(/must be an integer between 1 and 8/);
+    expect(() => validateApplicability(parsed1, flags1, pos1)).toThrow(/must be an integer between 1 and 8/);
     
     const { flags: flags2, positionals: pos2 } = tokenizeArgv(['node', 'veda', '--deep', '-k', '9', 'solve']);
     const parsed2 = classifyCommand(pos2, flags2);
-    expect(() => validateApplicability(parsed2, flags2)).toThrow(/must be an integer between 1 and 8/);
+    expect(() => validateApplicability(parsed2, flags2, pos2)).toThrow(/must be an integer between 1 and 8/);
   });
   
   test('rejects missing prompt', () => {
     const { flags, positionals } = tokenizeArgv(['node', 'veda', '-b', 'codex']);
     const parsed = classifyCommand(positionals, flags);
-    expect(() => validateApplicability(parsed, flags)).toThrow(/No prompt provided/);
+    expect(() => validateApplicability(parsed, flags, positionals)).toThrow(/No prompt provided/);
+  });
+  
+  test('rejects 2+ positionals for implicit prompt (AMBIGUOUS_PROMPT)', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'websearch', 'query']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags, positionals)).toThrow(CliValidationError);
+    expect(() => validateApplicability(parsed, flags, positionals)).toThrow(/Ambiguous prompt/);
+  });
+  
+  test('AMBIGUOUS_PROMPT suggestion mentions quoting', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'explain', 'the', 'code']);
+    const parsed = classifyCommand(positionals, flags);
+    try {
+      validateApplicability(parsed, flags, positionals);
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(CliValidationError);
+      expect((e as CliValidationError).code).toBe('AMBIGUOUS_PROMPT');
+      expect((e as CliValidationError).suggestion).toContain('veda "your prompt here"');
+    }
+  });
+  
+  test('allows single positional for implicit prompt', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'hello']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags, positionals)).not.toThrow();
+  });
+  
+  test('AMBIGUOUS_PROMPT applies to deep command with multiple unquoted words', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'deep', 'solve', 'this', 'problem']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags, positionals)).toThrow(/Ambiguous prompt/);
+  });
+  
+  test('deep command with single quoted prompt is allowed', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'deep', 'solve this problem']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags, positionals)).not.toThrow();
+  });
+  
+  test('AMBIGUOUS_PROMPT applies to resume command with multiple unquoted words', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'resume', 'follow', 'up']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags, positionals)).toThrow(/Ambiguous prompt/);
+  });
+  
+  test('resume command with single quoted prompt is allowed', () => {
+    const { flags, positionals } = tokenizeArgv(['node', 'veda', 'resume', 'follow up']);
+    const parsed = classifyCommand(positionals, flags);
+    expect(() => validateApplicability(parsed, flags, positionals)).not.toThrow();
   });
 });
 
@@ -281,8 +354,8 @@ describe('resolveBackendModel', () => {
 describe('integration: parseAndValidate', () => {
   // These tests use the full pipeline
   
-  test('parses simple prompt', async () => {
-    const result = await parseAndValidate(['node', 'veda', 'hello', 'world']);
+  test('parses simple prompt with single positional', async () => {
+    const result = await parseAndValidate(['node', 'veda', 'hello world']);
     expect(result.command).toBe('prompt');
     if (result.command === 'prompt') {
       expect(result.mode).toBe('simple');
@@ -293,8 +366,8 @@ describe('integration: parseAndValidate', () => {
     }
   });
   
-  test('parses deep mode', async () => {
-    const result = await parseAndValidate(['node', 'veda', 'deep', 'solve', 'this']);
+  test('parses deep mode with quoted prompt', async () => {
+    const result = await parseAndValidate(['node', 'veda', 'deep', 'solve this']);
     expect(result.command).toBe('prompt');
     if (result.command === 'prompt') {
       expect(result.mode).toBe('deep');
@@ -303,6 +376,11 @@ describe('integration: parseAndValidate', () => {
         expect(result.config.k).toBe(4);  // default
       }
     }
+  });
+  
+  test('rejects deep mode with unquoted multi-word prompt', async () => {
+    await expect(parseAndValidate(['node', 'veda', 'deep', 'solve', 'this']))
+      .rejects.toThrow(/Ambiguous prompt/);
   });
   
   test('returns dry-run output', async () => {

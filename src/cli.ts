@@ -302,13 +302,17 @@ export function parseArgs(argv: string[]): ParsedArgs {
     commandArgs = positional.slice(2);
   } else if (command === 'resume') {
     commandArgs = positional.slice(1);
-    prompt = commandArgs.join(' ') || undefined;
+    // Only accept single positional after 'resume'; 2+ will be rejected by validation
+    prompt = commandArgs.length === 1 ? commandArgs[0] : undefined;
   } else if (command === 'deep') {
-    prompt = positional.slice(1).join(' ') || undefined;
+    // Only accept single positional after 'deep'; 2+ will be rejected by validation
+    const deepArgs = positional.slice(1);
+    prompt = deepArgs.length === 1 ? deepArgs[0] : undefined;
   } else if (command === 'init') {
     // No args
   } else if (command && !command.startsWith('-')) {
-    prompt = positional.join(' ');
+    // Only accept single positional as prompt; 2+ positionals will be rejected by validation
+    prompt = positional.length === 1 ? positional[0] : undefined;
   }
   
   return {
