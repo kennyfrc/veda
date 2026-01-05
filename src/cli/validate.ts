@@ -61,7 +61,6 @@ const FLAG_DISPLAY_NAMES: Record<string, string> = {
 /** Flags that only apply to simple prompt or resume (not deep) */
 const SIMPLE_ONLY_FLAGS = [
   'persona',
-  'reasoning',
   'sandbox',
 ] as const;
 

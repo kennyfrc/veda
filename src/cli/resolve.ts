@@ -436,8 +436,9 @@ function isValidReasoning(level: string): level is ReasoningLevel {
 
 /**
  * Resolve reasoning level for a deep mode stage.
- * Precedence: CLI flag > config file > stage default
+ * Precedence: per-stage CLI flag > base -r flag > config file > stage default
  * 
+ * When base -r is set, it overrides config defaults for all stages (same pattern as -b/-m).
  * For revision stage, if not explicitly set, falls back to verifier's effective reasoning.
  */
 export function resolveStageReasoning(
@@ -447,6 +448,11 @@ export function resolveStageReasoning(
 ): ReasoningLevel {
   const deepConfig = globalConfig?.deep;
   
+  // Detect base reasoning override: when -r is passed, it should override all stages
+  // This suppresses per-stage config defaults unless per-stage CLI flags are used
+  const baseReasoning = flags.reasoning;
+  const cliHasBaseReasoning = baseReasoning !== undefined && isValidReasoning(baseReasoning);
+  
   // Stage-specific defaults
   const STAGE_DEFAULTS: Record<string, ReasoningLevel> = {
     solver: 'medium',
@@ -455,7 +461,7 @@ export function resolveStageReasoning(
     revision: 'high',  // Only used if verifier reasoning also not set
   };
   
-  // CLI flag (explicit)
+  // Per-stage CLI flag (highest priority)
   const cliValue = {
     solver: flags.solverReasoning,
     judge: flags.judgeReasoning,
@@ -467,7 +473,12 @@ export function resolveStageReasoning(
     return cliValue;
   }
   
-  // Config file
+  // Base -r flag (suppresses config defaults)
+  if (cliHasBaseReasoning) {
+    return baseReasoning as ReasoningLevel;
+  }
+  
+  // Config file default
   const configValue = {
     solver: deepConfig?.solverReasoning,
     judge: deepConfig?.judgeReasoning,
@@ -479,7 +490,7 @@ export function resolveStageReasoning(
     return configValue;
   }
   
-  // For revision, fall back to verifier's effective reasoning
+  // For revision without -r, fall back to verifier's effective reasoning
   if (stage === 'revision') {
     return resolveStageReasoning(flags, 'verifier', globalConfig);
   }

@@ -241,6 +241,10 @@ export async function handleDeep(
   const cliHasBaseModel = options.model !== undefined;
   const cliHasBaseOverride = cliHasBaseBackend || cliHasBaseModel;
 
+  // Detect base reasoning override: when -r is passed, it should override all stages
+  // This suppresses per-stage config defaults (DEEP_*_REASONING) unless per-stage CLI flags are used
+  const cliHasBaseReasoning = options.reasoning !== undefined;
+
   // Merge CLI options with config defaults (CLI takes precedence)
   // For solver backends: CLI --solver-backends > CLI --distribute-solvers > config DEEP_SOLVER_BACKENDS
   // options.distributeSolvers is undefined if not set by CLI, true if --distribute-solvers passed
@@ -323,21 +327,22 @@ export async function handleDeep(
       })
     : verifier;
 
-  // Resolve effective reasoning for each stage (CLI > config > default)
+  // Resolve effective reasoning for each stage (CLI stage flag > base -r > config > default)
+  // When cliHasBaseReasoning, base -r takes precedence over config defaults
   const effectiveSolverReasoning = options.solverReasoning 
-    ?? deepConfig.solverReasoning 
+    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.solverReasoning)
     ?? resolveReasoning({ backend: solverBackendForNotification, globalConfig });
 
   const effectiveJudgeReasoning = options.judgeReasoning 
-    ?? deepConfig.judgeReasoning 
+    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.judgeReasoning)
     ?? 'medium';
 
   const effectiveVerifierReasoning = options.verifierReasoning 
-    ?? deepConfig.verifierReasoning 
+    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.verifierReasoning)
     ?? 'high';
 
   const effectiveRevisionReasoning = options.revisionReasoning 
-    ?? deepConfig.revisionReasoning 
+    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.revisionReasoning)
     ?? effectiveVerifierReasoning;
 
   let finalResult: DeepThinkResult | undefined;

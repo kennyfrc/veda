@@ -124,6 +124,27 @@ Precedence order (highest to lowest):
 3. Config file stage defaults (`DEEP_JUDGE_MODEL`, etc.) — only when no `-b`/`-m`
 4. Global defaults
 
+**Reasoning Precedence:**
+
+The `-r` flag also applies to **all stages** (solver, judge, verifier, revision) unless overridden by per-stage flags:
+
+```bash
+# All stages use high reasoning
+veda deep -r high "Complex analysis"
+
+# All stages use high, except verifier uses xhigh
+veda deep -r high --verifier-reasoning xhigh "..."
+
+# Per-stage reasoning flags (no -r)
+veda deep --solver-reasoning medium --judge-reasoning high "..."
+```
+
+Precedence order (highest to lowest):
+1. Per-stage CLI flags (`--solver-reasoning`, `--judge-reasoning`, etc.)
+2. Base CLI flag (`-r`) — applies to all stages
+3. Config file stage defaults (`DEEP_SOLVER_REASONING`, etc.) — only when no `-r`
+4. Stage defaults (solver: medium, judge: medium, verifier: high, revision: high)
+
 **Distribute solvers across multiple backends:**
 ```bash
 # Even distribution: 2 solvers per backend (k=6, 3 backends)

@@ -7,7 +7,7 @@
 
 import { describe, test, expect } from 'bun:test';
 import { resolveBackendModel } from '../../src/agent/config';
-import type { GlobalConfig } from '../../src/agent/config';
+import type { GlobalConfig, ReasoningLevel } from '../../src/agent/config';
 
 // Helper to simulate the effective value resolution logic from handleDeep
 function resolveEffectiveStageValues(
@@ -189,5 +189,196 @@ describe('Base CLI override precedence', () => {
     // because cliHasBaseBackend is true, which means config models are suppressed
     expect(result.judge.model).toBeUndefined();
     expect(result.verifier.model).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// Base Reasoning Override Tests
+// =============================================================================
+
+// Helper to simulate the effective reasoning resolution logic from handleDeep
+function resolveEffectiveReasoningValues(
+  options: {
+    reasoning?: ReasoningLevel;
+    solverReasoning?: ReasoningLevel;
+    judgeReasoning?: ReasoningLevel;
+    verifierReasoning?: ReasoningLevel;
+    revisionReasoning?: ReasoningLevel;
+  },
+  deepConfig: {
+    solverReasoning?: ReasoningLevel;
+    judgeReasoning?: ReasoningLevel;
+    verifierReasoning?: ReasoningLevel;
+    revisionReasoning?: ReasoningLevel;
+  }
+) {
+  // Detect base reasoning override (same pattern as cliHasBaseOverride for -b/-m)
+  const cliHasBaseReasoning = options.reasoning !== undefined;
+  
+  // Stage defaults (used when nothing else is set)
+  const DEFAULTS = {
+    solver: 'medium' as ReasoningLevel,
+    judge: 'medium' as ReasoningLevel,
+    verifier: 'high' as ReasoningLevel,
+    revision: 'high' as ReasoningLevel,  // Falls back to verifier when no -r
+  };
+
+  // Solver: per-stage CLI > base -r > config > default
+  const effectiveSolverReasoning = options.solverReasoning 
+    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.solverReasoning)
+    ?? DEFAULTS.solver;
+
+  // Judge: per-stage CLI > base -r > config > default
+  const effectiveJudgeReasoning = options.judgeReasoning 
+    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.judgeReasoning)
+    ?? DEFAULTS.judge;
+
+  // Verifier: per-stage CLI > base -r > config > default
+  const effectiveVerifierReasoning = options.verifierReasoning 
+    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.verifierReasoning)
+    ?? DEFAULTS.verifier;
+
+  // Revision: per-stage CLI > base -r > config > verifier fallback
+  // Note: when cliHasBaseReasoning, revision uses -r directly (no verifier cascade)
+  const effectiveRevisionReasoning = options.revisionReasoning 
+    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.revisionReasoning)
+    ?? effectiveVerifierReasoning;
+
+  return {
+    solver: effectiveSolverReasoning,
+    judge: effectiveJudgeReasoning,
+    verifier: effectiveVerifierReasoning,
+    revision: effectiveRevisionReasoning,
+  };
+}
+
+describe('Base reasoning override precedence', () => {
+  test('-r overrides all stage reasoning from config', () => {
+    const result = resolveEffectiveReasoningValues(
+      { reasoning: 'high' },
+      { 
+        solverReasoning: 'low',
+        judgeReasoning: 'minimal',
+        verifierReasoning: 'medium',
+        revisionReasoning: 'low'
+      }
+    );
+    
+    expect(result.solver).toBe('high');
+    expect(result.judge).toBe('high');
+    expect(result.verifier).toBe('high');
+    expect(result.revision).toBe('high');
+  });
+
+  test('-r xhigh sets all stages to xhigh', () => {
+    const result = resolveEffectiveReasoningValues(
+      { reasoning: 'xhigh' },
+      {}
+    );
+    
+    expect(result.solver).toBe('xhigh');
+    expect(result.judge).toBe('xhigh');
+    expect(result.verifier).toBe('xhigh');
+    expect(result.revision).toBe('xhigh');
+  });
+
+  test('per-stage CLI flags override base -r', () => {
+    const result = resolveEffectiveReasoningValues(
+      { 
+        reasoning: 'high',
+        judgeReasoning: 'low'  // Explicit judge override
+      },
+      { 
+        solverReasoning: 'minimal',
+        verifierReasoning: 'minimal'
+      }
+    );
+    
+    // Solver/verifier/revision use base -r (config suppressed)
+    expect(result.solver).toBe('high');
+    expect(result.verifier).toBe('high');
+    expect(result.revision).toBe('high');
+    
+    // Judge uses explicit per-stage CLI flag
+    expect(result.judge).toBe('low');
+  });
+
+  test('without -r, config defaults apply', () => {
+    const result = resolveEffectiveReasoningValues(
+      {},  // No CLI flags
+      { 
+        solverReasoning: 'low',
+        judgeReasoning: 'minimal',
+        verifierReasoning: 'xhigh',
+        revisionReasoning: 'medium'
+      }
+    );
+    
+    expect(result.solver).toBe('low');
+    expect(result.judge).toBe('minimal');
+    expect(result.verifier).toBe('xhigh');
+    expect(result.revision).toBe('medium');
+  });
+
+  test('without -r and without config, stage defaults apply', () => {
+    const result = resolveEffectiveReasoningValues(
+      {},  // No CLI flags
+      {}   // No config
+    );
+    
+    expect(result.solver).toBe('medium');
+    expect(result.judge).toBe('medium');
+    expect(result.verifier).toBe('high');
+    expect(result.revision).toBe('high');  // Falls back to verifier default
+  });
+
+  test('-r suppresses config reasoning for all stages', () => {
+    const result = resolveEffectiveReasoningValues(
+      { reasoning: 'medium' },
+      { 
+        solverReasoning: 'xhigh',
+        judgeReasoning: 'xhigh',
+        verifierReasoning: 'xhigh',
+        revisionReasoning: 'xhigh'
+      }
+    );
+    
+    // All stages use -r value, config is suppressed
+    expect(result.solver).toBe('medium');
+    expect(result.judge).toBe('medium');
+    expect(result.verifier).toBe('medium');
+    expect(result.revision).toBe('medium');
+  });
+
+  test('revision falls back to verifier when neither -r nor config set', () => {
+    const result = resolveEffectiveReasoningValues(
+      { verifierReasoning: 'xhigh' },  // Only verifier set via CLI
+      {}
+    );
+    
+    expect(result.verifier).toBe('xhigh');
+    expect(result.revision).toBe('xhigh');  // Falls back to verifier
+    expect(result.solver).toBe('medium');   // Uses default
+    expect(result.judge).toBe('medium');    // Uses default
+  });
+
+  test('per-stage flags work independently of -r', () => {
+    const result = resolveEffectiveReasoningValues(
+      { 
+        solverReasoning: 'low',
+        judgeReasoning: 'minimal',
+        verifierReasoning: 'high',
+        revisionReasoning: 'xhigh'
+      },
+      { 
+        solverReasoning: 'xhigh',  // Config ignored when CLI flag set
+        judgeReasoning: 'xhigh'
+      }
+    );
+    
+    expect(result.solver).toBe('low');
+    expect(result.judge).toBe('minimal');
+    expect(result.verifier).toBe('high');
+    expect(result.revision).toBe('xhigh');
   });
 });
