@@ -103,6 +103,27 @@ veda deep --solver-model opus --judge-model gpt "..."
 veda deep --solver-backend claude-code --verifier-backend codex "..."
 ```
 
+**Backend/Model Precedence:**
+
+The `-b` and `-m` flags apply to **all stages** (solver, judge, verifier, revision) unless overridden by per-stage flags:
+
+```bash
+# All stages use codex:gpt-5.2
+veda deep -b codex -m gpt-5.2 "..."
+
+# All stages use codex:gpt-5.2, except judge uses claude-code:opus
+veda deep -m gpt-5.2 --judge-model opus "..."
+
+# -m infers backend from model: opus → claude-code for all stages
+veda deep -m opus "..."
+```
+
+Precedence order (highest to lowest):
+1. Per-stage CLI flags (`--judge-model`, `--verifier-backend`, etc.)
+2. Base CLI flags (`-b`, `-m`) — applies to all stages
+3. Config file stage defaults (`DEEP_JUDGE_MODEL`, etc.) — only when no `-b`/`-m`
+4. Global defaults
+
 **Distribute solvers across multiple backends:**
 ```bash
 # Even distribution: 2 solvers per backend (k=6, 3 backends)
@@ -111,6 +132,8 @@ veda deep -k 6 --distribute-solvers --solver-backends claude-code,gemini-cli,cod
 ```
 
 Order is deterministic: explicit `--solver-backends` is normalized (trim/lowercase/dedup) and sorted before round-robin.
+
+**Note:** `-m` cannot be used with `--distribute-solvers` across multiple backends (use `--solver-model` instead).
 
 ### Use Personas
 
@@ -331,6 +354,16 @@ GEMINI_CLI_MODEL="gemini-3-pro-preview"
 #   high → 32000
 #   xhigh → 32000
 # Implementation: Injects scoped override into ~/.gemini/settings.json
+
+# Deep mode stage defaults (overridden by -b/-m CLI flags)
+DEEP_DISTRIBUTE_SOLVERS="true"
+DEEP_SOLVER_BACKENDS="codex,claude-code,gemini-cli"
+DEEP_JUDGE_BACKEND="codex"
+DEEP_JUDGE_MODEL="gpt-5.2"
+DEEP_VERIFIER_BACKEND="claude-code"
+DEEP_VERIFIER_MODEL="sonnet"
+DEEP_REVISION_BACKEND="codex"
+DEEP_REVISION_MODEL="gpt-5.2"
 ```
 
 ## Development

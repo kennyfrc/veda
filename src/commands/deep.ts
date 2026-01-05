@@ -235,11 +235,18 @@ export async function handleDeep(
     globalConfig,
   });
 
+  // Detect base CLI override: when -b or -m is passed, it should override all stages
+  // This suppresses per-stage config defaults (DEEP_*) unless per-stage CLI flags are used
+  const cliHasBaseBackend = options.backend !== undefined;
+  const cliHasBaseModel = options.model !== undefined;
+  const cliHasBaseOverride = cliHasBaseBackend || cliHasBaseModel;
+
   // Merge CLI options with config defaults (CLI takes precedence)
   // For solver backends: CLI --solver-backends > CLI --distribute-solvers > config DEEP_SOLVER_BACKENDS
   // options.distributeSolvers is undefined if not set by CLI, true if --distribute-solvers passed
-  const effectiveDistributeSolvers = options.distributeSolvers ?? deepConfig.distributeSolvers ?? false;
-  const effectiveSolverBackends = options.solverBackends ?? deepConfig.solverBackends;
+  // When base CLI override is present, suppress config-driven distribution
+  const effectiveDistributeSolvers = options.distributeSolvers ?? (cliHasBaseOverride ? false : (deepConfig.distributeSolvers ?? false));
+  const effectiveSolverBackends = options.solverBackends ?? (cliHasBaseOverride ? undefined : deepConfig.solverBackends);
 
   // Handle solver backend selection (potentially distributed)
   const solverBackendsResult = await selectSolverBackends({
@@ -271,12 +278,13 @@ export async function handleDeep(
       : base.model
   );
 
-  // Merge CLI with config for judge (CLI > config > base)
-  const effectiveJudgeBackend = options.judgeBackend ?? deepConfig.judgeBackend;
-  const effectiveJudgeModel = options.judgeModel ?? deepConfig.judgeModel;
+  // Merge CLI with config for judge (CLI stage flag > base CLI > config > defaults)
+  // When cliHasBaseOverride, base CLI flags take precedence over config defaults
+  // Edge case: if --judge-backend is set but not --judge-model, don't force base model (let backend resolve its default)
+  const effectiveJudgeBackend = options.judgeBackend ?? (cliHasBaseOverride ? options.backend : deepConfig.judgeBackend);
+  const effectiveJudgeModel = options.judgeModel ?? (options.judgeBackend ? undefined : (cliHasBaseModel ? options.model : (cliHasBaseBackend ? undefined : deepConfig.judgeModel)));
 
-  // Only use fallbackModel if we're also using the fallback backend
-  // Otherwise, let the explicit backend use its own default model
+  // Resolve judge backend/model
   const judge = resolveBackendModel({
     explicitBackend: effectiveJudgeBackend,
     explicitModel: effectiveJudgeModel,
@@ -285,32 +293,32 @@ export async function handleDeep(
     globalConfig,
   });
 
-  // Merge CLI with config for verifier (CLI > config > judge)
-  const effectiveVerifierBackend = options.verifierBackend ?? deepConfig.verifierBackend;
-  const effectiveVerifierModel = options.verifierModel ?? deepConfig.verifierModel;
+  // Merge CLI with config for verifier (CLI stage flag > base CLI > config > defaults)
+  const effectiveVerifierBackend = options.verifierBackend ?? (cliHasBaseOverride ? options.backend : deepConfig.verifierBackend);
+  const effectiveVerifierModel = options.verifierModel ?? (options.verifierBackend ? undefined : (cliHasBaseModel ? options.model : (cliHasBaseBackend ? undefined : deepConfig.verifierModel)));
 
   // Resolve verifier for display (only if verify is enabled)
-  const verifier = (!options.noVerify && (effectiveVerifierModel || effectiveVerifierBackend)) 
+  const verifier = (!options.noVerify && (effectiveVerifierModel || effectiveVerifierBackend || cliHasBaseOverride)) 
     ? resolveBackendModel({
         explicitBackend: effectiveVerifierBackend,
         explicitModel: effectiveVerifierModel,
-        fallbackBackend: judge.backend,
-        fallbackModel: effectiveVerifierBackend ? undefined : judge.model,
+        fallbackBackend: base.backend,
+        fallbackModel: effectiveVerifierBackend ? undefined : base.model,
         globalConfig,
       })
     : { backend: judge.backend, model: judge.model };
 
-  // Merge CLI with config for revision (CLI > config > verifier)
-  const effectiveRevisionBackend = options.revisionBackend ?? deepConfig.revisionBackend;
-  const effectiveRevisionModel = options.revisionModel ?? deepConfig.revisionModel;
+  // Merge CLI with config for revision (CLI stage flag > base CLI > config > defaults)
+  const effectiveRevisionBackend = options.revisionBackend ?? (cliHasBaseOverride ? options.backend : deepConfig.revisionBackend);
+  const effectiveRevisionModel = options.revisionModel ?? (options.revisionBackend ? undefined : (cliHasBaseModel ? options.model : (cliHasBaseBackend ? undefined : deepConfig.revisionModel)));
 
-  // Resolve revision for display (falls back to verifier if not specified)
-  const revision = (!options.noVerify && (effectiveRevisionModel || effectiveRevisionBackend))
+  // Resolve revision for display (falls back to base when base override present)
+  const revision = (!options.noVerify && (effectiveRevisionModel || effectiveRevisionBackend || cliHasBaseOverride))
     ? resolveBackendModel({
         explicitBackend: effectiveRevisionBackend,
         explicitModel: effectiveRevisionModel,
-        fallbackBackend: verifier.backend,
-        fallbackModel: effectiveRevisionBackend ? undefined : verifier.model,
+        fallbackBackend: base.backend,
+        fallbackModel: effectiveRevisionBackend ? undefined : base.model,
         globalConfig,
       })
     : verifier;

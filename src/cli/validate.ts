@@ -238,10 +238,16 @@ export function detectConfigConflicts(
   // --solver-backend conflicts with distributeSolvers from config
   // (unless user explicitly disables it with --distribute-solvers=false, but we don't support that syntax)
   // If user didn't pass --distribute-solvers flag, but config enables it, warn about --solver-backend
+  // 
+  // EXCEPTION: When -b or -m is passed, config-driven distribution is suppressed,
+  // so --solver-backend is valid in that case.
+  const basePinned = flags.backend !== undefined || flags.model !== undefined;
+  
   if (
     flags.solverBackend &&
     flags.distributeSolvers === undefined &&
-    globalConfig?.deep?.distributeSolvers
+    globalConfig?.deep?.distributeSolvers &&
+    !basePinned  // Don't error if base is pinned (distribution will be suppressed)
   ) {
     throw new CliValidationError(
       '--solver-backend is ignored when distributeSolvers is enabled in config',

@@ -278,7 +278,7 @@ function resolveSolverConfig(
 
 function resolveJudgeConfig(
   flags: RawFlags,
-  _base: ResolvedBackendModel,
+  base: ResolvedBackendModel,
   globalConfig?: GlobalConfig
 ): StageConfig {
   const deepConfig = globalConfig?.deep;
@@ -294,14 +294,18 @@ function resolveJudgeConfig(
     }
   }
   
+  // When base is pinned (-b or -m), suppress config defaults unless per-stage CLI flags are used
+  const basePinned = isBasePinned(base.source);
+  
   // If judge model is an alias, let it drive the backend
-  const judgeModel = flags.judgeModel ?? deepConfig?.judgeModel;
+  // When base is pinned and no stage-specific flags, use base model (not config)
+  const judgeModel = flags.judgeModel ?? (basePinned ? flags.model : deepConfig?.judgeModel);
   const judgeModelAlias = judgeModel ? resolveModelAlias(judgeModel) : undefined;
   
-  // Judge backend: CLI > alias-inferred > config > base
+  // Judge backend: CLI > alias-inferred > (pinned base | config) > base
   const effectiveBackend = flags.judgeBackend 
     ?? (judgeModelAlias ? judgeModelAlias.backend : undefined)
-    ?? deepConfig?.judgeBackend;
+    ?? (basePinned ? base.backend : deepConfig?.judgeBackend);
   
   const resolved = resolveBackendModel({
     explicitBackend: effectiveBackend,
@@ -318,7 +322,7 @@ function resolveJudgeConfig(
 
 function resolveVerifierConfig(
   flags: RawFlags,
-  _base: ResolvedBackendModel,
+  base: ResolvedBackendModel,
   globalConfig?: GlobalConfig
 ): StageConfig {
   const deepConfig = globalConfig?.deep;
@@ -334,14 +338,18 @@ function resolveVerifierConfig(
     }
   }
   
+  // When base is pinned (-b or -m), suppress config defaults unless per-stage CLI flags are used
+  const basePinned = isBasePinned(base.source);
+  
   // If verifier model is an alias, let it drive the backend
-  const verifierModel = flags.verifierModel ?? deepConfig?.verifierModel;
+  // When base is pinned and no stage-specific flags, use base model (not config)
+  const verifierModel = flags.verifierModel ?? (basePinned ? flags.model : deepConfig?.verifierModel);
   const verifierModelAlias = verifierModel ? resolveModelAlias(verifierModel) : undefined;
   
-  // Verifier backend: CLI > alias-inferred > config > base
+  // Verifier backend: CLI > alias-inferred > (pinned base | config) > base
   const effectiveBackend = flags.verifierBackend 
     ?? (verifierModelAlias ? verifierModelAlias.backend : undefined)
-    ?? deepConfig?.verifierBackend;
+    ?? (basePinned ? base.backend : deepConfig?.verifierBackend);
   
   const resolved = resolveBackendModel({
     explicitBackend: effectiveBackend,
@@ -358,7 +366,7 @@ function resolveVerifierConfig(
 
 function resolveRevisionConfig(
   flags: RawFlags,
-  _base: ResolvedBackendModel,
+  base: ResolvedBackendModel,
   globalConfig?: GlobalConfig
 ): StageConfig {
   const deepConfig = globalConfig?.deep;
@@ -374,20 +382,27 @@ function resolveRevisionConfig(
     }
   }
   
+  // When base is pinned (-b or -m), suppress config defaults unless per-stage CLI flags are used
+  const basePinned = isBasePinned(base.source);
+  
   // If revision model is an alias, let it drive the backend (don't inherit from verifier)
-  const revisionModel = flags.revisionModel ?? deepConfig?.revisionModel;
+  // When base is pinned and no stage-specific flags, use base model (not config)
+  const revisionModel = flags.revisionModel ?? (basePinned ? flags.model : deepConfig?.revisionModel);
   const revisionModelAlias = revisionModel ? resolveModelAlias(revisionModel) : undefined;
   
-  // Revision backend: CLI > alias-inferred > config > verifier > base
+  // Revision backend: CLI > alias-inferred > (pinned base | config > verifier) > base
   const effectiveBackend = flags.revisionBackend 
     ?? (revisionModelAlias ? revisionModelAlias.backend : undefined)
-    ?? deepConfig?.revisionBackend 
-    ?? flags.verifierBackend 
-    ?? deepConfig?.verifierBackend;
+    ?? (basePinned ? base.backend : (deepConfig?.revisionBackend ?? flags.verifierBackend ?? deepConfig?.verifierBackend));
+  
+  // For model fallback: when base is pinned, use flags.model; otherwise use config/verifier cascade
+  const modelFallback = basePinned 
+    ? flags.model
+    : (revisionModel ?? flags.verifierModel ?? deepConfig?.verifierModel ?? flags.model);
   
   const resolved = resolveBackendModel({
     explicitBackend: effectiveBackend,
-    explicitModel: revisionModel ?? flags.verifierModel ?? deepConfig?.verifierModel ?? flags.model,
+    explicitModel: modelFallback,
     globalConfig,
   });
   

@@ -328,6 +328,12 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     globalConfig,
   });
 
+  // Detect base CLI override: when -b or -m is passed, it should override all stages
+  // This prevents cascading fallbacks (verifier→judge, revision→verifier) from overriding base
+  const cliHasBaseBackend = options.backend !== undefined;
+  const cliHasBaseModel = options.model !== undefined;
+  const cliHasBaseOverride = cliHasBaseBackend || cliHasBaseModel;
+
   // Step 2: Resolve solver configs
   // If solverModel is specified without solverBackends, infer backend from model
   let solverBackends: string[];
@@ -386,10 +392,13 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   };
 
   // Step 3: Resolve judge config
-  // When using distributed solvers, default judge to first solver's backend
-  // Otherwise, use base backend
+  // When base CLI override is present, always use base.backend as fallback
+  // Otherwise, when using distributed solvers, default to first solver's backend
   let judgeFallbackBackend: string;
-  if (options.judgeModel) {
+  if (cliHasBaseOverride) {
+    // Base CLI flags take precedence - use base backend
+    judgeFallbackBackend = base.backend;
+  } else if (options.judgeModel) {
     // Let model drive backend resolution
     judgeFallbackBackend = base.backend;  // Will be overridden by model alias
   } else if (options.solverBackends && options.solverBackends.length > 1) {
@@ -400,11 +409,15 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     judgeFallbackBackend = base.backend;
   }
 
+  // For judge fallbackModel: use options.model (CLI -m) only when judge backend isn't explicitly set
+  // This ensures -m applies to judge unless --judge-backend overrides (in which case, let backend resolve its default)
+  const judgeFallbackModel = options.judgeBackend ? undefined : options.model;
+
   const judge = resolveBackendModel({
     explicitBackend: options.judgeBackend,
     explicitModel: options.judgeModel,
     fallbackBackend: judgeFallbackBackend,
-    fallbackModel: base.model,  // Inherit from -m if specified
+    fallbackModel: judgeFallbackModel,
     globalConfig,
   });
 
@@ -427,20 +440,27 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   const forceVerify = options.forceVerify ?? false;
 
   if (verifyEnabled) {
-    // If --verifier-model is specified, let it auto-resolve the backend
-    // Otherwise, use judge's backend (for consistency) or base backend
+    // When base CLI override is present, use base backend/model as fallback (not judge)
+    // This prevents --judge-model from cascading into verifier when -b/-m were intended to control it
     let verifierFallbackBackend: string;
-    if (options.verifierModel) {
-      verifierFallbackBackend = judge.backend;  // Let model drive backend resolution
+    let verifierFallbackModel: string | undefined;
+    
+    if (cliHasBaseOverride) {
+      // Base CLI flags take precedence - use base, not judge
+      verifierFallbackBackend = base.backend;
+      // Only inherit -m if verifier backend isn't explicitly set
+      verifierFallbackModel = options.verifierBackend ? undefined : options.model;
     } else {
+      // No base override - cascade from judge (existing behavior)
       verifierFallbackBackend = judge.backend;
+      verifierFallbackModel = judge.model;
     }
 
     const verifier = resolveBackendModel({
       explicitBackend: options.verifierBackend,
       explicitModel: options.verifierModel,
       fallbackBackend: verifierFallbackBackend,
-      fallbackModel: judge.model,  // Verifier follows judge unless explicitly overridden
+      fallbackModel: verifierFallbackModel,
       globalConfig,
     });
 
@@ -460,9 +480,20 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   // Step 5: Resolve revision config (if verification enabled)
   let revisionConfig: RevisionOptions | null = null;
   if (verifyEnabled) {
-    // Revision defaults to verifier settings unless explicitly overridden
-    const revisionFallbackBackend = verifierConfig?.backend ?? judge.backend;
-    const revisionFallbackModel = verifierConfig?.model ?? judge.model;
+    // When base CLI override is present, use base backend/model as fallback (not verifier/judge cascade)
+    let revisionFallbackBackend: string;
+    let revisionFallbackModel: string | undefined;
+    
+    if (cliHasBaseOverride) {
+      // Base CLI flags take precedence - use base, not verifier/judge
+      revisionFallbackBackend = base.backend;
+      // Only inherit -m if revision backend isn't explicitly set
+      revisionFallbackModel = options.revisionBackend ? undefined : options.model;
+    } else {
+      // No base override - cascade from verifier/judge (existing behavior)
+      revisionFallbackBackend = verifierConfig?.backend ?? judge.backend;
+      revisionFallbackModel = verifierConfig?.model ?? judge.model;
+    }
 
     const revisionResolved = resolveBackendModel({
       explicitBackend: options.revisionBackend,
