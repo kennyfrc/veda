@@ -21,6 +21,7 @@ import {
   formatFinalSeparator,
   formatCompletionStatus,
   formatFinalTokens,
+  formatTraceParsingGuide,
   FORMAT_CONFIG,
   type FormatterState,
 } from '../util';
@@ -225,6 +226,12 @@ export async function handleDeep(
   }
 
   console.error(c.cyan('[deep]') + ' Starting deep thinking mode...\n');
+
+  // Show trace parsing guide if --trace is set
+  if (options.trace) {
+    console.error(formatTraceParsingGuide(options.trace));
+    console.error('');
+  }
 
   // Resolve backend/model for notifications upfront
   // These values are used for notifications throughout the pipeline

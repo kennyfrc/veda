@@ -43,6 +43,7 @@ export {
   formatChatHeader,
   formatChatToolEvent,
   formatChatComplete,
+  formatTraceParsingGuide,
   type PhaseState,
   type FormatterState,
 } from './trace-format';

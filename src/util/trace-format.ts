@@ -365,3 +365,32 @@ export function formatChatComplete(inputTokens?: number, outputTokens?: number):
   }
   return c.dim(`  ${symbols.done} complete`);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Trace Parsing Guide
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Format a parsing guide for the trace YAML file.
+ * Shows yq commands to extract the final answer.
+ * 
+ * Example output:
+ *   [trace] Parsing guide → trace.yaml
+ *     yq '.final.answer' trace.yaml                         # always the final answer
+ *     yq '.run.was_revised' trace.yaml                      # true if revised
+ *     yq '.verify.revision.revised' trace.yaml              # revised text (if was_revised)
+ *     idx=$(yq '.judge.selected_index' trace.yaml)          # winning candidate index
+ *     yq ".solve.candidates[$idx].response" trace.yaml      # winning candidate (if not revised)
+ */
+export function formatTraceParsingGuide(tracePath: string): string {
+  const p = tracePath;
+  const lines = [
+    c.dim(`[trace] Parsing guide ${FORMAT_CONFIG.symbols.arrow} ${p}`),
+    c.dim(`  yq '.final.answer' ${p}                         # always the final answer`),
+    c.dim(`  yq '.run.was_revised' ${p}                      # true if revised`),
+    c.dim(`  yq '.verify.revision.revised' ${p}              # revised text (if was_revised)`),
+    c.dim(`  idx=$(yq '.judge.selected_index' ${p})          # winning candidate index`),
+    c.dim(`  yq ".solve.candidates[$idx].response" ${p}      # winning candidate (if not revised)`),
+  ];
+  return lines.join('\n');
+}
