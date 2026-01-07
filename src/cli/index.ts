@@ -220,7 +220,7 @@ function constructDeepInput(
   const config: DeepConfig = {
     session: flags.session!,
     prompt: parsed.prompt!,
-    k: flags.k ?? 4,
+    k: flags.k ?? 6,
     categories: flags.categories,
     modules: flags.modules,
     context: constructContextConfig(flags),

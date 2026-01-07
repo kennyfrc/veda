@@ -36,12 +36,18 @@ export type PhaseState = 'solve' | 'judge' | 'verify' | 'revise' | 'complete' | 
 export interface FormatterState {
   phase: PhaseState;
   candidateCount: number;
+  /** Judge mode for multi-judge display */
+  judgeMode?: 'single' | 'multi';
+  /** List of judge backends (for multi-judge, determines which judges evaluated each candidate) */
+  judgeBackends?: string[];
 }
 
 export function createFormatterState(): FormatterState {
   return {
     phase: null,
     candidateCount: 0,
+    judgeMode: undefined,
+    judgeBackends: undefined,
   };
 }
 

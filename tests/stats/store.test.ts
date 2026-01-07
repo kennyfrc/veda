@@ -119,6 +119,42 @@ describe('StatsStore', () => {
     await store.append(entry);
     const [retrieved] = await store.readAll();
 
+    // v1 entries get judgeMode: 'single' added on read (normalization)
+    expect(retrieved).toEqual({ ...entry, judgeMode: 'single' });
+  });
+  
+  test('handles v2 entries with multi-judge mode', async () => {
+    const store = new StatsStore({ baseDir: tempDir });
+    const entry: StatEntry = {
+      version: 2,
+      timestamp: '2025-01-02T12:00:00.000Z',
+      promptHash: '1234567890abcdef',
+      judgeMode: 'multi',
+      judge: { backend: 'claude-code', model: 'opus' },
+      judges: [
+        { backend: 'claude-code', model: 'opus' },
+        { backend: 'codex', model: 'gpt-5.2' },
+      ],
+      winner: {
+        category: 'systematic',
+        moduleId: 'mece_decomposition',
+        backend: 'gemini-cli',
+        model: 'gemini-3-pro-preview',
+      },
+      confidence: { level: 'high', score: 0.85 },
+      aggregatedConfidence: {
+        level: 'high',
+        score: 0.85,
+        winMargin: 0.15,
+        judgeCount: 2,
+      },
+    };
+
+    await store.append(entry);
+    const [retrieved] = await store.readAll();
+
     expect(retrieved).toEqual(entry);
+    expect(retrieved.judgeMode).toBe('multi');
+    expect(retrieved.judges).toHaveLength(2);
   });
 });

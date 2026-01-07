@@ -261,7 +261,7 @@ export async function handleDeep(
 
   // Handle solver backend selection (potentially distributed)
   const solverBackendsResult = await selectSolverBackends({
-    k: options.k ?? 4,
+    k: options.k ?? 6,
     distributeSolvers: effectiveDistributeSolvers,
     solverBackend: options.solverBackend,
     solverBackends: effectiveSolverBackends,
@@ -534,18 +534,27 @@ async function handleEvent(
     }
 
     case 'ensemble_complete': {
-      // Show ensemble summary and transition to judge phase
+      // Show ensemble summary - judge header will be emitted by judge_start event
       console.error(formatPhaseSummary('ensemble complete'));
-      
-      // Emit judge phase header (candidates come next)
-      const suffix = judgeModel ?? judgeBackend;
-      console.error(`\n${formatPhaseHeader('judge', suffix)}`);
-      state.phase = 'judge';
       
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
           notify({ title: 'Veda Deep', message: `Solvers complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
       }
+      break;
+    }
+
+    case 'judge_start': {
+      // Emit judge phase header with mode-aware suffix
+      const isMulti = event.judgeMode === 'multi';
+      const suffix = isMulti 
+        ? `multi-judge: ${event.judgeBackends?.join(', ')}`
+        : (event.model ?? event.backend ?? 'unknown');
+      console.error(`\n${formatPhaseHeader('judge', suffix)}`);
+      state.phase = 'judge';
+      // Store judge mode and backends for candidate display
+      state.judgeMode = event.judgeMode;
+      state.judgeBackends = event.judgeBackends;
       break;
     }
 
@@ -558,11 +567,47 @@ async function handleEvent(
         // Show candidate separator with solver info if available
         const m = event.member;
         const solverInfo = m ? `[solver-${m.index + 1}:${m.backend}:${m.model}:${m.module}]` : '';
-        console.error(formatCandidateSeparator(candidateIndex, solverInfo));
+        
+        // For multi-judge mode, show which judges evaluated this candidate
+        // Round-robin rule: each judge evaluates candidates from OTHER backends
+        let evaluatedBy = '';
+        if (state.judgeMode === 'multi' && state.judgeBackends && m) {
+          const judges = state.judgeBackends.filter(j => j !== m.backend);
+          if (judges.length > 0) {
+            evaluatedBy = ` → judged by: ${judges.join(', ')}`;
+          }
+        }
+        
+        console.error(formatCandidateSeparator(candidateIndex, solverInfo + evaluatedBy));
         console.error(formatCandidateContent(content));
       } else {
         // Fallback: just show content (e.g., shuffle note)
         console.error(c.dim(`  ${event.content}`));
+      }
+      break;
+    }
+
+    case 'judge_rankings': {
+      // Display per-judge rankings before the final selection (multi-judge only)
+      if (event.judgeRankings && event.judgeRankings.length > 0) {
+        const { symbols } = FORMAT_CONFIG;
+        const label = 'per-judge rankings';
+        const dashes = symbols.separator.repeat(Math.max(0, FORMAT_CONFIG.lineWidth - label.length - 4));
+        console.error('');
+        console.error(c.dim(`  ${label} ${dashes}`));
+        console.error('');
+        
+        for (const judge of event.judgeRankings) {
+          console.error(c.cyan(`  ${judge.judgeBackend} (${judge.judgeModel}):`));
+          for (const ranking of judge.rankings) {
+            // Extract short label from candidateId
+            // Format: solver-{index}-{backend}-{model}-{category}/{module}
+            // Backends: claude-code, codex, gemini-cli (may contain hyphens)
+            const idMatch = ranking.candidateId.match(/^solver-(\d+)-(claude-code|codex|gemini-cli)-/);
+            const shortLabel = idMatch ? `#${parseInt(idMatch[1]) + 1} ${idMatch[2]}` : ranking.candidateId;
+            console.error(c.dim(`    ${ranking.rank}. ${shortLabel} (${ranking.confidence} confidence)`));
+          }
+        }
       }
       break;
     }
@@ -830,11 +875,16 @@ async function writeTrace(path: string, result: DeepThinkResult): Promise<void> 
       }),
     },
     judge: {
+      ...(trace.judge.mode && { mode: trace.judge.mode }),
       selected_index: trace.judge.selectedIndex,
       selected_display_index: trace.judge.selectedDisplayIndex,
+      ...(trace.judge.selectedCandidateId && { selected_candidate_id: trace.judge.selectedCandidateId }),
       confidence: trace.judge.confidence,
+      ...(trace.judge.winMargin !== undefined && { win_margin: trace.judge.winMargin }),
       ...(trace.judge.consensusAnalysis && { consensus_analysis: trace.judge.consensusAnalysis }),
       ...(trace.judge.reasoning && { reasoning: trace.judge.reasoning }),
+      ...(trace.judge.hadFailures && { had_failures: trace.judge.hadFailures }),
+      ...(trace.judge.judges && { judges: trace.judge.judges }),
     },
     ...(trace.verify && {
       verify: {

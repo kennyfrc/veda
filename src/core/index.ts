@@ -78,3 +78,48 @@ export {
   DEFAULT_REGISTRY,
   getModuleById,
 } from './modules';
+
+// Multi-Judge Round-Robin
+export type {
+  CandidateInfo,
+  JudgeAssignment,
+  CandidateRanking,
+  JudgePoolResult,
+  JudgePoolExecutionResult,
+  RankEntry,
+  AggregatedScore,
+  MultiJudgeResult,
+  ConfidencePenaltyTier,
+  RunMultiJudgeArgs,
+} from './multi-judge';
+
+export {
+  MULTI_JUDGE_SYSTEM_PROMPT,
+  buildJudgeAssignments,
+  validateAssignments,
+  formatRankingPrompt,
+  parseRankingResponse,
+  executeSingleJudgePool,
+  executeAllJudgePools,
+  processJudgeResults,
+  aggregateJudgeResults,
+  runMultiJudge,
+  CONFIDENCE_PENALTY,
+  CONFIDENCE_SCORES,
+  scoreToLevel,
+} from './multi-judge';
+
+// Unified Judge Interface
+export type {
+  JudgeMode,
+  JudgeDecisionRecord,
+  AggregationRecord,
+  UnifiedJudgeResult,
+  RunUnifiedJudgeArgs,
+} from './judge-unified';
+
+export {
+  runUnifiedJudge,
+  canUseMultiJudge,
+  getEffectiveJudgeMode,
+} from './judge-unified';

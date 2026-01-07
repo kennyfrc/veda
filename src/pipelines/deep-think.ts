@@ -12,12 +12,16 @@ import {
   selectModules,
   isUnchanged,
   getModuleById,
+  runUnifiedJudge,
+  getEffectiveJudgeMode,
   type EnsembleMember,
   type EnsembleEvent,
   type Reasoning,
   type ReasoningModule,
   type Check,
   type CheckResult,
+  type CandidateInfo,
+  type JudgeMode,
 } from '../core';
 import {
   buildDeepSolverSystemPrompt,
@@ -73,6 +77,8 @@ export interface DeepThinkOptions {
   cwd?: string;
   solverBackends?: string[];  // Array of backends for parallel solvers (supports randomization)
   solverModel?: string;
+  /** Judge mode: 'multi' (default) uses round-robin cross-provider judging, 'single' uses one judge */
+  judgeMode?: 'single' | 'multi';
   judgeBackend?: string;
   judgeModel?: string;
   verifierBackend?: string;
@@ -129,11 +135,15 @@ export interface SolverOptions {
 }
 
 export interface JudgeOptions {
-  /** Backend for judge */
+  /** Judge mode: 'single' or 'multi' */
+  mode: JudgeMode;
+  /** Backend for judge (single-judge, or fallback for multi) */
   backend: string;
   /** Model override for judge */
   model: string;
-  /** System prompt */
+  /** Per-backend model mapping for multi-judge */
+  backendModels?: Map<string, string>;
+  /** System prompt (single-judge only) */
   systemPrompt: string;
   /** Reasoning level */
   reasoning: Reasoning;
@@ -214,11 +224,25 @@ export interface DeepThinkTrace {
     }>;
   };
   judge: {
+    /** Judge mode: 'single' (legacy) or 'multi' (round-robin) */
+    mode?: JudgeMode;
     selectedIndex: number;  // Original index in successful candidates array
     selectedDisplayIndex: number;  // Display index (1-indexed) as shown to user and judge
+    /** Winning candidate ID (multi-judge) */
+    selectedCandidateId?: string;
     confidence: number;
+    /** Win margin over runner-up (multi-judge) */
+    winMargin?: number;
     consensusAnalysis?: string;
     reasoning?: string;
+    /** Whether any judge pools failed (multi-judge) */
+    hadFailures?: boolean;
+    /** Per-judge results (multi-judge) */
+    judges?: Array<{
+      backend: string;
+      model: string;
+      rankings?: Array<{ candidateId: string; rank: number; confidence: string }>;
+    }>;
   };
   verify?: {
     checks: Array<{ id: string; question: string; targetClaim?: string; difficulty?: string }>;
@@ -233,7 +257,7 @@ export interface DeepThinkTrace {
 }
 
 export interface DeepThinkEvent {
-  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete' | 'solver_complete' | 'verify_questions' | 'verify_check_complete' | 'revision_complete' | 'checkpoint';
+  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete' | 'solver_complete' | 'verify_questions' | 'verify_check_complete' | 'revision_complete' | 'checkpoint' | 'judge_rankings' | 'judge_start';
   stage?: string;
   content?: string;
   source?: string;
@@ -256,6 +280,21 @@ export interface DeepThinkEvent {
   checks?: Array<{ id: string; question: string; targetClaim?: string; difficulty?: string }>;  // For verify_questions event
   verdict?: 'supports' | 'contradicts' | 'uncertain';  // For verify_check_complete
   checkpoint?: DeepThinkCheckpointData;  // For checkpoint event
+  // Multi-judge specific fields
+  judgeRankings?: Array<{
+    judgeBackend: string;
+    judgeModel: string;
+    rankings: Array<{
+      candidateId: string;
+      candidateLabel: string;  // e.g., "solver-1:codex:gpt-5.2:..."
+      rank: number;
+      confidence: string;
+    }>;
+  }>;
+  /** Judge mode for the current evaluation */
+  judgeMode?: 'single' | 'multi';
+  /** List of judge backends involved (for multi-judge header) */
+  judgeBackends?: string[];
 }
 
 export interface RunSolverEnsembleResult {
@@ -425,9 +464,34 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     throw new Error(`Unable to resolve model for judge backend '${judge.backend}'. Specify --judge-model or set MODEL in config.`);
   }
 
+  // Requested judge mode (default to 'multi' for bias mitigation)
+  const requestedJudgeMode: JudgeMode = options.judgeMode ?? 'multi';
+
+  // Build per-backend model map for multi-judge mode
+  // Each judge backend uses its own default model (not overridden by options.judgeModel)
+  // options.judgeModel is only used as the fallback for single-judge mode
+  const judgeBackendModels = new Map<string, string>();
+  if (requestedJudgeMode === 'multi' && uniqueSolverBackends.size > 1) {
+    for (const backend of uniqueSolverBackends) {
+      const resolved = resolveBackendModel({
+        explicitBackend: backend,
+        // Don't use options.judgeModel - let each backend use its own default
+        explicitModel: undefined,
+        fallbackBackend: backend,
+        fallbackModel: undefined,
+        globalConfig,
+      });
+      if (resolved.model) {
+        judgeBackendModels.set(backend, resolved.model);
+      }
+    }
+  }
+
   const judgeConfig: JudgeOptions = {
+    mode: requestedJudgeMode,
     backend: judge.backend,
     model: judge.model,
+    backendModels: judgeBackendModels.size > 0 ? judgeBackendModels : undefined,
     systemPrompt: JUDGE_SYSTEM_PROMPT,
     reasoning: options.judgeReasoning ?? 'medium',
     sandbox: 'read-only',
@@ -529,6 +593,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
       model: backendModels.get(solverBackends[0]),
     },
     solverBackends,
+    judgeMode: judgeConfig.mode,
     judge: {
       backend: judgeConfig.backend,
       model: judgeConfig.model,
@@ -1011,33 +1076,64 @@ export async function* runDeepThink(
         judgeIndexMapping = options.resumeCheckpoint.judgeIndexMapping ?? [];
         judgeSelectedIndex = selectedIdx;
       } else {
-        // Run judge stage normally
-        const judgeResult = await runJudge({
+        // Build CandidateInfo for unified judge interface
+        const candidateInfos: CandidateInfo[] = [];
+        for (let i = 0; i < successfulCandidates.length; i++) {
+          const outputsIdx = successfulToOutputsMap.get(i);
+          const memberId = outputsIdx !== undefined ? trace.solve.candidates[outputsIdx]?.id : undefined;
+          const meta = memberId ? solverMetaMap.get(memberId) : undefined;
+          candidateInfos.push({
+            id: memberId ?? `candidate-${i}`,
+            solverBackend: meta?.backend ?? judge.backend,
+            content: successfulCandidates[i],
+          });
+        }
+
+        // Determine effective judge mode (multi only if multiple unique backends)
+        const effectiveMode = getEffectiveJudgeMode(judge.mode, candidateInfos);
+        const uniqueJudgeBackends = effectiveMode === 'multi' 
+          ? [...new Set(candidateInfos.map(c => c.solverBackend))]
+          : [judge.backend];
+        
+        // Emit judge_start event with mode info for header display
+        queue.push({
+          type: 'judge_start',
+          stage: 'judge',
+          judgeMode: effectiveMode,
+          judgeBackends: uniqueJudgeBackends,
+          model: judge.model,  // Fallback model for single-judge
+          backend: judge.backend,
+        });
+
+        // Run unified judge (handles both single and multi modes)
+        const judgeResult = await runUnifiedJudge({
+          candidates: successfulCandidates,
+          candidateInfos,
+          originalTask: prompt,
+          mode: effectiveMode,
           backend: judge.backend,
           model: judge.model,
+          judgeModels: judge.backendModels,
           systemPrompt: judge.systemPrompt,
           reasoning: judge.reasoning,
           sandbox: judge.sandbox,
           cwd: judge.cwd,
-          candidates: successfulCandidates,
-          originalTask: prompt,
-          seed: `${prompt}-${Date.now()}`,
-          onMessage: (msg: Message) => {
+          onMessage: (judgeBackend: string, msg: Message) => {
             const judgeId = formatMemberId({
               type: 'judge',
-              backend: judge.backend,
+              backend: judgeBackend,
               model: judge.model ?? 'unknown',
               index: 0,
-              module: 'NA',
+              module: effectiveMode === 'multi' ? 'multi' : 'NA',
             });
             const toolEvent = makeToolEvent(judgeId, msg);
             if (toolEvent) {
               toolEvent.member = {
                 type: 'judge',
-                backend: judge.backend,
+                backend: judgeBackend,
                 model: judge.model ?? 'unknown',
                 index: 0,
-                module: 'NA',
+                module: effectiveMode === 'multi' ? 'multi' : 'NA',
                 id: judgeId,
               };
               queue.push(toolEvent);
@@ -1048,37 +1144,56 @@ export async function* runDeepThink(
 
         // Store judge results
         finalAnswer = judgeResult.selected;
-        judgeConfidence = judgeResult.decision.confidence;
-        judgeSelectedIndex = judgeResult.decision.selectedIndex;
+        judgeConfidence = judgeResult.confidence;
+        judgeSelectedIndex = judgeResult.selectedIndex;
         judgeIndexMapping = judgeResult.indexMapping;
         judgeSessionId = judgeResult.sessionId;
         judgeSeed = `${prompt}-${Date.now()}`;
 
-        // Find the display index (what the judge saw and referenced in its reasoning)
+        // Find the display index (for backward compat with trace)
         selectedDisplayIdx = judgeResult.indexMapping.findIndex(
-          origIdx => origIdx === judgeResult.decision.selectedIndex
+          origIdx => origIdx === judgeResult.selectedIndex
         );
+        if (selectedDisplayIdx < 0) selectedDisplayIdx = 0;
 
         // Map successful index to outputs index for correct trace reference
-        trace.judge.selectedIndex = successfulToOutputsMap.get(judgeResult.decision.selectedIndex) ?? 0;
+        trace.judge.mode = effectiveMode;
+        trace.judge.selectedIndex = successfulToOutputsMap.get(judgeResult.selectedIndex) ?? 0;
         trace.judge.selectedDisplayIndex = selectedDisplayIdx + 1;
-        trace.judge.confidence = judgeResult.decision.confidence;
-        trace.judge.consensusAnalysis = judgeResult.decision.consensusAnalysis;
-        trace.judge.reasoning = judgeResult.decision.reasoning;
+        trace.judge.selectedCandidateId = judgeResult.selectedCandidateId;
+        trace.judge.confidence = judgeResult.confidence;
+        trace.judge.winMargin = judgeResult.winMargin;
+        trace.judge.consensusAnalysis = judgeResult.consensusAnalysis;
+        trace.judge.reasoning = judgeResult.reasoning;
+        trace.judge.hadFailures = judgeResult.hadFailures;
+        
+        // Store per-judge info for multi-judge traces
+        if (effectiveMode === 'multi' && judgeResult.judges.length > 0) {
+          trace.judge.judges = judgeResult.judges.map(j => ({
+            backend: j.judgeBackend,
+            model: j.judgeModel,
+            rankings: j.rankings?.map(r => ({
+              candidateId: r.candidateId,
+              rank: r.rank,
+              confidence: r.confidence,
+            })),
+          }));
+        }
 
         // Look up selected solver metadata
-        const selectedOriginalIdx = judgeResult.decision.selectedIndex;
-        const selectedOutputsIdx = successfulToOutputsMap.get(selectedOriginalIdx) ?? 0;
+        const selectedOutputsIdx = successfulToOutputsMap.get(judgeResult.selectedIndex) ?? 0;
         selectedMemberId = trace.solve.candidates[selectedOutputsIdx]?.id;
 
         // Emit shuffled note before candidates
         queue.push({
           type: 'candidate',
           stage: 'solve',
-          content: '(candidates shuffled to reduce position bias)',
+          content: effectiveMode === 'multi' 
+            ? '(candidates evaluated by cross-provider judges to reduce bias)'
+            : '(candidates shuffled to reduce position bias)',
         });
 
-        // Emit candidate summary events in the SAME shuffled order the judge sees
+        // Emit candidate summary events in ranked order
         for (let displayIdx = 0; displayIdx < judgeResult.indexMapping.length; displayIdx++) {
           const originalIdx = judgeResult.indexMapping[displayIdx];
           const outputsIdx = successfulToOutputsMap.get(originalIdx);
@@ -1096,16 +1211,45 @@ export async function* runDeepThink(
         const selectedModule = modules[selectedOutputsIdx];
         const selectedMeta = selectedMemberId ? solverMetaMap.get(selectedMemberId) : undefined;
 
+        // Emit per-judge rankings for multi-judge mode (before final selection)
+        if (effectiveMode === 'multi' && judgeResult.judges.length > 0) {
+          // Build a map from candidateId to readable label
+          const candidateLabelMap = new Map<string, string>();
+          for (const candidate of trace.solve.candidates) {
+            candidateLabelMap.set(candidate.id, candidate.id);  // ID is already formatted as solver-N:backend:model:module
+          }
+
+          queue.push({
+            type: 'judge_rankings',
+            stage: 'judge',
+            judgeRankings: judgeResult.judges.map(j => ({
+              judgeBackend: j.judgeBackend,
+              judgeModel: j.judgeModel,
+              rankings: (j.rankings ?? []).map(r => ({
+                candidateId: r.candidateId,
+                candidateLabel: candidateLabelMap.get(r.candidateId) ?? r.candidateId,
+                rank: r.rank,
+                confidence: r.confidence,
+              })),
+            })),
+          });
+        }
+
         // Record judge decision for statistics (best-effort, never fails pipeline)
         if (selectedModule && selectedMeta) {
           const statsEntry: StatEntry = {
-            version: 1,
+            version: effectiveMode === 'multi' ? 2 : 1,
             timestamp: new Date().toISOString(),
             promptHash: Bun.hash(prompt).toString(16).padStart(16, '0').slice(0, 16),
+            judgeMode: effectiveMode,
             judge: {
-              backend: judge.backend,
-              model: judge.model,
+              backend: judgeResult.judges[0]?.judgeBackend ?? judge.backend,
+              model: judgeResult.judges[0]?.judgeModel ?? judge.model,
             },
+            judges: effectiveMode === 'multi' ? judgeResult.judges.map(j => ({
+              backend: j.judgeBackend,
+              model: j.judgeModel,
+            })) : undefined,
             winner: {
               category: selectedModule.category,
               moduleId: selectedModule.id,
@@ -1113,9 +1257,15 @@ export async function* runDeepThink(
               model: selectedMeta.model,
             },
             confidence: {
-              level: judgeResult.decision.confidenceLevel,
-              score: judgeResult.decision.confidence,
+              level: judgeResult.confidenceLevel,
+              score: judgeResult.confidence,
             },
+            aggregatedConfidence: effectiveMode === 'multi' ? {
+              level: judgeResult.confidenceLevel,
+              score: judgeResult.confidence,
+              winMargin: judgeResult.winMargin,
+              judgeCount: judgeResult.judges.length,
+            } : undefined,
           };
           new StatsStore().append(statsEntry).catch(() => {});
         }
@@ -1124,10 +1274,10 @@ export async function* runDeepThink(
           type: 'selected',
           stage: 'solve',
           content: judgeResult.selected,
-          confidence: judgeResult.decision.confidence,
+          confidence: judgeResult.confidence,
           selectedIndex: selectedDisplayIdx >= 0 ? selectedDisplayIdx : 0,
-          reasoning: judgeResult.decision.reasoning,
-          consensusAnalysis: judgeResult.decision.consensusAnalysis,
+          reasoning: judgeResult.reasoning,
+          consensusAnalysis: judgeResult.consensusAnalysis,
           selectedMember: selectedMeta ? {
             backend: selectedMeta.backend,
             model: selectedMeta.model,
@@ -1144,7 +1294,7 @@ export async function* runDeepThink(
         queue.push({
           type: 'stage_complete',
           stage: 'solve',
-          confidence: judgeResult.decision.confidence,
+          confidence: judgeResult.confidence,
           usage: combineUsage(usages),
         });
       }
@@ -1173,7 +1323,13 @@ export async function* runDeepThink(
       let lastSessionId = judgeSessionId;
       let lastBackend = judge.backend;
 
-      const shouldVerify = verifyEnabled && verifier !== null && (judgeConfidence < 0.7 || forceVerify);
+      // Verification triggers:
+      // - Low confidence (< 0.7)
+      // - Close race in multi-judge (winMargin < 0.15)
+      // - Force verify flag
+      const winMargin = trace.judge.winMargin ?? 1.0;
+      const isCloseRace = trace.judge.mode === 'multi' && winMargin < 0.15;
+      const shouldVerify = verifyEnabled && verifier !== null && (judgeConfidence < 0.7 || isCloseRace || forceVerify);
 
       if (shouldVerify && verifier) {
         currentStage = 'verify';

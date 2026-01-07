@@ -40,6 +40,7 @@ export class StatsStore {
   /**
    * Read all valid entries from the log.
    * Skips malformed lines and unknown versions gracefully.
+   * Normalizes v1 entries to include judgeMode for uniform handling.
    */
   async readAll(): Promise<StatEntry[]> {
     const file = Bun.file(this.path);
@@ -52,8 +53,12 @@ export class StatsStore {
       if (!line.trim()) continue;
       try {
         const parsed = JSON.parse(line);
-        // Only accept known version
-        if (parsed.version === 1) {
+        // Accept version 1 and 2
+        if (parsed.version === 1 || parsed.version === 2) {
+          // Normalize v1 to include judgeMode
+          if (parsed.version === 1 && !parsed.judgeMode) {
+            parsed.judgeMode = 'single';
+          }
           entries.push(parsed as StatEntry);
         }
       } catch {

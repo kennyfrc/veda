@@ -350,7 +350,7 @@ Options:
   --notify                Enable system notifications (default: on)
   --no-notify             Disable system notifications
   --deep, -d              Enable deep thinking mode
-  -k <num>                Number of parallel solvers (default: 4, max: 8)
+  -k <num>                Number of parallel solvers (default: 6, max: 8)
   --categories <list>     Reasoning categories (comma-separated)
   --modules <list>        Module specifiers (comma-separated)
                           Formats: category/module, category (random), module_id

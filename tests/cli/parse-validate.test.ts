@@ -373,7 +373,7 @@ describe('integration: parseAndValidate', () => {
       expect(result.mode).toBe('deep');
       if (result.mode === 'deep') {
         expect(result.config.prompt).toBe('solve this');
-        expect(result.config.k).toBe(4);  // default
+        expect(result.config.k).toBe(6);  // default
       }
     }
   });
