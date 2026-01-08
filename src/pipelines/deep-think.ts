@@ -77,7 +77,7 @@ export interface DeepThinkOptions {
   cwd?: string;
   solverBackends?: string[];  // Array of backends for parallel solvers (supports randomization)
   solverModel?: string;
-  /** Judge mode: 'multi' (default) uses round-robin cross-provider judging, 'single' uses one judge */
+  /** Judge mode: 'pairwise' (default) uses head-to-head comparison, 'multi' uses round-robin ranking, 'single' uses one judge */
   judgeMode?: 'single' | 'multi' | 'pairwise';
   judgeBackend?: string;
   judgeModel?: string;
@@ -466,14 +466,14 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     throw new Error(`Unable to resolve model for judge backend '${judge.backend}'. Specify --judge-model or set MODEL in config.`);
   }
 
-  // Requested judge mode (default to 'multi' for bias mitigation)
-  const requestedJudgeMode: JudgeMode = options.judgeMode ?? 'multi';
+  // Requested judge mode (default to 'pairwise' for better cross-backend comparison)
+  const requestedJudgeMode: JudgeMode = options.judgeMode ?? 'pairwise';
 
-  // Build per-backend model map for multi-judge mode
+  // Build per-backend model map for pairwise/multi-judge modes
   // Each judge backend uses its own default model (not overridden by options.judgeModel)
   // options.judgeModel is only used as the fallback for single-judge mode
   const judgeBackendModels = new Map<string, string>();
-  if (requestedJudgeMode === 'multi' && uniqueSolverBackends.size > 1) {
+  if ((requestedJudgeMode === 'pairwise' || requestedJudgeMode === 'multi') && uniqueSolverBackends.size > 1) {
     for (const backend of uniqueSolverBackends) {
       const resolved = resolveBackendModel({
         explicitBackend: backend,
