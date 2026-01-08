@@ -393,11 +393,12 @@ Selection Commands:
   sel clear               Clear selection
   sel tokens              Show total token count
 
-Stats Commands:
-  stats                   View judge statistics (group by module)
+Stats Commands (Glicko-2 Ratings):
+  stats                   View ratings (group by module)
   stats --by-category     Group by reasoning category
-  stats --by-backend      Group by winning solver backend
-  stats --limit <n>       Show top N groups (default: 20)
+  stats --by-model        Group by solver model (backend:model)
+  stats --by-judge        Group by judge (backend:model)
+  stats --limit <n>       Show top N entities (default: 20)
   stats --json            Output as JSON
 
 File Slices:

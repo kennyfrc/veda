@@ -28,7 +28,13 @@ import {
   JUDGE_SYSTEM_PROMPT,
   VERIFIER_SYSTEM_PROMPT,
 } from './prompts';
-import { StatsStore, type StatEntry } from '../stats';
+import {
+  PairwiseStatsStore,
+  type PairwiseStatEntry,
+  type CandidateMetadata,
+  type VoteRecord,
+  type PairResultRecord,
+} from '../stats';
 
 /**
  * Standardized member ID format: type-index-backend-model-module
@@ -1369,39 +1375,63 @@ export async function* runDeepThink(
           });
         }
 
-        // Record judge decision for statistics (best-effort, never fails pipeline)
-        if (selectedModule && selectedMeta) {
-          const statsEntry: StatEntry = {
-            version: effectiveMode === 'multi' ? 2 : 1,
-            timestamp: new Date().toISOString(),
-            promptHash: Bun.hash(prompt).toString(16).padStart(16, '0').slice(0, 16),
-            judgeMode: effectiveMode,
-            judge: {
-              backend: judgeResult.judges[0]?.judgeBackend ?? judge.backend,
-              model: judgeResult.judges[0]?.judgeModel ?? judge.model,
-            },
-            judges: effectiveMode === 'multi' ? judgeResult.judges.map(j => ({
-              backend: j.judgeBackend,
-              model: j.judgeModel,
-            })) : undefined,
-            winner: {
-              category: selectedModule.category,
-              moduleId: selectedModule.id,
-              backend: selectedMeta.backend,
-              model: selectedMeta.model,
-            },
-            confidence: {
-              level: judgeResult.confidenceLevel,
-              score: judgeResult.confidence,
-            },
-            aggregatedConfidence: effectiveMode === 'multi' ? {
-              level: judgeResult.confidenceLevel,
-              score: judgeResult.confidence,
-              winMargin: judgeResult.winMargin,
-              judgeCount: judgeResult.judges.length,
-            } : undefined,
+        // Record pairwise judge decisions for statistics (best-effort, never fails pipeline)
+        // Only record for pairwise mode - single/multi are not recorded
+        if (effectiveMode === 'pairwise' && judgeResult.pairwiseVotes && judgeResult.pairResults) {
+          const timestamp = new Date().toISOString();
+          const promptHash = Bun.hash(prompt).toString(16).padStart(16, '0').slice(0, 16);
+          
+          // Build candidate metadata map
+          const candidatesMeta: CandidateMetadata[] = [];
+          for (let i = 0; i < candidateInfos.length; i++) {
+            const info = candidateInfos[i];
+            const outputsIdx = successfulToOutputsMap.get(i);
+            const memberId = outputsIdx !== undefined ? trace.solve.candidates[outputsIdx]?.id : undefined;
+            const meta = memberId ? solverMetaMap.get(memberId) : undefined;
+            const moduleInfo = modules[outputsIdx ?? i];
+            
+            candidatesMeta.push({
+              candidateId: info.id,
+              solverBackend: info.solverBackend,
+              solverModel: meta?.model ?? 'unknown',
+              category: moduleInfo?.category ?? 'unknown',
+              moduleId: moduleInfo?.id ?? 'unknown',
+            });
+          }
+          
+          // Build vote records
+          const votes: VoteRecord[] = judgeResult.pairwiseVotes.map(v => ({
+            pairId: v.pairId,
+            judgeBackend: v.judgeBackend,
+            judgeModel: v.judgeModel,
+            candidateA: v.candidateA,
+            candidateB: v.candidateB,
+            outcome: v.outcome,
+            confidence: v.confidence,
+          }));
+          
+          // Build pair result records
+          const pairResults: PairResultRecord[] = judgeResult.pairResults.map(pr => ({
+            pairId: pr.pairId,
+            candidateA: pr.candidateA,
+            candidateB: pr.candidateB,
+            verdict: pr.verdict,
+            consensusWinner: pr.consensusWinner,
+            agreementRate: pr.agreementRate,
+          }));
+          
+          const pairwiseEntry: PairwiseStatEntry = {
+            version: 1,
+            timestamp,
+            promptHash,
+            runId: `${timestamp}-${promptHash}`,
+            judgeMode: 'pairwise',
+            candidates: candidatesMeta,
+            votes,
+            pairResults,
           };
-          new StatsStore().append(statsEntry).catch(() => {});
+          
+          new PairwiseStatsStore().append(pairwiseEntry).catch(() => {});
         }
 
         // Transform winnerRationales to include labels instead of candidateIds for display

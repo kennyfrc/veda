@@ -48,7 +48,8 @@ const BOOLEAN_FLAGS = new Set([
   // Stats command grouping modes
   '--by-module',
   '--by-category',
-  '--by-backend',
+  '--by-model',
+  '--by-judge',
 ]);
 
 // All known flags for suggestion matching
@@ -133,7 +134,8 @@ export function tokenizeArgv(argv: string[]): { flags: RawFlags; positionals: st
     distributeSolvers: undefined,  // undefined = not set by CLI, use config
     statsModule: false,
     statsCategory: false,
-    statsBackend: false,
+    statsModel: false,
+    statsJudge: false,
     help: false,
     version: false,
     dryRun: false,
@@ -336,8 +338,11 @@ function parseBooleanFlag(flags: RawFlags, flag: string): void {
     case '--by-category':
       flags.statsCategory = true;
       break;
-    case '--by-backend':
-      flags.statsBackend = true;
+    case '--by-model':
+      flags.statsModel = true;
+      break;
+    case '--by-judge':
+      flags.statsJudge = true;
       break;
   }
 }

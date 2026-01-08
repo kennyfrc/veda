@@ -106,7 +106,7 @@ export interface ResumeConfig {
 // Stats Config
 // =============================================================================
 
-export type StatsGroupBy = 'module' | 'category' | 'backend';
+export type StatsGroupBy = 'module' | 'category' | 'model' | 'judge';
 
 export interface StatsConfig {
   groupBy: StatsGroupBy;
@@ -225,7 +225,8 @@ export interface RawFlags {
   // Stats command options
   statsModule: boolean;
   statsCategory: boolean;
-  statsBackend: boolean;
+  statsModel: boolean;
+  statsJudge: boolean;
   limit?: number;
 
   // Meta

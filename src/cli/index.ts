@@ -315,7 +315,8 @@ function constructStatsInput(flags: RawFlags): VedaInput {
   // Determine groupBy mode from flags (--module is default)
   let groupBy: StatsGroupBy = 'module';
   if (flags.statsCategory) groupBy = 'category';
-  else if (flags.statsBackend) groupBy = 'backend';
+  else if (flags.statsModel) groupBy = 'model';
+  else if (flags.statsJudge) groupBy = 'judge';
   // --module is already the default
 
   const config: StatsConfig = {

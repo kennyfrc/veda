@@ -1,73 +1,62 @@
 /**
- * Stats Command: View judge decision statistics.
+ * Stats Command: View Glicko-2 ratings for judges, models, modules, and categories.
  * 
- * Aggregates and displays statistics from judge-stats.jsonl,
- * enabling analysis of module win rates and judge behavior.
+ * Reads ratings from the ratings snapshot file and displays leaderboards
+ * ranked by exposure (rating - 2*RD) for conservative ranking.
  */
 
-import { StatsStore, type StatEntry, type GroupAgg, type GroupByMode } from '../stats';
+import {
+  RatingsStore,
+  PairwiseStatsStore,
+  computeExposure,
+  KEY_PREFIX,
+} from '../stats';
 import { c } from '../util';
+import type { StatsGroupBy } from '../cli/types';
 
 export interface StatsOptions {
-  groupBy: GroupByMode;
+  groupBy: StatsGroupBy;
   limit: number;
   json: boolean;
 }
 
+/** Rating entry for display */
+interface RatingEntry {
+  key: string;
+  displayKey: string;
+  rating: number;
+  rd: number;
+  vol: number;
+  exposure: number;
+  games: number;
+  lastTs?: string;
+}
+
 /**
- * Get the grouping key for an entry based on the mode.
+ * Get the key prefix for the groupBy mode.
  */
-function getKey(entry: StatEntry, mode: GroupByMode): string {
-  switch (mode) {
-    case 'category':
-      return entry.winner.category;
-    case 'backend':
-      return entry.winner.backend;
-    case 'module':
-    default:
-      return `${entry.winner.category}/${entry.winner.moduleId}`;
+function getKeyPrefix(groupBy: StatsGroupBy): string {
+  switch (groupBy) {
+    case 'judge': return KEY_PREFIX.JUDGE;
+    case 'model': return KEY_PREFIX.MODEL;
+    case 'module': return KEY_PREFIX.MODULE;
+    case 'category': return KEY_PREFIX.CATEGORY;
   }
 }
 
 /**
- * Aggregate entries into groups.
+ * Strip prefix from key for display.
  */
-function aggregate(entries: StatEntry[], mode: GroupByMode): GroupAgg[] {
-  const groups = new Map<string, GroupAgg>();
-
-  for (const entry of entries) {
-    const key = getKey(entry, mode);
-    const agg = groups.get(key) ?? {
-      key,
-      wins: 0,
-      totalConfidence: 0,
-      highCount: 0,
-      mediumCount: 0,
-      lowCount: 0,
-      lastSeen: '',
-    };
-
-    agg.wins++;
-    agg.totalConfidence += entry.confidence.score;
-
-    if (entry.confidence.level === 'high') agg.highCount++;
-    else if (entry.confidence.level === 'medium') agg.mediumCount++;
-    else agg.lowCount++;
-
-    if (entry.timestamp > agg.lastSeen) {
-      agg.lastSeen = entry.timestamp;
-    }
-
-    groups.set(key, agg);
-  }
-
-  return [...groups.values()];
+function stripPrefix(key: string, prefix: string): string {
+  return key.startsWith(prefix) ? key.slice(prefix.length) : key;
 }
 
 /**
  * Format a date for display.
  */
-function formatDate(iso: string): string {
+function formatDate(iso?: string): string {
+  if (!iso) return 'never';
+  
   const date = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -80,61 +69,109 @@ function formatDate(iso: string): string {
   return `${Math.floor(diffDays / 30)}mo ago`;
 }
 
-export async function handleStats(options: StatsOptions): Promise<void> {
-  const store = new StatsStore();
-  const entries = await store.readAll();
+/**
+ * Format rating with uncertainty indicator.
+ */
+function formatRating(rating: number, rd: number): string {
+  const r = Math.round(rating);
+  // High uncertainty (RD > 200): show ?
+  // Medium uncertainty (RD > 100): show ~
+  // Low uncertainty: show exact
+  if (rd > 200) return `${r}?`;
+  if (rd > 100) return `${r}~`;
+  return `${r}`;
+}
 
-  if (entries.length === 0) {
-    console.log('No judge statistics recorded yet.');
-    console.log(c.dim('Run some deep mode queries to collect statistics.'));
+export async function handleStats(options: StatsOptions): Promise<void> {
+  const ratingsStore = new RatingsStore();
+  const pairwiseStore = new PairwiseStatsStore();
+  
+  const prefix = getKeyPrefix(options.groupBy);
+  const ratings = await ratingsStore.getByPrefix(prefix);
+  const runCount = await pairwiseStore.count();
+
+  if (ratings.size === 0) {
+    console.log('No ratings recorded yet.');
+    console.log(c.dim('Run deep mode with --distribute-solvers to collect pairwise statistics.'));
     return;
   }
 
-  // Aggregate and rank
-  const groups = aggregate(entries, options.groupBy);
-  const ranked = groups
-    .sort((a, b) => b.wins - a.wins)
-    .slice(0, options.limit);
+  // Build rating entries
+  const entries: RatingEntry[] = [];
+  for (const [key, state] of ratings) {
+    entries.push({
+      key,
+      displayKey: stripPrefix(key, prefix),
+      rating: state.r,
+      rd: state.rd,
+      vol: state.vol,
+      exposure: computeExposure(state),
+      games: state.games,
+      lastTs: state.lastTs,
+    });
+  }
 
-  // Output
+  // Sort by exposure (conservative ranking), then by games, then by key
+  entries.sort((a, b) => {
+    if (Math.abs(a.exposure - b.exposure) > 0.1) return b.exposure - a.exposure;
+    if (a.games !== b.games) return b.games - a.games;
+    return a.displayKey.localeCompare(b.displayKey);
+  });
+
+  const ranked = entries.slice(0, options.limit);
+
+  // JSON output
   if (options.json) {
-    const output = ranked.map(g => ({
-      key: g.key,
-      wins: g.wins,
-      avgConfidence: +(g.totalConfidence / g.wins).toFixed(3),
-      highCount: g.highCount,
-      mediumCount: g.mediumCount,
-      lowCount: g.lowCount,
-      lastSeen: g.lastSeen,
+    const output = ranked.map(e => ({
+      key: e.displayKey,
+      rating: Math.round(e.rating),
+      rd: Math.round(e.rd),
+      volatility: +e.vol.toFixed(4),
+      exposure: Math.round(e.exposure),
+      games: e.games,
+      lastSeen: e.lastTs ?? null,
     }));
     console.log(JSON.stringify(output, null, 2));
     return;
   }
 
   // Human-readable output
-  const modeLabel = options.groupBy === 'category' ? 'Category' 
-    : options.groupBy === 'backend' ? 'Backend' 
-    : 'Module';
+  const modeLabel = options.groupBy === 'judge' ? 'Judge'
+    : options.groupBy === 'model' ? 'Model'
+    : options.groupBy === 'module' ? 'Module'
+    : 'Category';
 
-  console.log(`\n${c.cyan('Judge Statistics')} (${entries.length} total decisions)\n`);
+  console.log(`\n${c.cyan('Glicko-2 Ratings')} — ${modeLabel}s (${runCount} runs)\n`);
   console.log(c.dim('─'.repeat(80)));
 
   // Header
-  const header = `${modeLabel.padEnd(40)} ${'Wins'.padStart(5)}  ${'Avg%'.padStart(4)}  ${c.dim('H/M/L'.padStart(9))}  ${c.dim('Last')}`;
+  const header = `${'#'.padStart(3)}  ${modeLabel.padEnd(35)} ${'Rating'.padStart(7)}  ${'RD'.padStart(4)}  ${'Games'.padStart(5)}  ${c.dim('Last')}`;
   console.log(header);
   console.log(c.dim('─'.repeat(80)));
 
-  for (const g of ranked) {
-    const avgPct = ((g.totalConfidence / g.wins) * 100).toFixed(0);
-    const breakdown = `${g.highCount}/${g.mediumCount}/${g.lowCount}`;
-    const lastSeen = formatDate(g.lastSeen);
+  for (let i = 0; i < ranked.length; i++) {
+    const e = ranked[i];
+    const rank = `${i + 1}`.padStart(3);
+    const displayKey = e.displayKey.length > 35 
+      ? e.displayKey.slice(0, 32) + '...'
+      : e.displayKey.padEnd(35);
+    const rating = formatRating(e.rating, e.rd).padStart(7);
+    const rd = `±${Math.round(e.rd)}`.padStart(4);
+    const games = String(e.games).padStart(5);
+    const lastSeen = formatDate(e.lastTs);
+
+    // Color code by exposure
+    let keyColor = (s: string) => s; // no color (default)
+    if (e.exposure >= 1600) keyColor = c.green;
+    else if (e.exposure >= 1450) keyColor = c.cyan;
+    else if (e.exposure < 1350) keyColor = c.yellow;
 
     console.log(
-      `${c.cyan(g.key.padEnd(40))} ${String(g.wins).padStart(5)}  ${avgPct.padStart(4)}%  ${c.dim(breakdown.padStart(9))}  ${c.dim(lastSeen)}`
+      `${c.dim(rank)}  ${keyColor(displayKey)} ${rating}  ${c.dim(rd)}  ${games}  ${c.dim(lastSeen)}`
     );
   }
 
   console.log(c.dim('─'.repeat(80)));
-  const pluralLabel = modeLabel.toLowerCase() === 'category' ? 'categories' : `${modeLabel.toLowerCase()}s`;
-  console.log(c.dim(`Showing top ${ranked.length} of ${groups.length} ${pluralLabel}`));
+  console.log(c.dim(`Showing top ${ranked.length} of ${entries.length} ${modeLabel.toLowerCase()}s`));
+  console.log(c.dim(`Rating? = high uncertainty (RD>200), ~ = medium (RD>100)`));
 }

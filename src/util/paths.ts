@@ -45,9 +45,19 @@ export function getConfigPath(baseDir?: string): string {
   return join(baseDir ?? getVedaHome(), 'config');
 }
 
-/** Get judge statistics file path (JSONL format) */
+/** Get judge statistics file path (JSONL format) - legacy */
 export function getJudgeStatsPath(baseDir?: string): string {
   return join(baseDir ?? getVedaHome(), 'judge-stats.jsonl');
+}
+
+/** Get pairwise statistics file path (JSONL format) */
+export function getPairwiseStatsPath(baseDir?: string): string {
+  return join(baseDir ?? getVedaHome(), 'pairwise-stats.jsonl');
+}
+
+/** Get ratings snapshot file path (JSON format) */
+export function getRatingsPath(baseDir?: string): string {
+  return join(baseDir ?? getVedaHome(), 'ratings.json');
 }
 
 /** Default session ID */

@@ -117,6 +117,17 @@ export interface UnifiedJudgeResult {
   
   /** Pairwise-specific: per-pair results */
   pairResults?: PairResult[];
+  
+  /** Pairwise-specific: raw votes from all judges (for stats recording) */
+  pairwiseVotes?: Array<{
+    pairId: string;
+    judgeBackend: string;
+    judgeModel: string;
+    candidateA: string;
+    candidateB: string;
+    outcome: 'A' | 'B' | 'tie';
+    confidence: 'high' | 'medium' | 'low';
+  }>;
 }
 
 export interface RunUnifiedJudgeArgs {
@@ -510,6 +521,22 @@ async function runPairwiseJudgeAdapter(args: {
       agreementRate: avgAgreement,
     },
     pairResults: result.pairResults,
+    // Flatten all votes for stats recording
+    pairwiseVotes: result.judgeResults.flatMap(jr =>
+      jr.votes.map(v => {
+        // Find the pair to get candidateA/B
+        const pair = result.pairResults.find(p => p.pairId === v.pairId);
+        return {
+          pairId: v.pairId,
+          judgeBackend: jr.judgeBackend,
+          judgeModel: jr.judgeModel,
+          candidateA: pair?.candidateA ?? '',
+          candidateB: pair?.candidateB ?? '',
+          outcome: v.choice as 'A' | 'B' | 'tie',
+          confidence: v.confidence,
+        };
+      })
+    ),
     usage: result.totalUsage,
     sessionId: result.judgeResults[0]?.sessionId,
     hadFailures: result.hadFailures,
