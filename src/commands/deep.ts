@@ -546,11 +546,24 @@ async function handleEvent(
 
     case 'judge_start': {
       // Emit judge phase header with mode-aware suffix
+      const isPairwise = event.judgeMode === 'pairwise';
       const isMulti = event.judgeMode === 'multi';
-      const suffix = isMulti 
-        ? `multi-judge: ${event.judgeBackends?.join(', ')}`
-        : (event.model ?? event.backend ?? 'unknown');
+      let suffix: string;
+      if (isPairwise) {
+        suffix = 'pairwise';
+      } else if (isMulti) {
+        suffix = `multi-judge: ${event.judgeBackends?.join(', ')}`;
+      } else {
+        suffix = event.model ?? event.backend ?? 'unknown';
+      }
       console.error(`\n${formatPhaseHeader('judge', suffix)}`);
+      
+      // For pairwise mode, show subheader with judge info (pair count shown in pairwise_summary)
+      if (isPairwise && event.judgeBackends && event.judgeBackends.length > 0) {
+        const judgeCount = event.judgeBackends.length;
+        console.error(c.dim(`  (${judgeCount} judges: ${event.judgeBackends.join(', ')})`));
+      }
+      
       state.phase = 'judge';
       // Store judge mode and backends for candidate display
       state.judgeMode = event.judgeMode;
@@ -612,6 +625,52 @@ async function handleEvent(
       break;
     }
 
+    case 'pairwise_summary': {
+      // Display pairwise results summary before final selection
+      if (event.pairwiseSummary) {
+        const { symbols } = FORMAT_CONFIG;
+        const summary = event.pairwiseSummary;
+        
+        // Pair results section
+        const pairsLabel = 'pairwise results';
+        const pairsDashes = symbols.separator.repeat(Math.max(0, FORMAT_CONFIG.lineWidth - pairsLabel.length - 4));
+        console.error('');
+        console.error(c.dim(`  ${pairsLabel} ${pairsDashes}`));
+        
+        for (const pair of summary.pairs) {
+          // Format: "Pair 1: #1 vs #2 → #2 wins (A:2 B:1 T:0, 67% agree)"
+          let verdictStr: string;
+          if (pair.verdict === 'A') {
+            verdictStr = `${pair.labelA} wins`;
+          } else if (pair.verdict === 'B') {
+            verdictStr = `${pair.labelB} wins`;
+          } else if (pair.verdict === 'tie') {
+            verdictStr = 'tie';
+          } else {
+            verdictStr = 'split';
+          }
+          
+          const voteBreakdown = `A:${pair.votesA} B:${pair.votesB} T:${pair.votesTie}`;
+          console.error(c.dim(`  Pair ${pair.pairNum}: ${pair.labelA} vs ${pair.labelB} → ${verdictStr} (${voteBreakdown}, ${pair.agreementPct}% agree)`));
+        }
+        
+        // Copeland scores section
+        if (summary.scores.length > 0) {
+          console.error('');
+          const scoresLabel = 'scores';
+          const scoresDashes = symbols.separator.repeat(Math.max(0, FORMAT_CONFIG.lineWidth - scoresLabel.length - 4));
+          console.error(c.dim(`  ${scoresLabel} ${scoresDashes}`));
+          
+          for (const score of summary.scores) {
+            const sign = score.copelandScore >= 0 ? '+' : '';
+            const marker = score.isWinner ? c.green(' ← winner') : '';
+            console.error(c.dim(`  ${score.label}: ${score.wins}W-${score.losses}L (Copeland: ${sign}${score.copelandScore})`) + marker);
+          }
+        }
+      }
+      break;
+    }
+
     case 'selected': {
       // Add visual separation between candidates and judge decision
       // Use the same separator style as candidates for consistency
@@ -666,9 +725,16 @@ async function handleEvent(
         console.error('');
         console.error(c.cyan('  rationale:'));
         for (const rationale of event.winnerRationales) {
-          // Show judge attribution for multi-judge, or just reasoning for single-judge
-          if (event.winnerRationales.length > 1 || state.judgeMode === 'multi') {
-            console.error(c.dim(`    [${rationale.judgeBackend}]:`));
+          // Show judge attribution for multi-judge/pairwise, or just reasoning for single-judge
+          const isPairwiseOrMulti = event.winnerRationales.length > 1 || state.judgeMode === 'multi' || state.judgeMode === 'pairwise';
+          if (isPairwiseOrMulti) {
+            // For pairwise, show pair context with A/B mapping (already transformed to labels)
+            let pairInfo = '';
+            if (rationale.pairContext && state.judgeMode === 'pairwise') {
+              const { pairNum, labelA, labelB } = rationale.pairContext;
+              pairInfo = ` (Pair ${pairNum}: A=${labelA}, B=${labelB})`;
+            }
+            console.error(c.dim(`    [${rationale.judgeBackend}]${pairInfo}:`));
             const lines = rationale.reasoning.split('\n');
             for (const line of lines) {
               console.error(c.dim(`      ${line}`));

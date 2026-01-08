@@ -26,6 +26,12 @@ export interface WinnerRationale {
   judgeBackend: string;
   judgeModel: string;
   reasoning: string;
+  /** For pairwise mode: which pair this rationale came from */
+  pairContext?: {
+    pairNum: number;
+    candidateA: string;
+    candidateB: string;
+  };
 }
 
 /** Per-judge decision (for trace/stats) */
@@ -434,14 +440,24 @@ async function runPairwiseJudgeAdapter(args: {
   }));
   
   // Extract winner rationales: reasoning from votes where this candidate won
+  // Include pair context so display can show which comparison this rationale is for
   const winnerRationales: WinnerRationale[] = [];
   for (const jr of result.judgeResults) {
     for (const vote of jr.votes) {
       if (vote.winner === result.winnerCandidateId && vote.reasoning) {
+        // Find the pair index and candidates for context
+        const pairIdx = result.pairResults.findIndex(p => p.pairId === vote.pairId);
+        const pair = result.pairResults[pairIdx];
+        
         winnerRationales.push({
           judgeBackend: jr.judgeBackend,
           judgeModel: jr.judgeModel,
           reasoning: vote.reasoning,
+          pairContext: pair ? {
+            pairNum: pairIdx + 1,
+            candidateA: pair.candidateA,
+            candidateB: pair.candidateB,
+          } : undefined,
         });
         break; // One rationale per judge
       }

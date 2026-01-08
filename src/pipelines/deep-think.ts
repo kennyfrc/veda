@@ -257,7 +257,7 @@ export interface DeepThinkTrace {
 }
 
 export interface DeepThinkEvent {
-  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete' | 'solver_complete' | 'verify_questions' | 'verify_check_complete' | 'revision_complete' | 'checkpoint' | 'judge_rankings' | 'judge_start';
+  type: 'stage_start' | 'stage_complete' | 'candidate' | 'selected' | 'verified' | 'complete' | 'tool_start' | 'error' | 'ensemble_complete' | 'solver_complete' | 'verify_questions' | 'verify_check_complete' | 'revision_complete' | 'checkpoint' | 'judge_rankings' | 'judge_start' | 'pairwise_summary';
   stage?: string;
   content?: string;
   source?: string;
@@ -295,8 +295,37 @@ export interface DeepThinkEvent {
   judgeMode?: 'single' | 'multi' | 'pairwise';
   /** List of judge backends involved (for multi-judge header) */
   judgeBackends?: string[];
+  /** Number of pairs compared (for pairwise mode) */
+  pairCount?: number;
   /** Rationales from judges who ranked the winner highest (for 'selected' event) */
-  winnerRationales?: Array<{ judgeBackend: string; judgeModel: string; reasoning: string }>;
+  winnerRationales?: Array<{ judgeBackend: string; judgeModel: string; reasoning: string; pairContext?: { pairNum: number; labelA: string; labelB: string } }>;
+  /** Pairwise results summary (for pairwise_summary event) */
+  pairwiseSummary?: {
+    /** Map from candidateId to display label (e.g., "#1 codex") */
+    labelMap: Array<{ candidateId: string; label: string }>;
+    /** Per-pair results */
+    pairs: Array<{
+      pairNum: number;
+      labelA: string;
+      labelB: string;
+      verdict: 'A' | 'B' | 'tie' | 'split';
+      winnerLabel: string | null;
+      votesA: number;
+      votesB: number;
+      votesTie: number;
+      agreementPct: number;
+    }>;
+    /** Per-candidate Copeland scores, sorted by rank */
+    scores: Array<{
+      label: string;
+      candidateId: string;
+      wins: number;
+      losses: number;
+      ties: number;
+      copelandScore: number;
+      isWinner: boolean;
+    }>;
+  };
 }
 
 export interface RunSolverEnsembleResult {
@@ -1093,7 +1122,8 @@ export async function* runDeepThink(
 
         // Determine effective judge mode (multi only if multiple unique backends)
         const effectiveMode = getEffectiveJudgeMode(judge.mode, candidateInfos);
-        const uniqueJudgeBackends = effectiveMode === 'multi' 
+        // For pairwise and multi, judges are the solver backends; for single, just the judge backend
+        const uniqueJudgeBackends = (effectiveMode === 'multi' || effectiveMode === 'pairwise')
           ? [...new Set(candidateInfos.map(c => c.solverBackend))]
           : [judge.backend];
         
@@ -1191,9 +1221,11 @@ export async function* runDeepThink(
         queue.push({
           type: 'candidate',
           stage: 'solve',
-          content: effectiveMode === 'multi' 
-            ? '(candidates evaluated by cross-provider judges to reduce bias)'
-            : '(candidates shuffled to reduce position bias)',
+          content: effectiveMode === 'pairwise'
+            ? '(pairwise head-to-head comparison by cross-provider judges)'
+            : effectiveMode === 'multi' 
+              ? '(candidates evaluated by cross-provider judges to reduce bias)'
+              : '(candidates shuffled to reduce position bias)',
         });
 
         // Emit candidate summary events in ranked order
@@ -1238,6 +1270,105 @@ export async function* runDeepThink(
           });
         }
 
+        // Emit pairwise summary for pairwise mode (before final selection)
+        if (effectiveMode === 'pairwise' && judgeResult.pairResults && judgeResult.pairResults.length > 0) {
+          // Build label map: candidateId → display label like "#1 codex"
+          // Use indexMapping to get display order (display position → original index)
+          const labelMap: Array<{ candidateId: string; label: string }> = [];
+          for (let displayIdx = 0; displayIdx < judgeResult.indexMapping.length; displayIdx++) {
+            const originalIdx = judgeResult.indexMapping[displayIdx];
+            const candidateInfo = candidateInfos[originalIdx];
+            if (candidateInfo) {
+              // Short backend name for display
+              const shortBackend = candidateInfo.solverBackend
+                .replace('claude-code', 'claude')
+                .replace('gemini-cli', 'gemini');
+              labelMap.push({
+                candidateId: candidateInfo.id,
+                label: `#${displayIdx + 1} ${shortBackend}`,
+              });
+            }
+          }
+          const labelLookup = new Map(labelMap.map(l => [l.candidateId, l.label]));
+
+          // Format pair results
+          const pairs = judgeResult.pairResults.map((pr, idx) => {
+            const labelA = labelLookup.get(pr.candidateA) ?? pr.candidateA;
+            const labelB = labelLookup.get(pr.candidateB) ?? pr.candidateB;
+            
+            // Count votes for each outcome
+            let votesA = 0, votesB = 0, votesTie = 0;
+            for (const vote of pr.votes) {
+              if (vote.winner === pr.candidateA) votesA++;
+              else if (vote.winner === pr.candidateB) votesB++;
+              else votesTie++;
+            }
+            
+            const winnerLabel = pr.verdict === 'A' ? labelA 
+                              : pr.verdict === 'B' ? labelB 
+                              : null;
+            
+            return {
+              pairNum: idx + 1,
+              labelA,
+              labelB,
+              verdict: pr.verdict,
+              winnerLabel,
+              votesA,
+              votesB,
+              votesTie,
+              agreementPct: Math.round(pr.agreementRate * 100),
+            };
+          });
+
+          // Format Copeland scores from aggregation
+          const scores = (judgeResult.aggregation && 'pairCount' in judgeResult.aggregation)
+            ? judgeResult.indexMapping.map(originalIdx => {
+                const candidateInfo = candidateInfos[originalIdx];
+                const candidateId = candidateInfo?.id ?? '';
+                const label = labelLookup.get(candidateId) ?? candidateId;
+                
+                // Find score from pairResults
+                // Since we don't have scores directly, derive from pair results
+                let wins = 0, losses = 0, ties = 0;
+                for (const pr of judgeResult.pairResults!) {
+                  if (pr.candidateA === candidateId) {
+                    if (pr.verdict === 'A') wins++;
+                    else if (pr.verdict === 'B') losses++;
+                    else ties++;
+                  } else if (pr.candidateB === candidateId) {
+                    if (pr.verdict === 'B') wins++;
+                    else if (pr.verdict === 'A') losses++;
+                    else ties++;
+                  }
+                }
+                
+                return {
+                  label,
+                  candidateId,
+                  wins,
+                  losses,
+                  ties,
+                  copelandScore: wins - losses,
+                  isWinner: candidateId === judgeResult.selectedCandidateId,
+                };
+              }).sort((a, b) => b.copelandScore - a.copelandScore)
+            : [];
+
+          queue.push({
+            type: 'pairwise_summary',
+            stage: 'judge',
+            judgeMode: 'pairwise',
+            judgeBackends: uniqueJudgeBackends,
+            pairCount: judgeResult.pairResults.length,
+            pairwiseSummary: {
+              labelMap,
+              pairs,
+              scores,
+            },
+          });
+        }
+
         // Record judge decision for statistics (best-effort, never fails pipeline)
         if (selectedModule && selectedMeta) {
           const statsEntry: StatEntry = {
@@ -1273,6 +1404,39 @@ export async function* runDeepThink(
           new StatsStore().append(statsEntry).catch(() => {});
         }
 
+        // Transform winnerRationales to include labels instead of candidateIds for display
+        const transformedRationales = judgeResult.winnerRationales?.map(r => {
+          if (r.pairContext && effectiveMode === 'pairwise') {
+            // Build label lookup from candidateInfos using indexMapping
+            const labelLookup = new Map<string, string>();
+            for (let displayIdx = 0; displayIdx < judgeResult.indexMapping.length; displayIdx++) {
+              const originalIdx = judgeResult.indexMapping[displayIdx];
+              const info = candidateInfos[originalIdx];
+              if (info) {
+                const shortBackend = info.solverBackend
+                  .replace('claude-code', 'claude')
+                  .replace('gemini-cli', 'gemini');
+                labelLookup.set(info.id, `#${displayIdx + 1} ${shortBackend}`);
+              }
+            }
+            return {
+              judgeBackend: r.judgeBackend,
+              judgeModel: r.judgeModel,
+              reasoning: r.reasoning,
+              pairContext: {
+                pairNum: r.pairContext.pairNum,
+                labelA: labelLookup.get(r.pairContext.candidateA) ?? r.pairContext.candidateA,
+                labelB: labelLookup.get(r.pairContext.candidateB) ?? r.pairContext.candidateB,
+              },
+            };
+          }
+          return {
+            judgeBackend: r.judgeBackend,
+            judgeModel: r.judgeModel,
+            reasoning: r.reasoning,
+          };
+        });
+
         queue.push({
           type: 'selected',
           stage: 'solve',
@@ -1281,7 +1445,7 @@ export async function* runDeepThink(
           selectedIndex: selectedDisplayIdx >= 0 ? selectedDisplayIdx : 0,
           reasoning: judgeResult.reasoning,
           consensusAnalysis: judgeResult.consensusAnalysis,
-          winnerRationales: judgeResult.winnerRationales,
+          winnerRationales: transformedRationales,
           selectedMember: selectedMeta ? {
             backend: selectedMeta.backend,
             model: selectedMeta.model,
