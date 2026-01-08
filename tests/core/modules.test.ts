@@ -244,12 +244,12 @@ describe('Reasoning Modules', () => {
       expect(ids.size).toBe(3);
     });
 
-    test('errors on k > 8', () => {
-      expect(() => selectModules({ k: 9 })).toThrow(/must be between 1 and 8/);
+    test('errors on k > 12', () => {
+      expect(() => selectModules({ k: 13 })).toThrow(/must be between 1 and 12/);
     });
 
     test('errors on k < 1', () => {
-      expect(() => selectModules({ k: 0 })).toThrow(/must be between 1 and 8/);
+      expect(() => selectModules({ k: 0 })).toThrow(/must be between 1 and 12/);
     });
 
     test('errors on unknown category', () => {

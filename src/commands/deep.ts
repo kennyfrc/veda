@@ -48,8 +48,8 @@ export async function selectSolverBackends(options: {
   const { k, distributeSolvers, solverBackend, solverBackends, solverModel, baseBackend } = options;
 
   // Validate k bounds (defensive, in addition to CLI validation)
-  if (k < 1 || k > 8) {
-    throw new Error(`k must be between 1 and 8, got ${k}`);
+  if (k < 1 || k > 12) {
+    throw new Error(`k must be between 1 and 12, got ${k}`);
   }
 
   // Precedence 1: Explicit single backend override

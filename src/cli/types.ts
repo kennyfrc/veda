@@ -47,7 +47,7 @@ export interface SimpleConfig {
 export interface DeepConfig {
   session: string;
   prompt: string;
-  k: number;  // Always 1-8, validated at parse time
+  k: number;  // Always 1-12, validated at parse time
   categories?: string[];  // Filter for module categories
   modules?: string[];     // Explicit module IDs (overrides categories)
   context: ContextConfig;

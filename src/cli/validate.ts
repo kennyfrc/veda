@@ -99,9 +99,7 @@ export function validateApplicability(
     for (const flag of SIMPLE_ONLY_FLAGS) {
       if (hasFlag(flags, flag)) {
         const displayName = FLAG_DISPLAY_NAMES[flag] ?? `--${flag}`;
-        const hint = flag === 'reasoning'
-          ? 'Use --solver-reasoning, --judge-reasoning, --verifier-reasoning, --revision-reasoning instead'
-          : 'Deep mode uses fixed sandbox per stage';
+        const hint = 'Deep mode uses fixed sandbox per stage';
         throw new CliValidationError(
           `${displayName} is not used in deep mode`,
           'FLAG_NOT_APPLICABLE',
@@ -128,11 +126,11 @@ export function validateApplicability(
     }
   }
   
-  // Validate -k range (1-8)
+  // Validate -k range (1-12)
   if (isDeepMode && flags.k !== undefined) {
-    if (!Number.isInteger(flags.k) || flags.k < 1 || flags.k > 8) {
+    if (!Number.isInteger(flags.k) || flags.k < 1 || flags.k > 12) {
       throw new CliValidationError(
-        `-k must be an integer between 1 and 8, got ${flags.k}`,
+        `-k must be an integer between 1 and 12, got ${flags.k}`,
         'INVALID_K_VALUE'
       );
     }

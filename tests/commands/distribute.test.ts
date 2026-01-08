@@ -256,15 +256,15 @@ describe('selectSolverBackends with distribute mode', () => {
 
       await expect(async () => {
         await selectSolverBackends({ k: 0 });
-      }).toThrow('k must be between 1 and 8');
+      }).toThrow('k must be between 1 and 12');
     });
 
-    test('throws error when k > 8', async () => {
+    test('throws error when k > 12', async () => {
       const { selectSolverBackends } = await import('../../src/commands/deep');
 
       await expect(async () => {
-        await selectSolverBackends({ k: 9 });
-      }).toThrow('k must be between 1 and 8');
+        await selectSolverBackends({ k: 13 });
+      }).toThrow('k must be between 1 and 12');
     });
 
     test('accepts k = 1', async () => {

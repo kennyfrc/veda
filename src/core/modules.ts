@@ -434,8 +434,8 @@ export function selectModules(options: SelectModulesOptions): ReasoningModule[] 
   const { k, categories, modules, registry = DEFAULT_REGISTRY } = options;
 
   // Validate k
-  if (k < 1 || k > 8) {
-    throw new Error(`k must be between 1 and 8, got ${k}`);
+  if (k < 1 || k > 12) {
+    throw new Error(`k must be between 1 and 12, got ${k}`);
   }
 
   // Case 1: Module specifiers provided (supports category/module format)

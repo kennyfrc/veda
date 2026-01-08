@@ -178,11 +178,11 @@ describe('validateApplicability', () => {
   test('validates -k range', () => {
     const { flags: flags1, positionals: pos1 } = tokenizeArgv(['node', 'veda', '--deep', '-k', '0', 'solve']);
     const parsed1 = classifyCommand(pos1, flags1);
-    expect(() => validateApplicability(parsed1, flags1, pos1)).toThrow(/must be an integer between 1 and 8/);
+    expect(() => validateApplicability(parsed1, flags1, pos1)).toThrow(/must be an integer between 1 and 12/);
     
-    const { flags: flags2, positionals: pos2 } = tokenizeArgv(['node', 'veda', '--deep', '-k', '9', 'solve']);
+    const { flags: flags2, positionals: pos2 } = tokenizeArgv(['node', 'veda', '--deep', '-k', '13', 'solve']);
     const parsed2 = classifyCommand(pos2, flags2);
-    expect(() => validateApplicability(parsed2, flags2, pos2)).toThrow(/must be an integer between 1 and 8/);
+    expect(() => validateApplicability(parsed2, flags2, pos2)).toThrow(/must be an integer between 1 and 12/);
   });
   
   test('rejects missing prompt', () => {
