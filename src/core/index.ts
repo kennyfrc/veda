@@ -43,10 +43,18 @@ export {
 export type {
   VerificationType,
   Check,
+  CheckDifficulty,
   CheckVerdict,
   CheckResult,
   Revision,
   VerificationResult,
+  // Composable primitive types
+  RunGenerateChecksArgs,
+  RunGenerateChecksResult,
+  RunAnswerCheckArgs,
+  RunAnswerCheckResult,
+  RunAnswerChecksArgs,
+  RunAnswerChecksResult,
 } from './verify';
 
 export {
@@ -55,8 +63,15 @@ export {
   formatRevisionPrompt,
   parseChecks,
   parseCheckResults,
+  parseSingleCheckResult,
   parseRevision,
   isUnchanged,
+  difficultyToReasoning,
+  // Composable primitives
+  runGenerateChecks,
+  runAnswerCheck,
+  runAnswerChecks,
+  // High-level composed function
   runVerification,
   runRevision,
 } from './verify';

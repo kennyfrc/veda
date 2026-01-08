@@ -367,6 +367,262 @@ export function parseRevision(originalDraft: string, text: string): Revision {
   };
 }
 
+// =============================================================================
+// Composable Primitives
+// =============================================================================
+
+/**
+ * Arguments for runGenerateChecks.
+ */
+export interface RunGenerateChecksArgs {
+  backend: string;
+  model?: string;
+  systemPrompt: string;
+  reasoning?: Reasoning;
+  sandbox?: Sandbox;
+  cwd?: string;
+  type: VerificationType;
+  draft: string;
+  originalTask: string;
+  onMessage?: (msg: Message) => void;
+}
+
+/**
+ * Result from runGenerateChecks.
+ */
+export interface RunGenerateChecksResult {
+  checks: Check[];
+  usage: UsageStats;
+  sessionId?: string;
+}
+
+/**
+ * Generate verification checks from a draft.
+ * 
+ * This is the first half of the verification pipeline, exposed as a standalone
+ * primitive for callers who want custom check generation or injection.
+ */
+export async function runGenerateChecks(
+  args: RunGenerateChecksArgs
+): Promise<RunGenerateChecksResult> {
+  const generatePrompt = formatGenerateChecksPrompt(args.type, args.draft, args.originalTask);
+  
+  const response = await runLlm({
+    backend: args.backend,
+    model: args.model,
+    prompt: generatePrompt,
+    systemPrompt: args.systemPrompt,
+    reasoning: args.reasoning,
+    sandbox: args.sandbox,
+    cwd: args.cwd,
+    onMessage: args.onMessage,
+  });
+
+  const checks = parseChecks(response.text);
+  
+  return {
+    checks,
+    usage: response.usage ?? { inputTokens: 0, outputTokens: 0 },
+    sessionId: response.sessionId,
+  };
+}
+
+/**
+ * Arguments for runAnswerCheck (single check).
+ */
+export interface RunAnswerCheckArgs {
+  backend: string;
+  model?: string;
+  systemPrompt: string;
+  /** Reasoning level override. If not provided, uses difficultyToReasoning(check.difficulty). */
+  reasoning?: Reasoning;
+  sandbox?: Sandbox;
+  cwd?: string;
+  check: Check;
+  originalTask: string;
+  onMessage?: (msg: Message) => void;
+}
+
+/**
+ * Result from runAnswerCheck (single check).
+ */
+export interface RunAnswerCheckResult {
+  result: CheckResult;
+  usage: UsageStats;
+  sessionId?: string;
+}
+
+/**
+ * Answer a single verification check.
+ * 
+ * Uses factored verification: the check is answered in isolation WITHOUT access
+ * to the original draft. This prevents copying hallucinations from the draft.
+ * 
+ * Reasoning level defaults to the check's difficulty (easy→low, moderate→medium, hard→high)
+ * but can be overridden via the reasoning arg.
+ */
+export async function runAnswerCheck(
+  args: RunAnswerCheckArgs
+): Promise<RunAnswerCheckResult> {
+  const { check } = args;
+  
+  // Default to difficulty-based reasoning, allow override
+  const reasoning = args.reasoning ?? difficultyToReasoning(check.difficulty);
+  
+  const answerPrompt = getFactoredAnswerCheckPrompt(check, args.originalTask);
+  
+  const response = await runLlm({
+    backend: args.backend,
+    model: args.model,
+    prompt: answerPrompt,
+    systemPrompt: args.systemPrompt,
+    reasoning,
+    sandbox: args.sandbox,
+    cwd: args.cwd,
+    onMessage: args.onMessage,
+  });
+
+  const result = parseSingleCheckResult(response.text, check);
+  
+  return {
+    result,
+    usage: response.usage ?? { inputTokens: 0, outputTokens: 0 },
+    sessionId: response.sessionId,
+  };
+}
+
+/**
+ * Arguments for runAnswerChecks (batch).
+ */
+export interface RunAnswerChecksArgs {
+  backend: string;
+  model?: string;
+  systemPrompt: string;
+  /** Global reasoning override. If not provided, each check uses its difficulty. */
+  reasoning?: Reasoning;
+  sandbox?: Sandbox;
+  cwd?: string;
+  checks: Check[];
+  originalTask: string;
+  onMessage?: (msg: Message) => void;
+  /**
+   * Factory to create per-check onMessage handlers.
+   * When checks run in parallel, each needs its own handler to correctly tag events.
+   * If not provided, falls back to onMessage for all checks.
+   */
+  createCheckMessageHandler?: (info: { index: number; check: Check }) => ((msg: Message) => void) | undefined;
+  onCheckStart?: (info: { index: number; check: Check }) => void;
+  onCheckComplete?: (info: { index: number; check: Check; result: CheckResult }) => void;
+  /** Already-completed results to merge (skip these checks). For resuming mid-verify. */
+  completedResults?: CheckResult[];
+}
+
+/**
+ * Result from runAnswerChecks (batch).
+ */
+export interface RunAnswerChecksResult {
+  results: CheckResult[];
+  usage: UsageStats;
+  sessionId?: string;
+}
+
+/**
+ * Answer multiple verification checks in parallel.
+ * 
+ * Orchestrates parallel execution of runAnswerCheck with:
+ * - Resume support via completedResults (skips already-answered checks)
+ * - Fault tolerance via Promise.allSettled (failed checks become "uncertain")
+ * - Progress callbacks (onCheckStart, onCheckComplete)
+ * - Per-check message handlers (createCheckMessageHandler)
+ */
+export async function runAnswerChecks(
+  args: RunAnswerChecksArgs
+): Promise<RunAnswerChecksResult> {
+  const { checks, completedResults } = args;
+  const usages: (UsageStats | undefined)[] = [];
+  let lastSessionId: string | undefined;
+
+  // Build map of completed results by checkId (for resume)
+  const completedResultsById = new Map<string, CheckResult>();
+  if (completedResults) {
+    for (const result of completedResults) {
+      completedResultsById.set(result.checkId, result);
+    }
+  }
+
+  // Identify which checks need to run vs skip
+  const checksToRun: Array<{ originalIndex: number; check: Check }> = [];
+  for (let i = 0; i < checks.length; i++) {
+    if (!completedResultsById.has(checks[i].id)) {
+      checksToRun.push({ originalIndex: i, check: checks[i] });
+    }
+  }
+
+  // Run checks in parallel using the singular primitive
+  const checkPromises = checksToRun.map(async ({ originalIndex, check }) => {
+    args.onCheckStart?.({ index: originalIndex, check });
+    
+    const checkOnMessage = args.createCheckMessageHandler?.({ index: originalIndex, check }) 
+      ?? args.onMessage;
+    
+    const answerResult = await runAnswerCheck({
+      backend: args.backend,
+      model: args.model,
+      systemPrompt: args.systemPrompt,
+      reasoning: args.reasoning,  // Pass through (singular handles difficulty default)
+      sandbox: args.sandbox,
+      cwd: args.cwd,
+      check,
+      originalTask: args.originalTask,
+      onMessage: checkOnMessage,
+    });
+
+    return { originalIndex, check, ...answerResult };
+  });
+
+  const settledOutcomes = await Promise.allSettled(checkPromises);
+
+  // Process results, converting failures to "uncertain"
+  const newResultsById = new Map<string, CheckResult>();
+  for (let i = 0; i < settledOutcomes.length; i++) {
+    const outcome = settledOutcomes[i];
+    const { originalIndex, check } = checksToRun[i];
+
+    if (outcome.status === 'fulfilled') {
+      const { result, usage, sessionId } = outcome.value;
+      newResultsById.set(check.id, result);
+      usages.push(usage);
+      if (sessionId) lastSessionId = sessionId;
+      args.onCheckComplete?.({ index: originalIndex, check, result });
+    } else {
+      const errorMsg = outcome.reason instanceof Error 
+        ? outcome.reason.message 
+        : String(outcome.reason);
+      const failedResult: CheckResult = {
+        checkId: check.id,
+        answer: `Check failed: ${errorMsg}`,
+        verdict: 'uncertain',
+        confidence: 0.5,
+      };
+      newResultsById.set(check.id, failedResult);
+      args.onCheckComplete?.({ index: originalIndex, check, result: failedResult });
+    }
+  }
+
+  // Merge in checks order: completed → new → fallback
+  const results: CheckResult[] = checks.map(check => 
+    completedResultsById.get(check.id) 
+    ?? newResultsById.get(check.id) 
+    ?? { checkId: check.id, answer: 'Check not executed', verdict: 'uncertain' as const, confidence: 0.5 }
+  );
+
+  return {
+    results,
+    usage: combineUsage(usages),
+    sessionId: lastSessionId,
+  };
+}
+
 /**
  * Run verification using factored approach (one LLM call per check).
  * 
@@ -378,6 +634,9 @@ export function parseRevision(originalDraft: string, text: string): Revision {
  * Supports partial resume:
  * - checksOverride: Use pre-computed checks (skip generation step)
  * - completedResults: Results already computed (skip these checks)
+ * 
+ * This function composes runGenerateChecks and runAnswerChecks. For finer control,
+ * use those primitives directly.
  */
 export async function runVerification(args: {
   backend: string;
@@ -407,7 +666,6 @@ export async function runVerification(args: {
   /** Already-completed results to merge (skip these checks). For resuming mid-verify. */
   completedResults?: CheckResult[];
 }): Promise<VerificationResult> {
-  const { backend, model, systemPrompt, sandbox, cwd, type, draft, originalTask, onMessage, createCheckMessageHandler } = args;
   const usages: (UsageStats | undefined)[] = [];
   let lastSessionId: string | undefined;
 
@@ -420,22 +678,23 @@ export async function runVerification(args: {
     // Notify caller of checks (for streaming display consistency)
     args.onChecksGenerated?.(checks);
   } else {
-    // Generate checks normally
-    const generatePrompt = formatGenerateChecksPrompt(type, draft, originalTask);
-    const generateResponse = await runLlm({
-      backend,
-      model,
-      prompt: generatePrompt,
-      systemPrompt,
+    // Generate checks using the primitive
+    const generateResult = await runGenerateChecks({
+      backend: args.backend,
+      model: args.model,
+      systemPrompt: args.systemPrompt,
       reasoning: args.reasoning,
-      sandbox,
-      cwd,
-      onMessage,
+      sandbox: args.sandbox,
+      cwd: args.cwd,
+      type: args.type,
+      draft: args.draft,
+      originalTask: args.originalTask,
+      onMessage: args.onMessage,
     });
-    usages.push(generateResponse.usage);
-    lastSessionId = generateResponse.sessionId;
-
-    checks = parseChecks(generateResponse.text);
+    
+    usages.push(generateResult.usage);
+    lastSessionId = generateResult.sessionId;
+    checks = generateResult.checks;
 
     // Notify caller of generated checks (for streaming display)
     if (checks.length > 0) {
@@ -452,119 +711,30 @@ export async function runVerification(args: {
     };
   }
 
-  // Build map of completed results by checkId (for resume)
-  const completedResultsById = new Map<string, CheckResult>();
-  if (args.completedResults) {
-    for (const result of args.completedResults) {
-      completedResultsById.set(result.checkId, result);
-    }
-  }
-
-  // Step 2: Answer each check in isolation (factored verification) — PARALLEL
-  // Each check is answered WITHOUT access to the original draft.
-  // Reasoning level is determined by the check's difficulty.
-  // Tool calls may interleave in the output, which is expected.
-  // 
-  // IMPORTANT: Each check gets its own onMessage handler via createCheckMessageHandler
-  // to avoid race conditions when events interleave during parallel execution.
-  //
-  // We use Promise.allSettled (not Promise.all) so that individual check failures
-  // don't abort the entire verification. Failed checks become "uncertain" results.
-  //
-  // Skipped checks (from completedResults) don't create promises.
-  
-  // Identify which checks need to be run vs skipped
-  const checksToRun: Array<{ originalIndex: number; check: Check }> = [];
-  for (let i = 0; i < checks.length; i++) {
-    if (!completedResultsById.has(checks[i].id)) {
-      checksToRun.push({ originalIndex: i, check: checks[i] });
-    }
-  }
-  
-  const checkPromises = checksToRun.map(async ({ originalIndex, check }) => {
-    // Notify caller that we're starting this check (using original index)
-    args.onCheckStart?.({ index: originalIndex, check });
-    
-    const answerPrompt = getFactoredAnswerCheckPrompt(check, originalTask);
-    const checkReasoning = difficultyToReasoning(check.difficulty);
-    
-    // Create per-check message handler to correctly tag interleaved events.
-    // Falls back to shared onMessage if factory not provided.
-    const checkOnMessage = createCheckMessageHandler?.({ index: originalIndex, check }) ?? onMessage;
-    
-    const answerResponse = await runLlm({
-      backend,
-      model,
-      prompt: answerPrompt,
-      systemPrompt,
-      reasoning: checkReasoning,
-      sandbox,
-      cwd,
-      onMessage: checkOnMessage,
-    });
-
-    const result = parseSingleCheckResult(answerResponse.text, check);
-
-    return {
-      originalIndex,
-      check,
-      result,
-      usage: answerResponse.usage,
-      sessionId: answerResponse.sessionId,
-    };
+  // Step 2: Answer checks using the batch primitive
+  // Note: Don't pass reasoning - let each check use its difficulty
+  const answerResult = await runAnswerChecks({
+    backend: args.backend,
+    model: args.model,
+    systemPrompt: args.systemPrompt,
+    // reasoning intentionally omitted - each check uses difficultyToReasoning
+    sandbox: args.sandbox,
+    cwd: args.cwd,
+    checks,
+    originalTask: args.originalTask,
+    onMessage: args.onMessage,
+    createCheckMessageHandler: args.createCheckMessageHandler,
+    onCheckStart: args.onCheckStart,
+    onCheckComplete: args.onCheckComplete,
+    completedResults: args.completedResults,
   });
-
-  const settledOutcomes = await Promise.allSettled(checkPromises);
   
-  // Build results map from newly-run checks
-  const newResultsById = new Map<string, CheckResult>();
-  for (let i = 0; i < settledOutcomes.length; i++) {
-    const outcome = settledOutcomes[i];
-    const { originalIndex, check } = checksToRun[i];
-    
-    if (outcome.status === 'fulfilled') {
-      const { result, usage, sessionId } = outcome.value;
-      newResultsById.set(check.id, result);
-      usages.push(usage);
-      if (sessionId) lastSessionId = sessionId;
-      
-      // Notify caller of successful check completion
-      args.onCheckComplete?.({ index: originalIndex, check, result });
-    } else {
-      // Check failed (LLM error, timeout, etc.) — return "uncertain" result
-      const errorMsg = outcome.reason instanceof Error 
-        ? outcome.reason.message 
-        : String(outcome.reason);
-      const failedResult: CheckResult = {
-        checkId: check.id,
-        answer: `Check failed: ${errorMsg}`,
-        verdict: 'uncertain',
-        confidence: 0.5,
-      };
-      newResultsById.set(check.id, failedResult);
-      
-      // Still notify caller so they see all checks complete
-      args.onCheckComplete?.({ index: originalIndex, check, result: failedResult });
-    }
-  }
-
-  // Step 3: Merge results in checks order (completed + new)
-  // Checks order is authoritative - ensures consistent result ordering
-  const results: CheckResult[] = checks.map(check => {
-    // First try completed results (from resume), then new results
-    return completedResultsById.get(check.id) 
-        ?? newResultsById.get(check.id) 
-        ?? {
-          checkId: check.id,
-          answer: 'Check not executed',
-          verdict: 'uncertain' as const,
-          confidence: 0.5,
-        };
-  });
+  usages.push(answerResult.usage);
+  if (answerResult.sessionId) lastSessionId = answerResult.sessionId;
 
   return {
     checks,
-    results,
+    results: answerResult.results,
     usage: combineUsage(usages),
     sessionId: lastSessionId,
   };
