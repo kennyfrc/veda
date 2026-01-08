@@ -631,14 +631,49 @@ function selectFromCategories(k: number, categoryNames: string[], registry: Modu
 }
 
 function selectDefault(k: number, registry: ModuleRegistry): ReasoningModule[] {
-  // Sample k categories, 1 module from each
-  const selectedCategories = randomSample(registry.allCategories, k);
-
-  return selectedCategories.map(cat => {
+  // When k <= number of categories: sample k categories, 1 module from each
+  // When k > number of categories: use all categories, then round-robin for extras
+  const numCategories = registry.allCategories.length;
+  
+  if (k <= numCategories) {
+    const selectedCategories = randomSample(registry.allCategories, k);
+    return selectedCategories.map(cat => {
+      const modules = registry.byCategory[cat];
+      const randomIndex = Math.floor(Math.random() * modules.length);
+      return modules[randomIndex];
+    });
+  }
+  
+  // k > numCategories: distribute round-robin across all categories
+  const result: ReasoningModule[] = [];
+  const shuffledCategories = randomSample(registry.allCategories, numCategories);
+  
+  // Track which modules have been used per category to avoid duplicates
+  const usedPerCategory = new Map<string, Set<string>>();
+  for (const cat of shuffledCategories) {
+    usedPerCategory.set(cat, new Set());
+  }
+  
+  for (let i = 0; i < k; i++) {
+    const cat = shuffledCategories[i % numCategories];
     const modules = registry.byCategory[cat];
-    const randomIndex = Math.floor(Math.random() * modules.length);
-    return modules[randomIndex];
-  });
+    const used = usedPerCategory.get(cat)!;
+    
+    // Find an unused module in this category
+    const available = modules.filter(m => !used.has(m.id));
+    if (available.length > 0) {
+      const randomIndex = Math.floor(Math.random() * available.length);
+      const selected = available[randomIndex];
+      result.push(selected);
+      used.add(selected.id);
+    } else {
+      // All modules in category used, pick any random one (allows duplicates)
+      const randomIndex = Math.floor(Math.random() * modules.length);
+      result.push(modules[randomIndex]);
+    }
+  }
+  
+  return result;
 }
 
 /**

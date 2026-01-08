@@ -93,12 +93,39 @@ describe('Reasoning Modules', () => {
       expect(categories.size).toBe(3);
     });
 
-    test('k=8 uses all categories', () => {
+    test('k=8 uses 8 categories', () => {
       const result = selectModules({ k: 8 });
       expect(result.length).toBe(8);
       
       const categories = new Set(result.map(m => m.category));
       expect(categories.size).toBe(8);
+    });
+
+    test('k=9 uses all 9 categories', () => {
+      const result = selectModules({ k: 9 });
+      expect(result.length).toBe(9);
+      
+      const categories = new Set(result.map(m => m.category));
+      expect(categories.size).toBe(9);
+    });
+
+    test('k=12 returns 12 modules across all categories with round-robin', () => {
+      const result = selectModules({ k: 12 });
+      expect(result.length).toBe(12);
+      
+      // All 9 categories should be represented
+      const categories = new Set(result.map(m => m.category));
+      expect(categories.size).toBe(9);
+      
+      // 3 categories should have 2 modules each (12 - 9 = 3 extras)
+      const categoryCounts = new Map<string, number>();
+      for (const m of result) {
+        categoryCounts.set(m.category, (categoryCounts.get(m.category) || 0) + 1);
+      }
+      const counts = Array.from(categoryCounts.values()).sort();
+      // Should be [1,1,1,1,1,1,2,2,2] - six categories with 1, three with 2
+      expect(counts.filter(c => c === 1).length).toBe(6);
+      expect(counts.filter(c => c === 2).length).toBe(3);
     });
 
     test('exact modules: uses specified modules', () => {
