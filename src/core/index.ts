@@ -116,6 +116,7 @@ export type {
   AggregationRecord,
   UnifiedJudgeResult,
   RunUnifiedJudgeArgs,
+  WinnerRationale,
 } from './judge-unified';
 
 export {

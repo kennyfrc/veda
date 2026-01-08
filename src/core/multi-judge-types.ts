@@ -61,6 +61,8 @@ export interface RankEntry {
   poolSize: number;
   normalizedRank: number;
   confidence: ConfidenceLevel;
+  /** Judge's reasoning for this ranking (preserved for winner rationale extraction) */
+  reasoning?: string;
 }
 
 /** Aggregated score for one candidate across all judges */

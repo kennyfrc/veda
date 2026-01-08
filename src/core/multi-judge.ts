@@ -552,6 +552,7 @@ export function aggregateJudgeResults(
         poolSize: jr.poolSize,
         normalizedRank: normalizeRank(ranking.rank, jr.poolSize),
         confidence: ranking.confidence,
+        reasoning: ranking.reasoning,
       });
       candidateRankings.set(ranking.candidateId, existing);
     }

@@ -241,7 +241,7 @@ export interface DeepThinkTrace {
     judges?: Array<{
       backend: string;
       model: string;
-      rankings?: Array<{ candidateId: string; rank: number; confidence: string }>;
+      rankings?: Array<{ candidateId: string; rank: number; confidence: string; reasoning?: string }>;
     }>;
   };
   verify?: {
@@ -295,6 +295,8 @@ export interface DeepThinkEvent {
   judgeMode?: 'single' | 'multi';
   /** List of judge backends involved (for multi-judge header) */
   judgeBackends?: string[];
+  /** Rationales from judges who ranked the winner highest (for 'selected' event) */
+  winnerRationales?: Array<{ judgeBackend: string; judgeModel: string; reasoning: string }>;
 }
 
 export interface RunSolverEnsembleResult {
@@ -1176,6 +1178,7 @@ export async function* runDeepThink(
               candidateId: r.candidateId,
               rank: r.rank,
               confidence: r.confidence,
+              reasoning: r.reasoning,
             })),
           }));
         }
@@ -1278,6 +1281,7 @@ export async function* runDeepThink(
           selectedIndex: selectedDisplayIdx >= 0 ? selectedDisplayIdx : 0,
           reasoning: judgeResult.reasoning,
           consensusAnalysis: judgeResult.consensusAnalysis,
+          winnerRationales: judgeResult.winnerRationales,
           selectedMember: selectedMeta ? {
             backend: selectedMeta.backend,
             model: selectedMeta.model,

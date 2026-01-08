@@ -17,6 +17,13 @@ import type { Reasoning, Sandbox } from './llm';
 
 export type JudgeMode = 'single' | 'multi';
 
+/** Rationale from a judge who ranked the winner highest */
+export interface WinnerRationale {
+  judgeBackend: string;
+  judgeModel: string;
+  reasoning: string;
+}
+
 /** Per-judge decision (for trace/stats) */
 export interface JudgeDecisionRecord {
   judgeBackend: string;
@@ -27,6 +34,7 @@ export interface JudgeDecisionRecord {
     candidateId: string;
     rank: number;
     confidence: ConfidenceLevel;
+    reasoning?: string;
   }>;
   confidence: number;
   confidenceLevel: ConfidenceLevel;
@@ -89,6 +97,9 @@ export interface UnifiedJudgeResult {
   
   /** True if any judge pools failed (multi-judge only) */
   hadFailures?: boolean;
+  
+  /** Rationales from judges who ranked the winner highest (rank=1 in their pool) */
+  winnerRationales?: WinnerRationale[];
 }
 
 export interface RunUnifiedJudgeArgs {
@@ -214,6 +225,11 @@ async function runSingleJudgeAdapter(args: {
   
   const decision = result.decision;
   
+  // Build winner rationale for single-judge (if reasoning present)
+  const winnerRationales: WinnerRationale[] = decision.reasoning
+    ? [{ judgeBackend: backend, judgeModel: model ?? 'unknown', reasoning: decision.reasoning }]
+    : [];
+  
   return {
     mode: 'single',
     selected: result.selected,
@@ -238,6 +254,7 @@ async function runSingleJudgeAdapter(args: {
     }],
     usage: result.usage,
     sessionId: result.sessionId,
+    winnerRationales: winnerRationales.length > 0 ? winnerRationales : undefined,
   };
 }
 
@@ -271,7 +288,7 @@ async function runMultiJudgeAdapter(args: {
   const winnerIndex = candidateInfos.findIndex(c => c.id === result.winnerCandidateId);
   const winnerContent = candidateInfos[winnerIndex]?.content ?? '';
   
-  // Build per-judge decision records
+  // Build per-judge decision records (include reasoning for trace)
   const judges: JudgeDecisionRecord[] = result.judgeResults.map(jr => ({
     judgeBackend: jr.judgeBackend,
     judgeModel: jr.judgeModel,
@@ -279,6 +296,7 @@ async function runMultiJudgeAdapter(args: {
       candidateId: r.candidateId,
       rank: r.rank,
       confidence: r.confidence,
+      reasoning: r.reasoning,
     })),
     confidence: CONFIDENCE_SCORES[jr.rankings[0]?.confidence ?? 'medium'],
     confidenceLevel: jr.rankings[0]?.confidence ?? 'medium',
@@ -287,6 +305,20 @@ async function runMultiJudgeAdapter(args: {
     sessionId: jr.sessionId,
     usage: jr.usage,
   }));
+  
+  // Extract winner rationales from judges who ranked winner as #1 in their pool
+  const winnerRationales: WinnerRationale[] = [];
+  for (const jr of result.judgeResults) {
+    const winnerRanking = jr.rankings.find(r => r.candidateId === result.winnerCandidateId);
+    // Only include if this judge gave winner rank=1 (best in their pool) and has reasoning
+    if (winnerRanking && winnerRanking.rank === 1 && winnerRanking.reasoning) {
+      winnerRationales.push({
+        judgeBackend: jr.judgeBackend,
+        judgeModel: jr.judgeModel,
+        reasoning: winnerRanking.reasoning,
+      });
+    }
+  }
   
   // Build index mapping from candidate IDs to indices (for backward compat)
   const indexMapping = result.scores.map(s => 
@@ -326,6 +358,7 @@ async function runMultiJudgeAdapter(args: {
     usage: result.totalUsage,
     sessionId: result.judgeResults[0]?.sessionId,
     hadFailures: result.hadFailures,
+    winnerRationales: winnerRationales.length > 0 ? winnerRationales : undefined,
   };
 }
 

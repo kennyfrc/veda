@@ -661,7 +661,28 @@ async function handleEvent(
       console.error(c.dim(`    (${pct}% confidence)`));
 
       // Newline before rationale
-      if (event.reasoning) {
+      // Display per-judge rationales (from judges who ranked winner highest)
+      if (event.winnerRationales && event.winnerRationales.length > 0) {
+        console.error('');
+        console.error(c.cyan('  rationale:'));
+        for (const rationale of event.winnerRationales) {
+          // Show judge attribution for multi-judge, or just reasoning for single-judge
+          if (event.winnerRationales.length > 1 || state.judgeMode === 'multi') {
+            console.error(c.dim(`    [${rationale.judgeBackend}]:`));
+            const lines = rationale.reasoning.split('\n');
+            for (const line of lines) {
+              console.error(c.dim(`      ${line}`));
+            }
+          } else {
+            // Single judge - no attribution needed
+            const lines = rationale.reasoning.split('\n');
+            for (const line of lines) {
+              console.error(c.dim(`    ${line}`));
+            }
+          }
+        }
+      } else if (event.reasoning) {
+        // Fallback to synthesized reasoning if no per-judge rationales
         console.error('');
         console.error(c.cyan('  rationale:'));
         const lines = event.reasoning.split('\n');
