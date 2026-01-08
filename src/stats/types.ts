@@ -7,7 +7,7 @@
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
-export type JudgeMode = 'single' | 'multi';
+export type JudgeMode = 'single' | 'multi' | 'pairwise';
 
 /**
  * A single judge decision record.

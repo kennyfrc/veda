@@ -2,7 +2,7 @@
  * Unified Judge Interface
  * 
  * Provides a single entry point for judge operations that works with
- * both single-judge and multi-judge modes.
+ * single-judge, multi-judge (ranking), and pairwise modes.
  */
 
 import type { Message, UsageStats } from '../backend';
@@ -13,9 +13,13 @@ import {
   type ConfidenceLevel,
   CONFIDENCE_SCORES,
 } from './multi-judge';
+import {
+  runPairwiseJudge,
+  type PairResult,
+} from './pairwise-judge';
 import type { Reasoning, Sandbox } from './llm';
 
-export type JudgeMode = 'single' | 'multi';
+export type JudgeMode = 'single' | 'multi' | 'pairwise';
 
 /** Rationale from a judge who ranked the winner highest */
 export interface WinnerRationale {
@@ -46,15 +50,19 @@ export interface JudgeDecisionRecord {
   usage: UsageStats;
 }
 
-/** Aggregation result (for multi-judge) */
+/** Aggregation result (for multi-judge and pairwise) */
 export interface AggregationRecord {
-  method: 'single' | 'normalized_rank_average';
+  method: 'single' | 'normalized_rank_average' | 'pairwise_copeland';
   selectedIndex: number;
   selectedCandidateId: string;
   confidence: number;
   confidenceLevel: ConfidenceLevel;
   winMargin: number;
   reasoning?: string;
+  /** Pairwise-specific: number of pairs compared */
+  pairCount?: number;
+  /** Pairwise-specific: average agreement rate across pairs */
+  agreementRate?: number;
 }
 
 /** Unified judge result that works for both modes */
@@ -100,6 +108,9 @@ export interface UnifiedJudgeResult {
   
   /** Rationales from judges who ranked the winner highest (rank=1 in their pool) */
   winnerRationales?: WinnerRationale[];
+  
+  /** Pairwise-specific: per-pair results */
+  pairResults?: PairResult[];
 }
 
 export interface RunUnifiedJudgeArgs {
@@ -136,7 +147,10 @@ export interface RunUnifiedJudgeArgs {
 /**
  * Run judge evaluation with unified interface.
  * 
- * Automatically selects single or multi-judge based on mode and candidate backends.
+ * Supports three modes:
+ * - 'single': One judge evaluates all candidates (ranking)
+ * - 'multi': Multiple judges with round-robin exclusion (ranking, legacy)
+ * - 'pairwise': Multiple judges with head-to-head comparisons (recommended)
  */
 export async function runUnifiedJudge(args: RunUnifiedJudgeArgs): Promise<UnifiedJudgeResult> {
   const {
@@ -158,18 +172,26 @@ export async function runUnifiedJudge(args: RunUnifiedJudgeArgs): Promise<Unifie
     throw new Error('No candidates to judge');
   }
   
-  // Determine if multi-judge is possible
+  // Determine if multi-backend judging is possible
   const uniqueBackends = candidateInfos 
     ? new Set(candidateInfos.map(c => c.solverBackend)).size 
     : 1;
   
-  // Fall back to single-judge if:
-  // - Mode is explicitly 'single'
-  // - Only one unique backend (no cross-provider possible)
-  // - No candidateInfos provided
-  const useMultiJudge = mode === 'multi' && uniqueBackends > 1 && candidateInfos;
-  
-  if (useMultiJudge && candidateInfos) {
+  // Route to appropriate adapter based on mode
+  if (mode === 'pairwise' && candidateInfos && uniqueBackends > 1) {
+    // Pairwise requires 2+ backends for cross-provider judging
+    return runPairwiseJudgeAdapter({
+      candidateInfos,
+      originalTask,
+      judgeModel: model,
+      judgeModels,
+      reasoning,
+      sandbox,
+      cwd,
+      onMessage,
+    });
+  } else if (mode === 'multi' && uniqueBackends > 1 && candidateInfos) {
+    // Legacy multi-judge (ranking-based)
     return runMultiJudgeAdapter({
       candidateInfos,
       originalTask,
@@ -181,6 +203,7 @@ export async function runUnifiedJudge(args: RunUnifiedJudgeArgs): Promise<Unifie
       onMessage,
     });
   } else {
+    // Single-judge fallback
     return runSingleJudgeAdapter({
       candidates,
       originalTask,
@@ -363,6 +386,122 @@ async function runMultiJudgeAdapter(args: {
 }
 
 /**
+ * Adapter for pairwise judge mode.
+ */
+async function runPairwiseJudgeAdapter(args: {
+  candidateInfos: CandidateInfo[];
+  originalTask: string;
+  judgeModel?: string;
+  judgeModels?: Map<string, string>;
+  reasoning?: Reasoning;
+  sandbox?: Sandbox;
+  cwd?: string;
+  onMessage?: (judgeBackend: string, msg: Message) => void;
+}): Promise<UnifiedJudgeResult> {
+  const { candidateInfos, originalTask, judgeModel, judgeModels, reasoning, sandbox, cwd, onMessage } = args;
+  
+  const result = await runPairwiseJudge({
+    candidates: candidateInfos,
+    originalTask,
+    judgeModel,
+    judgeModels,
+    reasoning,
+    sandbox,
+    cwd,
+    onMessage,
+  });
+  
+  // Find the winning candidate's index in original array
+  const winnerIndex = candidateInfos.findIndex(c => c.id === result.winnerCandidateId);
+  const winnerContent = candidateInfos[winnerIndex]?.content ?? '';
+  
+  // Build per-judge decision records (with pairwise votes)
+  const judges: JudgeDecisionRecord[] = result.judgeResults.map(jr => ({
+    judgeBackend: jr.judgeBackend,
+    judgeModel: jr.judgeModel,
+    // Store pairwise votes in rankings field for compatibility
+    rankings: jr.votes.map(v => ({
+      candidateId: v.winner ?? 'tie',
+      rank: v.choice === 'A' ? 1 : v.choice === 'B' ? 2 : 0,
+      confidence: v.confidence,
+      reasoning: v.reasoning,
+    })),
+    confidence: CONFIDENCE_SCORES[jr.votes[0]?.confidence ?? 'medium'],
+    confidenceLevel: jr.votes[0]?.confidence ?? 'medium',
+    indexMapping: [],
+    sessionId: jr.sessionId,
+    usage: jr.usage,
+  }));
+  
+  // Extract winner rationales: reasoning from votes where this candidate won
+  const winnerRationales: WinnerRationale[] = [];
+  for (const jr of result.judgeResults) {
+    for (const vote of jr.votes) {
+      if (vote.winner === result.winnerCandidateId && vote.reasoning) {
+        winnerRationales.push({
+          judgeBackend: jr.judgeBackend,
+          judgeModel: jr.judgeModel,
+          reasoning: vote.reasoning,
+        });
+        break; // One rationale per judge
+      }
+    }
+  }
+  
+  // Build index mapping from scores (Copeland order)
+  const indexMapping = result.scores.map(s =>
+    candidateInfos.findIndex(c => c.id === s.candidateId)
+  );
+  
+  // Format winner ID for display
+  const displayWinnerId = result.winnerCandidateId.replace(
+    /^solver-(\d+)/,
+    (_, idx) => `solver-${parseInt(idx, 10) + 1}`
+  );
+  
+  // Synthesize reasoning
+  const winnerScore = result.scores[0];
+  const avgAgreement = result.pairResults.length > 0
+    ? result.pairResults.reduce((sum, p) => sum + p.agreementRate, 0) / result.pairResults.length
+    : 1.0;
+  
+  const synthesizedReasoning =
+    `Winner: ${displayWinnerId} ` +
+    `(Copeland: ${winnerScore.copelandScore}, wins: ${winnerScore.wins}, losses: ${winnerScore.losses}). ` +
+    `Win margin: ${result.winMargin.toFixed(3)}. ` +
+    `${result.pairResults.length} pairs compared by ${result.judgeResults.length} judge(s). ` +
+    `Agreement rate: ${(avgAgreement * 100).toFixed(0)}%.`;
+  
+  return {
+    mode: 'pairwise',
+    selected: winnerContent,
+    selectedIndex: winnerIndex,
+    selectedCandidateId: result.winnerCandidateId,
+    confidence: result.confidenceScore,
+    confidenceLevel: result.confidence,
+    winMargin: result.winMargin,
+    reasoning: synthesizedReasoning,
+    indexMapping,
+    judges,
+    aggregation: {
+      method: 'pairwise_copeland',
+      selectedIndex: winnerIndex,
+      selectedCandidateId: result.winnerCandidateId,
+      confidence: result.confidenceScore,
+      confidenceLevel: result.confidence,
+      winMargin: result.winMargin,
+      pairCount: result.pairResults.length,
+      agreementRate: avgAgreement,
+    },
+    pairResults: result.pairResults,
+    usage: result.totalUsage,
+    sessionId: result.judgeResults[0]?.sessionId,
+    hadFailures: result.hadFailures,
+    winnerRationales: winnerRationales.length > 0 ? winnerRationales : undefined,
+  };
+}
+
+/**
  * Check if multi-judge is possible for given candidates.
  */
 export function canUseMultiJudge(candidateInfos: CandidateInfo[]): boolean {
@@ -371,13 +510,30 @@ export function canUseMultiJudge(candidateInfos: CandidateInfo[]): boolean {
 }
 
 /**
+ * Check if pairwise judge can be used.
+ * Pairwise requires 2+ backends for cross-provider judging.
+ * Single backend falls back to single-judge mode.
+ */
+export function canUsePairwiseJudge(candidateInfos: CandidateInfo[]): boolean {
+  if (candidateInfos.length < 2) return false;
+  const uniqueBackends = new Set(candidateInfos.map(c => c.solverBackend)).size;
+  return uniqueBackends > 1;
+}
+
+/**
  * Determine effective judge mode.
- * Returns 'single' if multi-judge is not possible (single backend).
+ * - 'pairwise' → stays 'pairwise' if 2+ backends, else falls back to 'single'
+ * - 'multi' → stays 'multi' if 2+ backends, else falls back to 'single'
+ * - 'single' → stays 'single'
  */
 export function getEffectiveJudgeMode(
   requestedMode: JudgeMode,
   candidateInfos: CandidateInfo[]
 ): JudgeMode {
   if (requestedMode === 'single') return 'single';
+  if (requestedMode === 'pairwise') {
+    return canUsePairwiseJudge(candidateInfos) ? 'pairwise' : 'single';
+  }
+  // 'multi' mode
   return canUseMultiJudge(candidateInfos) ? 'multi' : 'single';
 }

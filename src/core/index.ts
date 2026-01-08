@@ -122,5 +122,34 @@ export type {
 export {
   runUnifiedJudge,
   canUseMultiJudge,
+  canUsePairwiseJudge,
   getEffectiveJudgeMode,
 } from './judge-unified';
+
+// Pairwise Judge
+export type {
+  CandidatePair,
+  VoteChoice,
+  PairwiseVote,
+  PairVerdict,
+  PairResult,
+  PairwiseScore,
+  PairwiseJudgeAssignment,
+  PairwiseJudgeResult,
+  PairwiseJudgeExecutionResult,
+  PairwiseJudgeAggregateResult,
+  RunPairwiseJudgeArgs,
+} from './pairwise-judge';
+
+export {
+  PAIRWISE_JUDGE_SYSTEM_PROMPT,
+  generatePairs,
+  validatePairCoverage,
+  buildPairwiseAssignments,
+  formatPairwisePrompt,
+  parsePairwiseResponse,
+  aggregatePairVotes,
+  computeCopelandScores,
+  computePairwiseConfidence,
+  runPairwiseJudge,
+} from './pairwise-judge';

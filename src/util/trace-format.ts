@@ -37,7 +37,7 @@ export interface FormatterState {
   phase: PhaseState;
   candidateCount: number;
   /** Judge mode for multi-judge display */
-  judgeMode?: 'single' | 'multi';
+  judgeMode?: 'single' | 'multi' | 'pairwise';
   /** List of judge backends (for multi-judge, determines which judges evaluated each candidate) */
   judgeBackends?: string[];
 }

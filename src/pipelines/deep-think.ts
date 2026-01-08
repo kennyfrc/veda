@@ -78,7 +78,7 @@ export interface DeepThinkOptions {
   solverBackends?: string[];  // Array of backends for parallel solvers (supports randomization)
   solverModel?: string;
   /** Judge mode: 'multi' (default) uses round-robin cross-provider judging, 'single' uses one judge */
-  judgeMode?: 'single' | 'multi';
+  judgeMode?: 'single' | 'multi' | 'pairwise';
   judgeBackend?: string;
   judgeModel?: string;
   verifierBackend?: string;
@@ -292,7 +292,7 @@ export interface DeepThinkEvent {
     }>;
   }>;
   /** Judge mode for the current evaluation */
-  judgeMode?: 'single' | 'multi';
+  judgeMode?: 'single' | 'multi' | 'pairwise';
   /** List of judge backends involved (for multi-judge header) */
   judgeBackends?: string[];
   /** Rationales from judges who ranked the winner highest (for 'selected' event) */
