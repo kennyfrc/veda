@@ -107,11 +107,13 @@ export interface ResumeConfig {
 // =============================================================================
 
 export type StatsGroupBy = 'module' | 'category' | 'model' | 'judge';
+export type StatsEraSelector = 'current' | 'legacy' | 'all' | string;
 
 export interface StatsConfig {
   groupBy: StatsGroupBy;
   limit: number;
   json: boolean;
+  era: StatsEraSelector;
 }
 
 // =============================================================================
@@ -228,6 +230,7 @@ export interface RawFlags {
   statsModel: boolean;
   statsJudge: boolean;
   limit?: number;
+  era?: string;  // Era selector: 'current' | 'legacy' | 'all' | era ID
 
   // Meta
   help: boolean;

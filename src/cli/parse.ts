@@ -31,6 +31,7 @@ const FLAGS_WITH_VALUES = new Set([
   '--verifier-reasoning', '--revision-reasoning',
   '--solver-backends',
   '--limit',  // For stats command
+  '--era',    // For stats command era selection
 ]);
 
 const BOOLEAN_FLAGS = new Set([
@@ -290,6 +291,9 @@ function parseFlagWithValue(flags: RawFlags, flag: string, value: string): void 
       break;
     case '--limit':
       flags.limit = parseInt(value, 10);
+      break;
+    case '--era':
+      flags.era = value;
       break;
   }
 }

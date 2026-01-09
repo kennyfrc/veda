@@ -1,19 +1,24 @@
 /**
- * Ratings Store: Persistent Glicko-2 ratings snapshot.
- * 
- * Maintains a JSON file with current ratings for all entities.
- * Updates are applied atomically per rating period (one deep-think run).
- * 
- * Design: never throw into caller (best-effort, like StatsStore).
+ * Persistent Glicko-2 ratings snapshot. Never throws (best-effort).
+ * Updates applied atomically per rating period (one deep-think run).
  */
 
 import { mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import { withLock } from '../util/lock';
 import { getRatingsPath } from '../util/paths';
-import type { RatingState, RatingsSnapshot, PairwiseStatEntry } from './pairwise-types';
+import type {
+  RatingState,
+  RatingsSnapshotV2,
+  AnyRatingsSnapshot,
+  AnyPairwiseStatEntry,
+  EraRef,
+  MatchesByKey,
+  Match,
+} from './pairwise-types';
 import { glicko2UpdatePool } from './glicko2';
 import { deriveAllMatches, mergeMatches } from './derive-matches';
+import { getCurrentEra, addEraSuffix, extractEraFromKey } from '../core/era';
 
 export interface RatingsStoreOptions {
   baseDir?: string;
@@ -26,23 +31,13 @@ export class RatingsStore {
     this.path = getRatingsPath(options.baseDir);
   }
 
-  /**
-   * Load current ratings snapshot.
-   * Returns empty map if file doesn't exist or is malformed.
-   */
   async load(): Promise<Map<string, RatingState>> {
     try {
       const file = Bun.file(this.path);
-      if (!await file.exists()) {
-        return new Map();
-      }
+      if (!await file.exists()) return new Map();
 
-      const content = await file.text();
-      const snapshot: RatingsSnapshot = JSON.parse(content);
-
-      if (snapshot.version !== 1) {
-        return new Map();
-      }
+      const snapshot: AnyRatingsSnapshot = JSON.parse(await file.text());
+      if (snapshot.version !== 1 && snapshot.version !== 2) return new Map();
 
       return new Map(Object.entries(snapshot.entities));
     } catch {
@@ -50,45 +45,43 @@ export class RatingsStore {
     }
   }
 
-  /**
-   * Save ratings snapshot.
-   */
+  async loadCurrentEra(): Promise<EraRef | undefined> {
+    try {
+      const file = Bun.file(this.path);
+      if (!await file.exists()) return undefined;
+
+      const snapshot: AnyRatingsSnapshot = JSON.parse(await file.text());
+      return snapshot.version === 2 ? snapshot.currentEra : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   async save(ratings: Map<string, RatingState>): Promise<void> {
     await withLock(this.path, async () => {
       await mkdir(dirname(this.path), { recursive: true });
-
-      const snapshot: RatingsSnapshot = {
-        version: 1,
+      const snapshot: RatingsSnapshotV2 = {
+        version: 2,
         updatedAt: new Date().toISOString(),
+        currentEra: getCurrentEra(),
         entities: Object.fromEntries(ratings),
       };
-
       await Bun.write(this.path, JSON.stringify(snapshot, null, 2));
     });
   }
 
   /**
-   * Apply a rating period update from a pairwise stat entry.
-   * This is the main entry point called after each deep-think run.
-   * 
-   * Best-effort: catches all errors and returns silently.
+   * v2 entries get @{eraId} suffix on keys; v1 (legacy) keys stay unsuffixed.
+   * This prevents mixing ratings across different module catalog versions.
    */
-  async applyRatingPeriod(entry: PairwiseStatEntry): Promise<void> {
+  async applyRatingPeriod(entry: AnyPairwiseStatEntry): Promise<void> {
     try {
       await withLock(this.path, async () => {
-        // Load current ratings
         const current = await this.loadUnlocked();
-
-        // Derive matches for all entity types
         const { judges, models, modules, categories } = deriveAllMatches(entry);
-
-        // Merge all matches into a single pool for unified update
         const allMatches = mergeMatches(judges, models, modules, categories);
-
-        // Update all ratings simultaneously
-        const updated = glicko2UpdatePool(current, allMatches);
-
-        // Save updated ratings
+        const namespacedMatches = this.namespaceMatchesByEra(allMatches, entry);
+        const updated = glicko2UpdatePool(current, namespacedMatches);
         await this.saveUnlocked(updated);
       });
     } catch {
@@ -96,38 +89,61 @@ export class RatingsStore {
     }
   }
 
-  /**
-   * Get ratings for a specific entity type prefix.
-   */
-  async getByPrefix(prefix: string): Promise<Map<string, RatingState>> {
+  private namespaceMatchesByEra(
+    matches: MatchesByKey,
+    entry: AnyPairwiseStatEntry
+  ): MatchesByKey {
+    if (entry.version === 1) return matches;
+
+    const eraId = entry.era.id;
+    const namespaced: MatchesByKey = new Map();
+
+    for (const [key, matchList] of matches) {
+      const namespacedKey = addEraSuffix(key, eraId);
+      const namespacedMatches: Match[] = matchList.map(m => ({
+        opponentKey: addEraSuffix(m.opponentKey, eraId),
+        score: m.score,
+      }));
+      namespaced.set(namespacedKey, namespacedMatches);
+    }
+
+    return namespaced;
+  }
+
+  async getByPrefix(
+    prefix: string,
+    eraSelector: string = 'current'
+  ): Promise<Map<string, RatingState>> {
     const all = await this.load();
     const filtered = new Map<string, RatingState>();
+    const currentEra = getCurrentEra();
 
     for (const [key, state] of all) {
-      if (key.startsWith(prefix)) {
+      if (!key.startsWith(prefix)) continue;
+
+      const keyEra = extractEraFromKey(key);
+
+      if (eraSelector === 'all') {
         filtered.set(key, state);
+      } else if (eraSelector === 'legacy') {
+        if (!keyEra) filtered.set(key, state);
+      } else if (eraSelector === 'current') {
+        if (keyEra === currentEra.id) filtered.set(key, state);
+      } else {
+        if (keyEra === eraSelector) filtered.set(key, state);
       }
     }
 
     return filtered;
   }
 
-  /**
-   * Internal load without lock (for use within locked context).
-   */
   private async loadUnlocked(): Promise<Map<string, RatingState>> {
     try {
       const file = Bun.file(this.path);
-      if (!await file.exists()) {
-        return new Map();
-      }
+      if (!await file.exists()) return new Map();
 
-      const content = await file.text();
-      const snapshot: RatingsSnapshot = JSON.parse(content);
-
-      if (snapshot.version !== 1) {
-        return new Map();
-      }
+      const snapshot: AnyRatingsSnapshot = JSON.parse(await file.text());
+      if (snapshot.version !== 1 && snapshot.version !== 2) return new Map();
 
       return new Map(Object.entries(snapshot.entities));
     } catch {
@@ -135,18 +151,14 @@ export class RatingsStore {
     }
   }
 
-  /**
-   * Internal save without lock (for use within locked context).
-   */
   private async saveUnlocked(ratings: Map<string, RatingState>): Promise<void> {
     await mkdir(dirname(this.path), { recursive: true });
-
-    const snapshot: RatingsSnapshot = {
-      version: 1,
+    const snapshot: RatingsSnapshotV2 = {
+      version: 2,
       updatedAt: new Date().toISOString(),
+      currentEra: getCurrentEra(),
       entities: Object.fromEntries(ratings),
     };
-
     await Bun.write(this.path, JSON.stringify(snapshot, null, 2));
   }
 }

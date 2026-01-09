@@ -30,11 +30,12 @@ import {
 } from './prompts';
 import {
   PairwiseStatsStore,
-  type PairwiseStatEntry,
+  type PairwiseStatEntryV2,
   type CandidateMetadata,
   type VoteRecord,
   type PairResultRecord,
 } from '../stats';
+import { getCurrentEra } from '../core/era';
 
 /**
  * Standardized member ID format: type-index-backend-model-module
@@ -1420,8 +1421,8 @@ export async function* runDeepThink(
             agreementRate: pr.agreementRate,
           }));
           
-          const pairwiseEntry: PairwiseStatEntry = {
-            version: 1,
+          const pairwiseEntry: PairwiseStatEntryV2 = {
+            version: 2,
             timestamp,
             promptHash,
             runId: `${timestamp}-${promptHash}`,
@@ -1429,6 +1430,7 @@ export async function* runDeepThink(
             candidates: candidatesMeta,
             votes,
             pairResults,
+            era: getCurrentEra(),
           };
           
           new PairwiseStatsStore().append(pairwiseEntry).catch(() => {});

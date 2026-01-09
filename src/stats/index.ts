@@ -10,6 +10,8 @@ export { StatsStore, type StatsStoreOptions } from './store';
 // Pairwise stats exports
 export type {
   PairwiseStatEntry,
+  PairwiseStatEntryV2,
+  AnyPairwiseStatEntry,
   CandidateMetadata,
   VoteRecord,
   PairResultRecord,
@@ -19,8 +21,12 @@ export type {
   RatingEntityType,
   RatingState,
   RatingsSnapshot,
+  RatingsSnapshotV2,
+  AnyRatingsSnapshot,
   Match,
   MatchesByKey,
+  EraRef,
+  EraSelector,
 } from './pairwise-types';
 
 export { PairwiseStatsStore, type PairwiseStatsStoreOptions } from './pairwise-store';

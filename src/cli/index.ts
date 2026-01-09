@@ -323,6 +323,7 @@ function constructStatsInput(flags: RawFlags): VedaInput {
     groupBy,
     limit: flags.limit ?? 20,
     json: flags.json,
+    era: flags.era ?? 'current',
   };
 
   return { command: 'stats', config };

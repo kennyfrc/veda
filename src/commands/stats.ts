@@ -1,8 +1,5 @@
 /**
- * Stats Command: View Glicko-2 ratings for judges, models, modules, and categories.
- * 
- * Reads ratings from the ratings snapshot file and displays leaderboards
- * ranked by exposure (rating - 2*RD) for conservative ranking.
+ * Stats command: Glicko-2 leaderboards ranked by exposure (rating - 2*RD).
  */
 
 import {
@@ -10,17 +7,19 @@ import {
   PairwiseStatsStore,
   computeExposure,
   KEY_PREFIX,
+  type EraSelector,
 } from '../stats';
 import { c } from '../util';
 import type { StatsGroupBy } from '../cli/types';
+import { getCurrentEra, stripEraSuffix } from '../core/era';
 
 export interface StatsOptions {
   groupBy: StatsGroupBy;
   limit: number;
   json: boolean;
+  era: EraSelector;
 }
 
-/** Rating entry for display */
 interface RatingEntry {
   key: string;
   displayKey: string;
@@ -32,9 +31,6 @@ interface RatingEntry {
   lastTs?: string;
 }
 
-/**
- * Get the key prefix for the groupBy mode.
- */
 function getKeyPrefix(groupBy: StatsGroupBy): string {
   switch (groupBy) {
     case 'judge': return KEY_PREFIX.JUDGE;
@@ -44,19 +40,13 @@ function getKeyPrefix(groupBy: StatsGroupBy): string {
   }
 }
 
-/**
- * Strip prefix from key for display.
- */
 function stripPrefix(key: string, prefix: string): string {
   return key.startsWith(prefix) ? key.slice(prefix.length) : key;
 }
 
-/**
- * Format a date for display.
- */
 function formatDate(iso?: string): string {
   if (!iso) return 'never';
-  
+
   const date = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -69,39 +59,53 @@ function formatDate(iso?: string): string {
   return `${Math.floor(diffDays / 30)}mo ago`;
 }
 
-/**
- * Format rating with uncertainty indicator.
- */
 function formatRating(rating: number, rd: number): string {
   const r = Math.round(rating);
-  // High uncertainty (RD > 200): show ?
-  // Medium uncertainty (RD > 100): show ~
-  // Low uncertainty: show exact
-  if (rd > 200) return `${r}?`;
-  if (rd > 100) return `${r}~`;
+  if (rd > 200) return `${r}?`;  // high uncertainty
+  if (rd > 100) return `${r}~`;  // medium uncertainty
   return `${r}`;
 }
 
 export async function handleStats(options: StatsOptions): Promise<void> {
   const ratingsStore = new RatingsStore();
   const pairwiseStore = new PairwiseStatsStore();
-  
+  const currentEra = getCurrentEra();
+
   const prefix = getKeyPrefix(options.groupBy);
-  const ratings = await ratingsStore.getByPrefix(prefix);
-  const runCount = await pairwiseStore.count();
+  const ratings = await ratingsStore.getByPrefix(prefix, options.era);
+
+  let runCount: number;
+  if (options.era === 'all') {
+    runCount = await pairwiseStore.count();
+  } else if (options.era === 'legacy') {
+    runCount = await pairwiseStore.countByEra('legacy');
+  } else if (options.era === 'current') {
+    runCount = await pairwiseStore.countByEra(currentEra.id);
+  } else {
+    runCount = await pairwiseStore.countByEra(options.era);
+  }
 
   if (ratings.size === 0) {
-    console.log('No ratings recorded yet.');
-    console.log(c.dim('Run deep mode with --distribute-solvers to collect pairwise statistics.'));
+    if (options.era === 'current') {
+      console.log(`No ratings recorded for current era (${currentEra.id}).`);
+      console.log(c.dim('Run deep mode to collect statistics for the current module catalog.'));
+      console.log(c.dim('Use --era legacy to view ratings from previous module versions.'));
+    } else if (options.era === 'legacy') {
+      console.log('No legacy ratings recorded.');
+      console.log(c.dim('Legacy ratings are from runs before era tracking was added.'));
+    } else {
+      console.log('No ratings recorded yet.');
+      console.log(c.dim('Run deep mode with --distribute-solvers to collect pairwise statistics.'));
+    }
     return;
   }
 
-  // Build rating entries
   const entries: RatingEntry[] = [];
   for (const [key, state] of ratings) {
+    const withoutEra = stripEraSuffix(key);
     entries.push({
       key,
-      displayKey: stripPrefix(key, prefix),
+      displayKey: stripPrefix(withoutEra, prefix),
       rating: state.r,
       rd: state.rd,
       vol: state.vol,
@@ -111,7 +115,6 @@ export async function handleStats(options: StatsOptions): Promise<void> {
     });
   }
 
-  // Sort by exposure (conservative ranking), then by games, then by key
   entries.sort((a, b) => {
     if (Math.abs(a.exposure - b.exposure) > 0.1) return b.exposure - a.exposure;
     if (a.games !== b.games) return b.games - a.games;
@@ -120,7 +123,6 @@ export async function handleStats(options: StatsOptions): Promise<void> {
 
   const ranked = entries.slice(0, options.limit);
 
-  // JSON output
   if (options.json) {
     const output = ranked.map(e => ({
       key: e.displayKey,
@@ -135,16 +137,29 @@ export async function handleStats(options: StatsOptions): Promise<void> {
     return;
   }
 
-  // Human-readable output
   const modeLabel = options.groupBy === 'judge' ? 'Judge'
     : options.groupBy === 'model' ? 'Model'
     : options.groupBy === 'module' ? 'Module'
     : 'Category';
 
-  console.log(`\n${c.cyan('Glicko-2 Ratings')} — ${modeLabel}s (${runCount} runs)\n`);
-  console.log(c.dim('─'.repeat(80)));
+  let eraLabel: string;
+  if (options.era === 'current') {
+    eraLabel = `era: ${currentEra.id}`;
+  } else if (options.era === 'legacy') {
+    eraLabel = 'era: legacy';
+  } else if (options.era === 'all') {
+    eraLabel = 'all eras';
+  } else {
+    eraLabel = `era: ${options.era}`;
+  }
 
-  // Header
+  console.log(`\n${c.cyan('Glicko-2 Ratings')} — ${modeLabel}s (${eraLabel}, ${runCount} runs)\n`);
+
+  if (options.era === 'legacy') {
+    console.log(c.yellow('Warning: Legacy ratings may not reflect current module prompts.\n'));
+  }
+
+  console.log(c.dim('─'.repeat(80)));
   const header = `${'#'.padStart(3)}  ${modeLabel.padEnd(35)} ${'Rating'.padStart(7)}  ${'RD'.padStart(4)}  ${'Games'.padStart(5)}  ${c.dim('Last')}`;
   console.log(header);
   console.log(c.dim('─'.repeat(80)));
@@ -152,7 +167,7 @@ export async function handleStats(options: StatsOptions): Promise<void> {
   for (let i = 0; i < ranked.length; i++) {
     const e = ranked[i];
     const rank = `${i + 1}`.padStart(3);
-    const displayKey = e.displayKey.length > 35 
+    const displayKey = e.displayKey.length > 35
       ? e.displayKey.slice(0, 32) + '...'
       : e.displayKey.padEnd(35);
     const rating = formatRating(e.rating, e.rd).padStart(7);
@@ -160,8 +175,7 @@ export async function handleStats(options: StatsOptions): Promise<void> {
     const games = String(e.games).padStart(5);
     const lastSeen = formatDate(e.lastTs);
 
-    // Color code by exposure
-    let keyColor = (s: string) => s; // no color (default)
+    let keyColor = (s: string) => s;
     if (e.exposure >= 1600) keyColor = c.green;
     else if (e.exposure >= 1450) keyColor = c.cyan;
     else if (e.exposure < 1350) keyColor = c.yellow;
