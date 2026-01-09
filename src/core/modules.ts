@@ -27,20 +27,10 @@ export interface SelectModulesOptions {
   k: number;
   categories?: string[];
   modules?: string[];
-  registry?: ModuleRegistry; // Optional custom registry
+  registry?: ModuleRegistry;
 }
 
-// Default module catalog - 44 modules across 9 categories
-// Sources: Polya's "How to Solve It", Hamming's "Art of Doing Science and Engineering", McKinsey frameworks,
-//          Fermi estimation, TRIZ inventive principles, Meadows' leverage points, Klein's premortem
 const DEFAULT_MODULES: ReasoningModule[] = [
-  // === ANALYTICAL (6) ===
-  {
-    id: 'critical_thinking',
-    category: 'analytical',
-    name: 'Critical Thinking',
-    prompt: 'Analyze from multiple angles: question assumptions, evaluate evidence, and identify potential biases or flaws in reasoning.',
-  },
   {
     id: 'assumption_analysis',
     category: 'analytical',
@@ -66,13 +56,13 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'Identify the vital few factors that drive most of the outcome. Focus on high-leverage areas; deprioritize the trivial many.',
   },
   {
-    id: 'limiting_case',
+    id: 'edge_case_analysis',
     category: 'analytical',
-    name: 'Limiting Case Analysis',
-    prompt: 'Test your answer at extreme values: What happens when key variables go to zero, infinity, or hit boundaries? Does the solution behave correctly in these limits? Use extremes to validate or catch errors.',
+    name: 'Edge Case Analysis',
+    prompt: 'Stress-test by considering edge cases: What if input is empty, huge, malformed, or adversarial? What if resources are exhausted? What if timing changes? Find where the solution breaks.',
   },
 
-  // === CREATIVE (6) ===
+  // CREATIVE
   {
     id: 'creative_thinking',
     category: 'creative',
@@ -110,7 +100,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'Construct an idealized hypothetical: remove friction, assume perfect information, take a variable to an extreme. Mentally simulate the scenario step by step. What does this reveal about the real problem?',
   },
 
-  // === SYSTEMATIC (7) ===
+  // SYSTEMATIC
   {
     id: 'mece_decomposition',
     category: 'systematic',
@@ -139,7 +129,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     id: 'working_backward',
     category: 'systematic',
     name: 'Working Backward',
-    prompt: 'Start from the desired end state. What must be true immediately before the goal is achieved? Work backward step by step to the current state.',
+    prompt: 'Define the exact success state first. Then reverse-engineer: what is the last step before success? What enables that step? Chain backward until you reach the current state. Identify the first actionable move.',
   },
   {
     id: 'leverage_points',
@@ -154,7 +144,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'Strip away complexity layer by layer. Remove components, reduce inputs, simplify the environment. Does the problem still occur? Find the minimal reproduction.',
   },
 
-  // === STRATEGIC (6) ===
+  // STRATEGIC
   {
     id: 'hypothesis_first',
     category: 'strategic',
@@ -195,10 +185,10 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     id: 'scenario_planning',
     category: 'strategic',
     name: 'Scenario Planning',
-    prompt: 'Construct 2-3 plausible future scenarios based on key uncertainties. What early signals would indicate each scenario? What decisions are robust across scenarios?',
+    prompt: 'Identify the 1-2 biggest unknowns that would change your approach. For each, ask: "If X turns out to be true, what is the best path? If false?" Find the decision that works regardless, or define the trigger to pivot.',
   },
 
-  // === EVALUATIVE (5) ===
+  // EVALUATIVE
   {
     id: 'risk_assessment',
     category: 'evaluative',
@@ -230,7 +220,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'It is one year later and this approach has failed completely. What went wrong? Write the postmortem now. Use this "prospective hindsight" to surface risks you would otherwise overlook.',
   },
 
-  // === CONTEXTUAL (3) ===
+  // CONTEXTUAL
   {
     id: 'stakeholder_analysis',
     category: 'contextual',
@@ -250,7 +240,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'What human factors affect this problem? Consider habits, incentives, cognitive biases, and social dynamics.',
   },
 
-  // === EMPIRICAL (5) ===
+  // EMPIRICAL
   {
     id: 'experimental_design',
     category: 'empirical',
@@ -282,7 +272,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'Before accepting any answer, verify it against known reference points. Is the order of magnitude plausible? Does it pass the "smell test" compared to similar known quantities? What would have to be true for this answer to be wrong by 10x?',
   },
 
-  // === DEBUGGING (2) ===
+  // DEBUGGING
   {
     id: 'binary_search_debug',
     category: 'debugging',
@@ -296,7 +286,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     prompt: 'Create a minimal reproduction script in /tmp that imports the relevant modules. Add logging at every stage: print inputs, intermediate state, and outputs at each transformation. Run the script headlessly and trace how data changes step by step. Look for where actual values diverge from expected. Clean up the script after.',
   },
 
-  // === REFLECTIVE (3) ===
+  // REFLECTIVE
   {
     id: 'reflective_thinking',
     category: 'reflective',
@@ -318,7 +308,6 @@ const DEFAULT_MODULES: ReasoningModule[] = [
 ];
 
 
-// Fixed ontology - 9 categories for solver diversity
 export const ALL_CATEGORIES: ModuleCategory[] = [
   'analytical',
   'creative',
@@ -331,23 +320,14 @@ export const ALL_CATEGORIES: ModuleCategory[] = [
   'reflective',
 ];
 
-/**
- * Create a module registry from a list of custom modules (optional).
- * Defaults to DEFAULT_MODULES if no modules provided.
- * Validates: unique IDs, valid categories.
- */
 export function createModuleRegistry(customModules?: ReasoningModule[]): ModuleRegistry {
   const modules = customModules ? [...customModules] : [...DEFAULT_MODULES];
 
-  // Normalize IDs
   for (const module of modules) {
     module.id = normalizeId(module.id);
   }
-
-  // Validate integrity
   validateModuleIntegrity(modules);
 
-  // Derive lookups
   const byId: Record<string, ReasoningModule> = {};
   const byCategory: Record<ModuleCategory, ReasoningModule[]> = {} as any;
 
@@ -371,42 +351,26 @@ export function createModuleRegistry(customModules?: ReasoningModule[]): ModuleR
   };
 }
 
-/**
- * Default registry singleton - uses DEFAULT_MODULES
- */
 export const DEFAULT_REGISTRY: ModuleRegistry = createModuleRegistry();
 
-/**
- * Backward compatibility exports (aliases to default registry)
- */
 export const REASONING_MODULES = DEFAULT_REGISTRY.modules;
 export const MODULES_BY_CATEGORY = DEFAULT_REGISTRY.byCategory;
 export const MODULE_BY_ID = DEFAULT_REGISTRY.byId;
 
-/**
- * Look up a module by ID from the default registry.
- * Used for reconstructing module prompts on resume.
- * Returns undefined if module not found (e.g., if module catalog changed between runs).
- */
 export function getModuleById(id: string): ReasoningModule | undefined {
   return DEFAULT_REGISTRY.byId[id];
 }
 
-/**
- * Validate module integrity: unique IDs, valid categories
- */
 function validateModuleIntegrity(modules: ReasoningModule[]): void {
   const ids = new Set<string>();
   const knownCategories = new Set(ALL_CATEGORIES);
 
   for (const module of modules) {
-    // Check unique ID
     if (ids.has(module.id)) {
       throw new Error(`Duplicate module ID: ${module.id}`);
     }
     ids.add(module.id);
 
-    // Check valid category
     if (!knownCategories.has(module.category)) {
       throw new Error(
         `Invalid category '${module.category}' for module '${module.id}'. ` +
@@ -417,53 +381,34 @@ function validateModuleIntegrity(modules: ReasoningModule[]): void {
 }
 
 
-/**
- * Select reasoning modules for the ensemble.
- * 
- * Module specifiers support three formats:
- * - `category/module_id` - exact module (e.g., "analytical/so_what_test")
- * - `category` - random module from category (e.g., "analytical")
- * - `module_id` - exact module by ID (legacy, e.g., "so_what_test")
- * 
- * Examples:
- *   modules: ['analytical/so_what_test', 'creative', 'systematic/mece_decomposition']
- *   modules: ['analytical', 'creative', 'systematic'] // random from each
- *   modules: ['so_what_test', 'invert_the_problem']   // legacy exact IDs
- */
+/** Specifiers: "category/module", "category" (random), or "module_id" (legacy) */
 export function selectModules(options: SelectModulesOptions): ReasoningModule[] {
   const { k, categories, modules, registry = DEFAULT_REGISTRY } = options;
 
-  // Validate k
   if (k < 1 || k > 12) {
     throw new Error(`k must be between 1 and 12, got ${k}`);
   }
 
-  // Case 1: Module specifiers provided (supports category/module format)
   if (modules && modules.length > 0) {
     return selectFromSpecifiers(modules, registry);
   }
 
-  // Case 2: Categories specified (legacy, random module from each)
   if (categories && categories.length > 0) {
     return selectFromCategories(k, categories, registry);
   }
 
-  // Case 3: Default - sample k categories, 1 module each
   return selectDefault(k, registry);
 }
 
-/**
- * Legacy module ID aliases - map old IDs to new ones for backward compatibility.
- */
 const LEGACY_MODULE_ALIASES: Record<string, string> = {
-  // Renamed modules
   'step_by_step': 'issue_tree',
   'problem_decomposition': 'mece_decomposition',
   'core_issue': 'so_what_test',
   'simplification': 'vary_the_problem',
   'typical_solutions': 'analogical_transfer',
   'obstacle_identification': 'risk_assessment',
-  // Merged modules
+  'limiting_case': 'edge_case_analysis',
+  'critical_thinking': 'assumption_analysis',
   'constraints': 'resource_constraints',
   'resource_analysis': 'resource_constraints',
   'data_analysis': 'data_driven',
@@ -473,22 +418,13 @@ const LEGACY_MODULE_ALIASES: Record<string, string> = {
   'collaborative_thinking': 'alternative_perspectives',
 };
 
-/**
- * Parse a module specifier into category and optional module ID.
- * Formats:
- * - "category/module_id" → { category, moduleId }
- * - "category" (if valid category) → { category, moduleId: undefined }
- * - "module_id" (legacy) → { category: undefined, moduleId }
- */
 function parseModuleSpecifier(
   specifier: string,
   registry: ModuleRegistry
 ): { category?: ModuleCategory; moduleId?: string } {
   const normalized = specifier.toLowerCase().trim().replace(/-/g, '_');
-  
-  // Check for category/module format
+
   if (normalized.includes('/')) {
-    // Reject multiple slashes
     const slashCount = (normalized.match(/\//g) || []).length;
     if (slashCount > 1) {
       throw new Error(
@@ -496,41 +432,34 @@ function parseModuleSpecifier(
         `Use format 'category/module_id' or 'category' or 'module_id'.`
       );
     }
-    
+
     const [catPart, modPart] = normalized.split('/', 2);
     const category = catPart.trim() as ModuleCategory;
     const moduleId = modPart.trim();
-    
+
     if (!registry.allCategories.includes(category)) {
       throw new Error(
         `Unknown category '${catPart}' in specifier '${specifier}'. ` +
         `Available: ${registry.allCategories.join(', ')}`
       );
     }
-    
-    // Check for empty module ID (e.g., "analytical/")
+
     if (!moduleId) {
       throw new Error(
         `Missing module_id in specifier '${specifier}'. ` +
         `Use 'category/module_id' for exact module or just 'category' for random selection.`
       );
     }
-    
-    // Apply legacy alias if needed
+
     const resolvedModuleId = LEGACY_MODULE_ALIASES[moduleId] ?? moduleId;
-    
     return { category, moduleId: resolvedModuleId };
   }
-  
-  // Check if it's a valid category name (random selection from category)
+
   if (registry.allCategories.includes(normalized as ModuleCategory)) {
     return { category: normalized as ModuleCategory, moduleId: undefined };
   }
-  
-  // Apply legacy alias if needed
+
   const resolvedId = LEGACY_MODULE_ALIASES[normalized] ?? normalized;
-  
-  // Assume it's a legacy module ID
   return { category: undefined, moduleId: resolvedId };
 }
 
@@ -540,11 +469,9 @@ function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): R
 
   for (const specifier of specifiers) {
     const { category, moduleId } = parseModuleSpecifier(specifier, registry);
-    
     let module: ReasoningModule | undefined;
-    
+
     if (category && moduleId) {
-      // Exact: category/module_id format
       module = registry.byId[moduleId];
       if (!module) {
         throw new Error(
@@ -558,7 +485,6 @@ function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): R
         );
       }
     } else if (category) {
-      // Random from category
       const categoryModules = registry.byCategory[category];
       if (!categoryModules || categoryModules.length === 0) {
         throw new Error(`No modules available in category '${category}'`);
@@ -566,7 +492,6 @@ function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): R
       const randomIndex = Math.floor(Math.random() * categoryModules.length);
       module = categoryModules[randomIndex];
     } else if (moduleId) {
-      // Legacy: just module ID
       module = registry.byId[moduleId];
       if (!module) {
         throw new Error(
@@ -574,12 +499,11 @@ function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): R
         );
       }
     }
-    
+
     if (!module) {
       throw new Error(`Invalid module specifier: ${specifier}`);
     }
-    
-    // Check for duplicate categories
+
     if (seenCategories.has(module.category)) {
       throw new Error(
         `Duplicate category '${module.category}'. Each solver must use a different category. ` +
@@ -599,11 +523,8 @@ function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): R
 
 function selectFromCategories(k: number, categoryNames: string[], registry: ModuleRegistry): ReasoningModule[] {
   const normalized = categoryNames.map(normalizeId) as ModuleCategory[];
-
-  // Validate categories and canonicalize (dedupe, preserve order)
   const validatedCategories = validateAndCanonicalizeCategories(normalized, registry.allCategories);
 
-  // Check we have enough categories
   const maxAvailable = validatedCategories.reduce((sum, cat) => {
     return sum + (registry.byCategory[cat]?.length ?? 0);
   }, 0);
@@ -614,10 +535,8 @@ function selectFromCategories(k: number, categoryNames: string[], registry: Modu
     );
   }
 
-  // Determine counts per category (round-robin distribution)
   const categoryCounts = distributeKAcrossCategories(k, validatedCategories, registry);
 
-  // Sample modules from each category based on counts
   const result: ReasoningModule[] = [];
   for (const [cat, count] of categoryCounts) {
     const categoryModules = registry.byCategory[cat];
@@ -631,10 +550,8 @@ function selectFromCategories(k: number, categoryNames: string[], registry: Modu
 }
 
 function selectDefault(k: number, registry: ModuleRegistry): ReasoningModule[] {
-  // When k <= number of categories: sample k categories, 1 module from each
-  // When k > number of categories: use all categories, then round-robin for extras
   const numCategories = registry.allCategories.length;
-  
+
   if (k <= numCategories) {
     const selectedCategories = randomSample(registry.allCategories, k);
     return selectedCategories.map(cat => {
@@ -643,45 +560,35 @@ function selectDefault(k: number, registry: ModuleRegistry): ReasoningModule[] {
       return modules[randomIndex];
     });
   }
-  
-  // k > numCategories: distribute round-robin across all categories
+
+  // k > numCategories: round-robin across all categories
   const result: ReasoningModule[] = [];
   const shuffledCategories = randomSample(registry.allCategories, numCategories);
-  
-  // Track which modules have been used per category to avoid duplicates
   const usedPerCategory = new Map<string, Set<string>>();
   for (const cat of shuffledCategories) {
     usedPerCategory.set(cat, new Set());
   }
-  
+
   for (let i = 0; i < k; i++) {
     const cat = shuffledCategories[i % numCategories];
     const modules = registry.byCategory[cat];
     const used = usedPerCategory.get(cat)!;
-    
-    // Find an unused module in this category
     const available = modules.filter(m => !used.has(m.id));
+
     if (available.length > 0) {
       const randomIndex = Math.floor(Math.random() * available.length);
       const selected = available[randomIndex];
       result.push(selected);
       used.add(selected.id);
     } else {
-      // All modules in category used, pick any random one (allows duplicates)
       const randomIndex = Math.floor(Math.random() * modules.length);
       result.push(modules[randomIndex]);
     }
   }
-  
+
   return result;
 }
 
-/**
- * Validate and canonicalize category names:
- * - Validate all categories are known
- * - Remove duplicates (keep first occurrence)
- * - Preserve user order
- */
 function validateAndCanonicalizeCategories(
   categories: ModuleCategory[],
   allCategories: ModuleCategory[]
@@ -703,23 +610,16 @@ function validateAndCanonicalizeCategories(
   return result;
 }
 
-/**
- * Distribute k across categories using round-robin.
- * Returns Map<category, count>.
- */
 function distributeKAcrossCategories(
   k: number,
   categories: ModuleCategory[],
   registry: ModuleRegistry
 ): Map<ModuleCategory, number> {
   const counts = new Map<ModuleCategory, number>();
-
-  // Initialize all counts to 0
   for (const cat of categories) {
     counts.set(cat, 0);
   }
 
-  // Round-robin assignment, respecting category availability
   let remaining = k;
   while (remaining > 0) {
     for (const cat of categories) {

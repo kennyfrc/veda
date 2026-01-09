@@ -12,8 +12,8 @@ import {
 
 describe('Reasoning Modules', () => {
   describe('catalog', () => {
-    test('has 44 modules across 9 categories', () => {
-      expect(REASONING_MODULES.length).toBe(44);
+    test('has 42 modules across 9 categories', () => {
+      expect(REASONING_MODULES.length).toBe(43);
     });
 
     test('has 9 categories', () => {
@@ -47,10 +47,10 @@ describe('Reasoning Modules', () => {
     test('new physics/estimation modules exist', () => {
       expect(MODULE_BY_ID['fermi_estimation']).toBeDefined();
       expect(MODULE_BY_ID['fermi_estimation'].category).toBe('empirical');
-      
-      expect(MODULE_BY_ID['limiting_case']).toBeDefined();
-      expect(MODULE_BY_ID['limiting_case'].category).toBe('analytical');
-      
+
+      expect(MODULE_BY_ID['edge_case_analysis']).toBeDefined();
+      expect(MODULE_BY_ID['edge_case_analysis'].category).toBe('analytical');
+
       expect(MODULE_BY_ID['thought_experiment']).toBeDefined();
       expect(MODULE_BY_ID['thought_experiment'].category).toBe('creative');
     });
@@ -131,11 +131,11 @@ describe('Reasoning Modules', () => {
     test('exact modules: uses specified modules', () => {
       const result = selectModules({
         k: 5, // ignored
-        modules: ['critical_thinking', 'issue_tree'],
+        modules: ['assumption_analysis', 'issue_tree'],
       });
-      
+
       expect(result.length).toBe(2);
-      expect(result[0].id).toBe('critical_thinking');
+      expect(result[0].id).toBe('assumption_analysis');
       expect(result[1].id).toBe('issue_tree');
     });
 
@@ -149,7 +149,7 @@ describe('Reasoning Modules', () => {
     test('exact modules: errors on duplicate category', () => {
       expect(() => selectModules({
         k: 1,
-        modules: ['critical_thinking', 'assumption_analysis'], // both analytical
+        modules: ['assumption_analysis', 'causal_analysis'], // both analytical
       })).toThrow(/Duplicate category/);
     });
 
@@ -289,9 +289,9 @@ describe('Reasoning Modules', () => {
     test('normalizes IDs (lowercase, underscore)', () => {
       const result = selectModules({
         k: 1,
-        modules: ['Critical-Thinking'], // mixed case, hyphen
+        modules: ['Assumption-Analysis'], // mixed case, hyphen
       });
-      expect(result[0].id).toBe('critical_thinking');
+      expect(result[0].id).toBe('assumption_analysis');
     });
   });
 });
@@ -299,7 +299,7 @@ describe('Reasoning Modules', () => {
 describe('ModuleRegistry (additive design)', () => {
   test('creates default registry from DEFAULT_MODULES', () => {
     const registry = createModuleRegistry();
-    expect(registry.modules.length).toBe(44);
+    expect(registry.modules.length).toBe(43);
     expect(registry.allCategories.length).toBe(9);
   });
 
@@ -429,7 +429,7 @@ describe('ModuleRegistry (additive design)', () => {
   });
 
   test('DEFAULT_REGISTRY is a singleton using DEFAULT_MODULES', () => {
-    expect(DEFAULT_REGISTRY.modules).toHaveLength(44);
+    expect(DEFAULT_REGISTRY.modules).toHaveLength(43);
     expect(DEFAULT_REGISTRY.allCategories).toHaveLength(9);
 
     // Verify backward compatibility aliases work
@@ -441,9 +441,9 @@ describe('ModuleRegistry (additive design)', () => {
 
 describe('getModuleById', () => {
   test('returns module when found', () => {
-    const module = getModuleById('critical_thinking');
+    const module = getModuleById('assumption_analysis');
     expect(module).toBeDefined();
-    expect(module?.id).toBe('critical_thinking');
+    expect(module?.id).toBe('assumption_analysis');
     expect(module?.category).toBe('analytical');
     expect(module?.prompt).toBeTruthy();
   });
@@ -455,11 +455,11 @@ describe('getModuleById', () => {
 
   test('is case-sensitive (normalized IDs are lowercase)', () => {
     // Module IDs in registry are normalized to lowercase
-    const lower = getModuleById('critical_thinking');
+    const lower = getModuleById('assumption_analysis');
     expect(lower).toBeDefined();
-    
+
     // Mixed case won't match
-    const mixed = getModuleById('Critical_Thinking');
+    const mixed = getModuleById('Assumption_Analysis');
     expect(mixed).toBeUndefined();
   });
 });
