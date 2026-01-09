@@ -13,7 +13,7 @@ import {
 describe('Reasoning Modules', () => {
   describe('catalog', () => {
     test('has 42 modules across 9 categories', () => {
-      expect(REASONING_MODULES.length).toBe(43);
+      expect(REASONING_MODULES.length).toBe(42);
     });
 
     test('has 9 categories', () => {
@@ -299,7 +299,7 @@ describe('Reasoning Modules', () => {
 describe('ModuleRegistry (additive design)', () => {
   test('creates default registry from DEFAULT_MODULES', () => {
     const registry = createModuleRegistry();
-    expect(registry.modules.length).toBe(43);
+    expect(registry.modules.length).toBe(42);
     expect(registry.allCategories.length).toBe(9);
   });
 
@@ -429,7 +429,7 @@ describe('ModuleRegistry (additive design)', () => {
   });
 
   test('DEFAULT_REGISTRY is a singleton using DEFAULT_MODULES', () => {
-    expect(DEFAULT_REGISTRY.modules).toHaveLength(43);
+    expect(DEFAULT_REGISTRY.modules).toHaveLength(42);
     expect(DEFAULT_REGISTRY.allCategories).toHaveLength(9);
 
     // Verify backward compatibility aliases work

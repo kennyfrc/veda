@@ -161,7 +161,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     id: 'iterative_solving',
     category: 'strategic',
     name: 'Iterative Solving',
-    prompt: 'Generate multiple candidate solutions. Test each against the problem constraints. Refine the most promising one.',
+    prompt: 'Write down 3 distinct candidate solutions. For each, list what it gets right and what it gets wrong. Take the best parts from each and combine them into a refined solution.',
   },
   {
     id: 'solution_modification',
@@ -257,7 +257,7 @@ const DEFAULT_MODULES: ReasoningModule[] = [
     id: 'data_driven',
     category: 'empirical',
     name: 'Data-Driven Analysis',
-    prompt: 'What data or evidence bears on this problem? Identify key metrics, analyze patterns, and let evidence guide conclusions.',
+    prompt: 'Before reasoning, ask: what data exists? Pull specific numbers, logs, or measurements. Compare actual vs expected values. Let discrepancies point to the problem.',
   },
   {
     id: 'fermi_estimation',
@@ -287,12 +287,6 @@ const DEFAULT_MODULES: ReasoningModule[] = [
   },
 
   // REFLECTIVE
-  {
-    id: 'reflective_thinking',
-    category: 'reflective',
-    name: 'Reflective Thinking',
-    prompt: 'Step back and examine your reasoning process. Where might you be wrong? What are you not seeing?',
-  },
   {
     id: 'success_criteria',
     category: 'reflective',
@@ -409,6 +403,7 @@ const LEGACY_MODULE_ALIASES: Record<string, string> = {
   'obstacle_identification': 'risk_assessment',
   'limiting_case': 'edge_case_analysis',
   'critical_thinking': 'assumption_analysis',
+  'reflective_thinking': 'decision_under_uncertainty',
   'constraints': 'resource_constraints',
   'resource_analysis': 'resource_constraints',
   'data_analysis': 'data_driven',
