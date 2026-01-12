@@ -50,6 +50,7 @@ export interface DeepConfig {
   k: number;  // Always 1-12, validated at parse time
   categories?: string[];  // Filter for module categories
   modules?: string[];     // Explicit module IDs (overrides categories)
+  uniform?: boolean;      // Disable Thompson Sampling, use uniform random
   context: ContextConfig;
   output: OutputConfig;
   verify: VerifyConfig;
@@ -223,6 +224,9 @@ export interface RawFlags {
   // Deep mode distribution
   distributeSolvers?: boolean;  // undefined = not set by CLI (use config)
   solverBackends?: string[];
+  
+  // Deep mode module selection
+  uniform?: boolean;  // Disable Thompson Sampling, use uniform random selection
   
   // Stats command options
   statsModule: boolean;

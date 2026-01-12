@@ -379,6 +379,7 @@ export async function handleDeep(
     context,
     categories: options.categories,
     modules: options.modules,
+    uniform: options.uniform,
     cwd: process.cwd(),
     // Per-stage overrides (CLI > config > defaults)
     solverBackends: solverBackendsResult.backends,

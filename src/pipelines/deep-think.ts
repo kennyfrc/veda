@@ -83,6 +83,8 @@ export interface DeepThinkOptions {
   revisionReasoning?: Reasoning;
   categories?: string[];
   modules?: string[];
+  /** Disable Thompson Sampling, use uniform random selection */
+  uniform?: boolean;
   cwd?: string;
   solverBackends?: string[];  // Array of backends for parallel solvers (supports randomization)
   solverModel?: string;
@@ -141,6 +143,8 @@ export interface SolverOptions {
   cwd: string;
   /** Context data */
   context?: string;
+  /** Win rates for weighted module selection (Thompson Sampling) */
+  winRates?: Map<string, { wins: number; appearances: number }>;
 }
 
 export interface JudgeOptions {
@@ -457,6 +461,14 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     backendModels.set(backend, resolved.model);
   }
 
+  // Load win rates for weighted module selection (Thompson Sampling)
+  // Skip if --uniform flag is set or using explicit modules (those bypass weighted selection)
+  let winRates: Map<string, { wins: number; appearances: number }> | undefined;
+  if (!options.uniform && (!options.modules || options.modules.length === 0)) {
+    const statsStore = new StatsStore();
+    winRates = await statsStore.getModuleWinRates();
+  }
+
   const solverConfig: SolverOptions = {
     k: options.k ?? 3,
     modules: options.modules,
@@ -468,6 +480,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     sandbox: 'read-only',
     cwd: options.cwd ?? process.cwd(),
     context: options.context,
+    winRates,
   };
 
   // Step 3: Resolve judge config
@@ -660,6 +673,7 @@ export async function runSolverEnsemble(
     k: options.k,
     categories: options.modules ? undefined : options.categories,
     modules: options.modules,
+    winRates: options.winRates,
   });
 
   const members: EnsembleMember[] = modules.map((module, i) => {
@@ -936,6 +950,7 @@ export async function* runDeepThink(
           k: solver.k,
           categories: solver.categories,
           modules: solver.modules,
+          winRates: solver.winRates,
         });
 
         const members: EnsembleMember[] = modules.map((module, i) => {

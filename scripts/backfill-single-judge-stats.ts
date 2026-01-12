@@ -58,10 +58,14 @@ async function backfill(traceDir: string): Promise<void> {
   console.log(`Found ${existingRunIds.size} existing entries`);
   
   // Find all YAML trace files recursively
-  const glob = new Bun.Glob('**/*.yaml');
+  const glob = new Bun.Glob('*.yaml');  // Non-recursive to avoid permission issues
   const files: string[] = [];
-  for await (const file of glob.scan({ cwd: traceDir, absolute: true })) {
-    files.push(file);
+  try {
+    for await (const file of glob.scan({ cwd: traceDir, absolute: true })) {
+      files.push(file);
+    }
+  } catch (e) {
+    console.error(`Error scanning directory: ${e}`);
   }
   console.log(`Found ${files.length} trace files in ${traceDir}`);
   

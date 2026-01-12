@@ -223,6 +223,7 @@ function constructDeepInput(
     k: flags.k ?? 6,
     categories: flags.categories,
     modules: flags.modules,
+    uniform: flags.uniform,
     context: constructContextConfig(flags),
     output: constructOutputConfig(flags),
     verify: resolveVerifyConfig(flags),
@@ -307,6 +308,7 @@ function extractFlagsForDryRun(flags: RawFlags): Record<string, unknown> {
   if (flags.trace) result.trace = flags.trace;
   if (flags.distributeSolvers) result.distributeSolvers = true;
   if (flags.solverBackends) result.solverBackends = flags.solverBackends;
+  if (flags.uniform) result.uniform = true;
   
   return result;
 }

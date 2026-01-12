@@ -33,6 +33,7 @@ export interface CliOptions {
 
   distributeSolvers?: boolean;
   solverBackends?: string[];
+  uniform?: boolean;  // Disable Thompson Sampling, use uniform random selection
   
   // Deep mode per-stage reasoning
   solverReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
@@ -210,6 +211,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.distributeSolvers = true;
         i++;
         continue;
+      case '--uniform':
+        options.uniform = true;
+        i++;
+        continue;
       case '--resume':
         options.resume = true;
         i++;
@@ -355,6 +360,7 @@ Options:
   --modules <list>        Module specifiers (comma-separated)
                           Formats: category/module, category (random), module_id
                           Example: analytical/so_what_test,creative,systematic
+  --uniform               Disable Thompson Sampling, use uniform random selection
   --no-verify             Skip verification in deep mode
   --force-verify          Run verification even with high confidence (≥70%)
   --trace <file>          Save trace to YAML file (deep mode)

@@ -59,3 +59,6 @@ export {
   categoryKey,
   KEY_PREFIX,
 } from './derive-matches';
+
+// Sampling utilities for weighted selection
+export { sampleBeta, wilsonLower } from './sampling';

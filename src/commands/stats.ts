@@ -7,6 +7,7 @@ import {
   PairwiseStatsStore,
   StatsStore,
   computeExposure,
+  wilsonLower,
   KEY_PREFIX,
   type EraSelector,
 } from '../stats';
@@ -125,7 +126,7 @@ export async function handleStats(options: StatsOptions): Promise<void> {
   const ranked = entries.slice(0, options.limit);
 
   if (options.json) {
-    const output = ranked.map(e => ({
+    const glicko2Ratings = ranked.map(e => ({
       key: e.displayKey,
       rating: Math.round(e.rating),
       rd: Math.round(e.rd),
@@ -134,7 +135,33 @@ export async function handleStats(options: StatsOptions): Promise<void> {
       games: e.games,
       lastSeen: e.lastTs ?? null,
     }));
-    console.log(JSON.stringify(output, null, 2));
+    
+    // For module groupBy, include single-judge win rates alongside Glicko-2
+    if (options.groupBy === 'module') {
+      const statsStore = new StatsStore();
+      const winRates = await statsStore.getModuleWinRates();
+      
+      const singleJudgeWinRates = [...winRates.values()]
+        .map(m => ({ ...m, wilsonLB: wilsonLower(m.wins, m.appearances) }))
+        .sort((a, b) => b.wilsonLB - a.wilsonLB || b.appearances - a.appearances)
+        .slice(0, options.limit)
+        .map(m => ({
+          key: m.moduleKey,
+          wins: m.wins,
+          appearances: m.appearances,
+          winRate: +m.winRate.toFixed(4),
+          wilsonLower: +m.wilsonLB.toFixed(4),
+          avgConfidence: +m.avgConfidence.toFixed(4),
+          lastSeen: m.lastSeen,
+        }));
+      
+      console.log(JSON.stringify({
+        glicko2Ratings,
+        singleJudgeWinRates,
+      }, null, 2));
+    } else {
+      console.log(JSON.stringify(glicko2Ratings, null, 2));
+    }
     return;
   }
 
@@ -208,29 +235,23 @@ async function displaySingleJudgeWinRates(options: StatsOptions): Promise<void> 
     return; // No single-judge stats, skip this section
   }
 
-  const sorted = [...winRates.values()]
-    .sort((a, b) => b.winRate - a.winRate || b.appearances - a.appearances)
-    .slice(0, options.limit);
-
+  // JSON output is handled in handleStats() to combine with Glicko-2 ratings
   if (options.json) {
-    const output = sorted.map(m => ({
-      key: m.moduleKey,
-      wins: m.wins,
-      appearances: m.appearances,
-      winRate: +m.winRate.toFixed(4),
-      avgConfidence: +m.avgConfidence.toFixed(4),
-      lastSeen: m.lastSeen,
-    }));
-    console.log(JSON.stringify({ singleJudgeWinRates: output }, null, 2));
     return;
   }
+
+  // Sort by Wilson lower bound (more meaningful than raw win rate for small samples)
+  const sorted = [...winRates.values()]
+    .map(m => ({ ...m, wilsonLB: wilsonLower(m.wins, m.appearances) }))
+    .sort((a, b) => b.wilsonLB - a.wilsonLB || b.appearances - a.appearances)
+    .slice(0, options.limit);
 
   const runCount = await statsStore.count();
 
   console.log(`\n${c.cyan('Single-Judge Win Rates')} — Modules (${runCount} runs)\n`);
-  console.log(c.dim('─'.repeat(70)));
-  console.log(`${'#'.padStart(3)}  ${'Module'.padEnd(35)} ${'Win%'.padStart(6)}  ${'W/A'.padStart(7)}  ${'Conf'.padStart(5)}  ${c.dim('Last')}`);
-  console.log(c.dim('─'.repeat(70)));
+  console.log(c.dim('─'.repeat(75)));
+  console.log(`${'#'.padStart(3)}  ${'Module'.padEnd(35)} ${'Win%'.padStart(6)}  ${'W/A'.padStart(7)}  ${'≥LB'.padStart(5)}  ${c.dim('Last')}`);
+  console.log(c.dim('─'.repeat(75)));
 
   for (let i = 0; i < sorted.length; i++) {
     const m = sorted[i];
@@ -240,20 +261,21 @@ async function displaySingleJudgeWinRates(options: StatsOptions): Promise<void> 
       : m.moduleKey.padEnd(35);
     const pct = `${(m.winRate * 100).toFixed(1)}%`.padStart(6);
     const ratio = `${m.wins}/${m.appearances}`.padStart(7);
-    const conf = m.avgConfidence.toFixed(2).padStart(5);
+    const lb = `≥${Math.round(m.wilsonLB * 100)}%`.padStart(5);
     const lastSeen = formatDate(m.lastSeen);
 
+    // Color based on Wilson lower bound (more reliable than raw win rate)
     let keyColor = (s: string) => s;
-    if (m.winRate >= 0.3) keyColor = c.green;
-    else if (m.winRate >= 0.2) keyColor = c.cyan;
-    else if (m.winRate < 0.1 && m.appearances >= 5) keyColor = c.yellow;
+    if (m.wilsonLB >= 0.15) keyColor = c.green;
+    else if (m.wilsonLB >= 0.05) keyColor = c.cyan;
+    else if (m.appearances >= 5 && m.wilsonLB < 0.05) keyColor = c.yellow;
 
     console.log(
-      `${c.dim(rank)}  ${keyColor(displayKey)} ${pct}  ${ratio}  ${c.dim(conf)}  ${c.dim(lastSeen)}`
+      `${c.dim(rank)}  ${keyColor(displayKey)} ${pct}  ${ratio}  ${c.dim(lb)}  ${c.dim(lastSeen)}`
     );
   }
 
-  console.log(c.dim('─'.repeat(70)));
-  console.log(c.dim(`Showing top ${sorted.length} of ${winRates.size} modules`));
-  console.log(c.dim(`Win% = wins/appearances, Conf = avg confidence when winning`));
+  console.log(c.dim('─'.repeat(75)));
+  console.log(c.dim(`Showing top ${sorted.length} of ${winRates.size} modules (sorted by Wilson lower bound)`));
+  console.log(c.dim(`≥LB = 95% confidence lower bound on true win rate`));
 }

@@ -1,3 +1,5 @@
+import { sampleBeta } from '../stats/sampling';
+
 export type ModuleCategory =
   | 'analytical'
   | 'creative'
@@ -28,6 +30,8 @@ export interface SelectModulesOptions {
   categories?: string[];
   modules?: string[];
   registry?: ModuleRegistry;
+  /** Win rates for weighted selection (Thompson Sampling). If undefined, uses uniform random. */
+  winRates?: Map<string, { wins: number; appearances: number }>;
 }
 
 const DEFAULT_MODULES: ReasoningModule[] = [
@@ -377,7 +381,7 @@ function validateModuleIntegrity(modules: ReasoningModule[]): void {
 
 /** Specifiers: "category/module", "category" (random), or "module_id" (legacy) */
 export function selectModules(options: SelectModulesOptions): ReasoningModule[] {
-  const { k, categories, modules, registry = DEFAULT_REGISTRY } = options;
+  const { k, categories, modules, registry = DEFAULT_REGISTRY, winRates } = options;
 
   if (k < 1 || k > 12) {
     throw new Error(`k must be between 1 and 12, got ${k}`);
@@ -388,10 +392,10 @@ export function selectModules(options: SelectModulesOptions): ReasoningModule[] 
   }
 
   if (categories && categories.length > 0) {
-    return selectFromCategories(k, categories, registry);
+    return selectFromCategories(k, categories, registry, winRates);
   }
 
-  return selectDefault(k, registry);
+  return selectDefault(k, registry, winRates);
 }
 
 const LEGACY_MODULE_ALIASES: Record<string, string> = {
@@ -516,7 +520,14 @@ function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): R
   return result;
 }
 
-function selectFromCategories(k: number, categoryNames: string[], registry: ModuleRegistry): ReasoningModule[] {
+type WinRateMap = Map<string, { wins: number; appearances: number }>;
+
+function selectFromCategories(
+  k: number,
+  categoryNames: string[],
+  registry: ModuleRegistry,
+  winRates?: WinRateMap,
+): ReasoningModule[] {
   const normalized = categoryNames.map(normalizeId) as ModuleCategory[];
   const validatedCategories = validateAndCanonicalizeCategories(normalized, registry.allCategories);
 
@@ -536,7 +547,9 @@ function selectFromCategories(k: number, categoryNames: string[], registry: Modu
   for (const [cat, count] of categoryCounts) {
     const categoryModules = registry.byCategory[cat];
     if (categoryModules && categoryModules.length > 0) {
-      const selected = randomSample(categoryModules, count);
+      const selected = winRates && winRates.size > 0
+        ? weightedSample(categoryModules, count, winRates)
+        : randomSample(categoryModules, count);
       result.push(...selected);
     }
   }
@@ -544,13 +557,17 @@ function selectFromCategories(k: number, categoryNames: string[], registry: Modu
   return shuffle(result);
 }
 
-function selectDefault(k: number, registry: ModuleRegistry): ReasoningModule[] {
+function selectDefault(k: number, registry: ModuleRegistry, winRates?: WinRateMap): ReasoningModule[] {
   const numCategories = registry.allCategories.length;
+  const useWeighted = winRates && winRates.size > 0;
 
   if (k <= numCategories) {
     const selectedCategories = randomSample(registry.allCategories, k);
     return selectedCategories.map(cat => {
       const modules = registry.byCategory[cat];
+      if (useWeighted) {
+        return selectOneWeighted(modules, winRates);
+      }
       const randomIndex = Math.floor(Math.random() * modules.length);
       return modules[randomIndex];
     });
@@ -571,13 +588,23 @@ function selectDefault(k: number, registry: ModuleRegistry): ReasoningModule[] {
     const available = modules.filter(m => !used.has(m.id));
 
     if (available.length > 0) {
-      const randomIndex = Math.floor(Math.random() * available.length);
-      const selected = available[randomIndex];
-      result.push(selected);
-      used.add(selected.id);
+      if (useWeighted) {
+        const selected = selectOneWeighted(available, winRates);
+        result.push(selected);
+        used.add(selected.id);
+      } else {
+        const randomIndex = Math.floor(Math.random() * available.length);
+        const selected = available[randomIndex];
+        result.push(selected);
+        used.add(selected.id);
+      }
     } else {
-      const randomIndex = Math.floor(Math.random() * modules.length);
-      result.push(modules[randomIndex]);
+      if (useWeighted) {
+        result.push(selectOneWeighted(modules, winRates));
+      } else {
+        const randomIndex = Math.floor(Math.random() * modules.length);
+        result.push(modules[randomIndex]);
+      }
     }
   }
 
@@ -645,6 +672,62 @@ function randomSample<T>(arr: T[], n: number): T[] {
     result.push(copy.splice(idx, 1)[0]);
   }
   
+  return result;
+}
+
+/**
+ * Thompson Sampling: select one module weighted by Beta posterior samples.
+ * Each module gets Beta(wins+1, losses+1) sample; highest sample wins.
+ */
+function selectOneWeighted(modules: ReasoningModule[], winRates: WinRateMap): ReasoningModule {
+  if (modules.length === 0) {
+    throw new Error('Cannot select from empty module list');
+  }
+  if (modules.length === 1) {
+    return modules[0];
+  }
+
+  let best = modules[0];
+  let bestSample = -1;
+
+  for (const m of modules) {
+    const key = `${m.category}/${m.id}`;
+    const stats = winRates.get(key);
+    const wins = stats?.wins ?? 0;
+    const appearances = stats?.appearances ?? 0;
+    const losses = appearances - wins;
+
+    // Beta(wins+1, losses+1) - Laplace smoothing prior
+    const sample = sampleBeta(wins + 1, losses + 1);
+    if (sample > bestSample) {
+      bestSample = sample;
+      best = m;
+    }
+  }
+
+  return best;
+}
+
+/**
+ * Sample n modules using Thompson Sampling (without replacement).
+ */
+function weightedSample(modules: ReasoningModule[], n: number, winRates: WinRateMap): ReasoningModule[] {
+  if (n >= modules.length) {
+    return [...modules];
+  }
+
+  const result: ReasoningModule[] = [];
+  const remaining = [...modules];
+
+  for (let i = 0; i < n && remaining.length > 0; i++) {
+    const selected = selectOneWeighted(remaining, winRates);
+    result.push(selected);
+    const idx = remaining.indexOf(selected);
+    if (idx >= 0) {
+      remaining.splice(idx, 1);
+    }
+  }
+
   return result;
 }
 
