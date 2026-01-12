@@ -30,7 +30,9 @@ import {
 } from './prompts';
 import {
   PairwiseStatsStore,
+  StatsStore,
   type PairwiseStatEntryV2,
+  type StatEntryV3,
   type CandidateMetadata,
   type VoteRecord,
   type PairResultRecord,
@@ -1434,6 +1436,43 @@ export async function* runDeepThink(
           };
           
           new PairwiseStatsStore().append(pairwiseEntry).catch(() => {});
+        }
+
+        // Record single-judge stats for win rate tracking
+        if (effectiveMode === 'single' && trace.solve.candidates.length > 0) {
+          const timestamp = new Date().toISOString();
+          const promptHash = Bun.hash(prompt).toString(16).padStart(16, '0').slice(0, 16);
+          const selectedOutputsIdx = successfulToOutputsMap.get(judgeResult.selectedIndex) ?? 0;
+          const winnerCandidate = trace.solve.candidates[selectedOutputsIdx];
+          
+          if (winnerCandidate) {
+            const singleJudgeEntry: StatEntryV3 = {
+              version: 3,
+              timestamp,
+              promptHash,
+              runId: options.runIdentityHash ?? `${timestamp}-${promptHash}`,
+              judgeMode: 'single',
+              judge: {
+                backend: judge.backend,
+                model: judge.model,
+              },
+              winner: {
+                category: winnerCandidate.module.category,
+                moduleId: winnerCandidate.module.id,
+              },
+              participants: trace.solve.candidates.map(c => ({
+                category: c.module.category,
+                moduleId: c.module.id,
+              })),
+              confidence: {
+                level: judgeResult.confidence >= 0.7 ? 'high'
+                     : judgeResult.confidence >= 0.4 ? 'medium' : 'low',
+                score: judgeResult.confidence,
+              },
+            };
+            
+            new StatsStore().append(singleJudgeEntry).catch(() => {});
+          }
         }
 
         // Transform winnerRationales to include labels instead of candidateIds for display

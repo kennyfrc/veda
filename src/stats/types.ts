@@ -77,3 +77,56 @@ export interface GroupAgg {
 }
 
 export type GroupByMode = 'module' | 'category' | 'backend';
+
+/**
+ * Version 3: Single-judge with participant tracking for win rate computation.
+ * 
+ * Key addition: `participants` array enables computing win rate as
+ * wins/appearances rather than just counting wins.
+ */
+export interface StatEntryV3 {
+  version: 3;
+  timestamp: string;
+  promptHash: string;
+  /** Unique run identifier for deduplication (trace file hash or UUID) */
+  runId: string;
+  judgeMode: 'single';
+  
+  judge: {
+    backend: string;
+    model: string;
+  };
+  
+  /** The winning candidate */
+  winner: {
+    category: string;
+    moduleId: string;
+  };
+  
+  /** All candidates that participated (including winner) */
+  participants: Array<{
+    category: string;
+    moduleId: string;
+  }>;
+  
+  confidence: {
+    level: ConfidenceLevel;
+    score: number;  // Raw 0-1 from judge
+  };
+}
+
+/** Union of all stat entry versions */
+export type AnyStatEntry = StatEntry | StatEntryV3;
+
+/**
+ * Aggregated win rate for a module.
+ * Computed at query time from v3 entries.
+ */
+export interface ModuleWinRate {
+  moduleKey: string;       // "category/moduleId"
+  wins: number;
+  appearances: number;
+  winRate: number;         // wins / appearances
+  avgConfidence: number;   // avg confidence when winning
+  lastSeen: string;
+}

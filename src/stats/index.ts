@@ -1,6 +1,9 @@
 // Legacy exports (for backward compatibility)
 export type {
   StatEntry,
+  StatEntryV3,
+  AnyStatEntry,
+  ModuleWinRate,
   GroupAgg,
   GroupByMode,
   ConfidenceLevel,

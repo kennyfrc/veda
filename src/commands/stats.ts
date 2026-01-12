@@ -5,6 +5,7 @@
 import {
   RatingsStore,
   PairwiseStatsStore,
+  StatsStore,
   computeExposure,
   KEY_PREFIX,
   type EraSelector,
@@ -188,4 +189,71 @@ export async function handleStats(options: StatsOptions): Promise<void> {
   console.log(c.dim('─'.repeat(80)));
   console.log(c.dim(`Showing top ${ranked.length} of ${entries.length} ${modeLabel.toLowerCase()}s`));
   console.log(c.dim(`Rating? = high uncertainty (RD>200), ~ = medium (RD>100)`));
+
+  // Show single-judge win rates for module groupBy
+  if (options.groupBy === 'module') {
+    await displaySingleJudgeWinRates(options);
+  }
+}
+
+/**
+ * Display single-judge module win rates.
+ * Shown after Glicko-2 ratings when groupBy is 'module'.
+ */
+async function displaySingleJudgeWinRates(options: StatsOptions): Promise<void> {
+  const statsStore = new StatsStore();
+  const winRates = await statsStore.getModuleWinRates();
+
+  if (winRates.size === 0) {
+    return; // No single-judge stats, skip this section
+  }
+
+  const sorted = [...winRates.values()]
+    .sort((a, b) => b.winRate - a.winRate || b.appearances - a.appearances)
+    .slice(0, options.limit);
+
+  if (options.json) {
+    const output = sorted.map(m => ({
+      key: m.moduleKey,
+      wins: m.wins,
+      appearances: m.appearances,
+      winRate: +m.winRate.toFixed(4),
+      avgConfidence: +m.avgConfidence.toFixed(4),
+      lastSeen: m.lastSeen,
+    }));
+    console.log(JSON.stringify({ singleJudgeWinRates: output }, null, 2));
+    return;
+  }
+
+  const runCount = await statsStore.count();
+
+  console.log(`\n${c.cyan('Single-Judge Win Rates')} — Modules (${runCount} runs)\n`);
+  console.log(c.dim('─'.repeat(70)));
+  console.log(`${'#'.padStart(3)}  ${'Module'.padEnd(35)} ${'Win%'.padStart(6)}  ${'W/A'.padStart(7)}  ${'Conf'.padStart(5)}  ${c.dim('Last')}`);
+  console.log(c.dim('─'.repeat(70)));
+
+  for (let i = 0; i < sorted.length; i++) {
+    const m = sorted[i];
+    const rank = `${i + 1}`.padStart(3);
+    const displayKey = m.moduleKey.length > 35
+      ? m.moduleKey.slice(0, 32) + '...'
+      : m.moduleKey.padEnd(35);
+    const pct = `${(m.winRate * 100).toFixed(1)}%`.padStart(6);
+    const ratio = `${m.wins}/${m.appearances}`.padStart(7);
+    const conf = m.avgConfidence.toFixed(2).padStart(5);
+    const lastSeen = formatDate(m.lastSeen);
+
+    let keyColor = (s: string) => s;
+    if (m.winRate >= 0.3) keyColor = c.green;
+    else if (m.winRate >= 0.2) keyColor = c.cyan;
+    else if (m.winRate < 0.1 && m.appearances >= 5) keyColor = c.yellow;
+
+    console.log(
+      `${c.dim(rank)}  ${keyColor(displayKey)} ${pct}  ${ratio}  ${c.dim(conf)}  ${c.dim(lastSeen)}`
+    );
+  }
+
+  console.log(c.dim('─'.repeat(70)));
+  console.log(c.dim(`Showing top ${sorted.length} of ${winRates.size} modules`));
+  console.log(c.dim(`Win% = wins/appearances, Conf = avg confidence when winning`));
 }
