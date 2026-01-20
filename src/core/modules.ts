@@ -1,4 +1,4 @@
-import { sampleBeta } from '../stats/sampling';
+import { sampleBeta, wilsonLower } from '../stats/sampling';
 
 export type ModuleCategory =
   | 'analytical'
@@ -32,6 +32,8 @@ export interface SelectModulesOptions {
   registry?: ModuleRegistry;
   /** Win rates for weighted selection (Thompson Sampling). If undefined, uses uniform random. */
   winRates?: Map<string, { wins: number; appearances: number }>;
+  /** Bias module selection toward low-appearance modules (single-judge only; strategy implemented elsewhere). */
+  lowCountModules?: boolean;
 }
 
 const DEFAULT_MODULES: ReasoningModule[] = [
@@ -381,7 +383,7 @@ function validateModuleIntegrity(modules: ReasoningModule[]): void {
 
 /** Specifiers: "category/module", "category" (random), or "module_id" (legacy) */
 export function selectModules(options: SelectModulesOptions): ReasoningModule[] {
-  const { k, categories, modules, registry = DEFAULT_REGISTRY, winRates } = options;
+  const { k, categories, modules, registry = DEFAULT_REGISTRY, winRates, lowCountModules } = options;
 
   if (k < 1 || k > 12) {
     throw new Error(`k must be between 1 and 12, got ${k}`);
@@ -391,8 +393,14 @@ export function selectModules(options: SelectModulesOptions): ReasoningModule[] 
     return selectFromSpecifiers(modules, registry);
   }
 
+  const useLowCount = !!lowCountModules && !!winRates && winRates.size > 0;
+
   if (categories && categories.length > 0) {
-    return selectFromCategories(k, categories, registry, winRates);
+    return selectFromCategories(k, categories, registry, winRates, useLowCount);
+  }
+
+  if (useLowCount) {
+    return selectLowCountDefault(k, registry, winRates);
   }
 
   return selectDefault(k, registry, winRates);
@@ -522,11 +530,82 @@ function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): R
 
 type WinRateMap = Map<string, { wins: number; appearances: number }>;
 
+function selectLowCountDefault(k: number, registry: ModuleRegistry, winRates: WinRateMap): ReasoningModule[] {
+  return shuffle(selectLowCountMix(registry.modules, k, winRates));
+}
+
+/**
+ * Low-count-biased selection: mostly explore the least-seen modules,
+ * while reserving (at most) one slot for a high-performing module.
+ */
+function selectLowCountMix(modules: ReasoningModule[], k: number, winRates: WinRateMap): ReasoningModule[] {
+  if (k >= modules.length) {
+    return [...modules];
+  }
+
+  // Heuristic: reserve 1 "elite" slot for k>=2, otherwise explore.
+  const eliteQuota = k >= 2 ? 1 : 0;
+  const lowQuota = k - eliteQuota;
+
+  const appearancesFor = (m: ReasoningModule): number => {
+    const key = `${m.category}/${m.id}`;
+    return winRates.get(key)?.appearances ?? 0;
+  };
+
+  const winsFor = (m: ReasoningModule): number => {
+    const key = `${m.category}/${m.id}`;
+    return winRates.get(key)?.wins ?? 0;
+  };
+
+  // 1) Pick low-count modules first (ties broken randomly).
+  const lowSorted = [...modules].sort((a, b) => {
+    const da = appearancesFor(a) - appearancesFor(b);
+    if (da !== 0) return da;
+    return Math.random() - 0.5;
+  });
+
+  const lowSelected = lowSorted.slice(0, lowQuota);
+  const chosenIds = new Set(lowSelected.map(m => m.id));
+
+  // 2) Pick from "top N" by Wilson lower bound, excluding already chosen.
+  const remaining = modules.filter(m => !chosenIds.has(m.id));
+  const eliteSelected: ReasoningModule[] = [];
+
+  if (eliteQuota > 0 && remaining.length > 0) {
+    const scored = remaining
+      .map(m => {
+        const wins = winsFor(m);
+        const apps = appearancesFor(m);
+        return { m, wilsonLB: wilsonLower(wins, apps), appearances: apps };
+      })
+      .sort((a, b) => (b.wilsonLB - a.wilsonLB) || (b.appearances - a.appearances) || (Math.random() - 0.5));
+
+    const elitePoolSize = Math.min(10, scored.length);
+    const elitePool = scored.slice(0, elitePoolSize).map(s => s.m);
+
+    eliteSelected.push(...elitePool.slice(0, eliteQuota));
+    for (const m of eliteSelected) {
+      chosenIds.add(m.id);
+    }
+  }
+
+  // 3) If we couldn't fill k (small pool), fill from remaining uniformly.
+  const selected = [...lowSelected, ...eliteSelected];
+  const needed = k - selected.length;
+  if (needed > 0) {
+    const fillFrom = modules.filter(m => !chosenIds.has(m.id));
+    selected.push(...randomSample(fillFrom, needed));
+  }
+
+  return selected;
+}
+
 function selectFromCategories(
   k: number,
   categoryNames: string[],
   registry: ModuleRegistry,
-  winRates?: WinRateMap,
+  winRates: WinRateMap | undefined,
+  lowCountModules: boolean,
 ): ReasoningModule[] {
   const normalized = categoryNames.map(normalizeId) as ModuleCategory[];
   const validatedCategories = validateAndCanonicalizeCategories(normalized, registry.allCategories);
@@ -547,9 +626,11 @@ function selectFromCategories(
   for (const [cat, count] of categoryCounts) {
     const categoryModules = registry.byCategory[cat];
     if (categoryModules && categoryModules.length > 0) {
-      const selected = winRates && winRates.size > 0
-        ? weightedSample(categoryModules, count, winRates)
-        : randomSample(categoryModules, count);
+      const selected = lowCountModules
+        ? selectLowCountMix(categoryModules, count, winRates!)
+        : (winRates && winRates.size > 0
+          ? weightedSample(categoryModules, count, winRates)
+          : randomSample(categoryModules, count));
       result.push(...selected);
     }
   }

@@ -194,6 +194,7 @@ export async function handleDeep(
           verify: !options.noVerify,
           categories: options.categories,
           modules: options.modules,
+          lowCountModules: options.lowCountModules,
         },
       });
 
@@ -366,6 +367,7 @@ export async function handleDeep(
       verify: !options.noVerify,
       categories: options.categories,
       modules: options.modules,
+      lowCountModules: options.lowCountModules,
     },
   });
 
@@ -380,6 +382,7 @@ export async function handleDeep(
     categories: options.categories,
     modules: options.modules,
     uniform: options.uniform,
+    lowCountModules: options.lowCountModules,
     cwd: process.cwd(),
     // Per-stage overrides (CLI > config > defaults)
     solverBackends: solverBackendsResult.backends,

@@ -41,6 +41,7 @@ const BOOLEAN_FLAGS = new Set([
   '--force-verify',
   '--distribute-solvers',
   '--uniform',
+  '--low-count-modules',
   '--json',
   '--notify',
   '--no-notify',
@@ -135,6 +136,7 @@ export function tokenizeArgv(argv: string[]): { flags: RawFlags; positionals: st
     forceVerify: false,
     distributeSolvers: undefined,  // undefined = not set by CLI, use config
     uniform: false,
+    lowCountModules: false,
     statsModule: false,
     statsCategory: false,
     statsModel: false,
@@ -320,6 +322,9 @@ function parseBooleanFlag(flags: RawFlags, flag: string): void {
       break;
     case '--uniform':
       flags.uniform = true;
+      break;
+    case '--low-count-modules':
+      flags.lowCountModules = true;
       break;
     case '--json':
       flags.json = true;

@@ -48,6 +48,8 @@ Which flags apply to which commands?
 | `-k` | ❌ | ✅ | ❌ | ❌ | Number of solvers (1-8) |
 | `--categories` | ❌ | ✅ | ❌ | ❌ | Reasoning categories |
 | `--modules` | ❌ | ✅ | ❌ | ❌ | Exact modules |
+| `--uniform` | ❌ | ✅ | ❌ | ❌ | Disable Thompson Sampling (uniform random module selection) |
+| `--low-count-modules` | ❌ | ✅ | ❌ | ❌ | Bias module selection toward low-appearance modules (single-judge) |
 | `--no-verify` | ❌ | ✅ | ❌ | ❌ | Skip verification |
 | `--force-verify` | ❌ | ✅ | ❌ | ❌ | Always verify |
 | `--trace` | ❌ | ✅ | ❌ | ❌ | Save trace YAML |

@@ -128,6 +128,64 @@ describe('Reasoning Modules', () => {
       expect(counts.filter(c => c === 2).length).toBe(3);
     });
 
+    test('lowCountModules: k=4 selects 3 lowest-appearance modules + 1 elite module', () => {
+      const registry = createModuleRegistry([
+        { id: 'low_a', category: 'analytical', name: 'Low A', prompt: 'p' },
+        { id: 'low_b', category: 'creative', name: 'Low B', prompt: 'p' },
+        { id: 'low_c', category: 'systematic', name: 'Low C', prompt: 'p' },
+        { id: 'elite', category: 'strategic', name: 'Elite', prompt: 'p' },
+        { id: 'mid_1', category: 'evaluative', name: 'Mid 1', prompt: 'p' },
+        { id: 'mid_2', category: 'contextual', name: 'Mid 2', prompt: 'p' },
+      ]);
+
+      const winRates = new Map<string, { wins: number; appearances: number }>([
+        ['analytical/low_a', { wins: 0, appearances: 1 }],
+        ['creative/low_b', { wins: 0, appearances: 2 }],
+        ['systematic/low_c', { wins: 0, appearances: 3 }],
+        ['strategic/elite', { wins: 9, appearances: 10 }],
+        ['evaluative/mid_1', { wins: 1, appearances: 10 }],
+        ['contextual/mid_2', { wins: 1, appearances: 10 }],
+      ]);
+
+      const result = selectModules({
+        k: 4,
+        registry,
+        winRates,
+        lowCountModules: true,
+      });
+
+      expect(result.length).toBe(4);
+      const ids = new Set(result.map(m => m.id));
+      expect(ids).toEqual(new Set(['low_a', 'low_b', 'low_c', 'elite']));
+    });
+
+    test('lowCountModules + categories: mixes low-count and elite within the category', () => {
+      const registry = createModuleRegistry([
+        { id: 'a0', category: 'analytical', name: 'A0', prompt: 'p' },
+        { id: 'a1', category: 'analytical', name: 'A1', prompt: 'p' },
+        { id: 'a2', category: 'analytical', name: 'A2', prompt: 'p' },
+      ]);
+
+      const winRates = new Map<string, { wins: number; appearances: number }>([
+        ['analytical/a0', { wins: 0, appearances: 0 }],
+        ['analytical/a1', { wins: 5, appearances: 6 }],
+        ['analytical/a2', { wins: 0, appearances: 2 }],
+      ]);
+
+      const result = selectModules({
+        k: 2,
+        categories: ['analytical'],
+        registry,
+        winRates,
+        lowCountModules: true,
+      });
+
+      expect(result.length).toBe(2);
+      const ids = new Set(result.map(m => m.id));
+      // one low-count (a0), one elite-ish (a1)
+      expect(ids).toEqual(new Set(['a0', 'a1']));
+    });
+
     test('exact modules: uses specified modules', () => {
       const result = selectModules({
         k: 5, // ignored

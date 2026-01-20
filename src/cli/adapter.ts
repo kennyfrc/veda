@@ -86,6 +86,7 @@ export function deepConfigToCliOptions(config: DeepConfig): CliOptions {
   options.categories = config.categories;
   options.modules = config.modules;
   options.uniform = config.uniform;
+  options.lowCountModules = config.lowCountModules;
 
   // Handle per-stage reasoning
   if (config.stages.solver.reasoning) {

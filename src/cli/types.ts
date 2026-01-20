@@ -51,6 +51,7 @@ export interface DeepConfig {
   categories?: string[];  // Filter for module categories
   modules?: string[];     // Explicit module IDs (overrides categories)
   uniform?: boolean;      // Disable Thompson Sampling, use uniform random
+  lowCountModules?: boolean; // Bias selection toward low-appearance modules (single-judge only)
   context: ContextConfig;
   output: OutputConfig;
   verify: VerifyConfig;
@@ -227,6 +228,7 @@ export interface RawFlags {
   
   // Deep mode module selection
   uniform?: boolean;  // Disable Thompson Sampling, use uniform random selection
+  lowCountModules?: boolean;  // Bias module selection toward low-appearance modules (single-judge only)
   
   // Stats command options
   statsModule: boolean;

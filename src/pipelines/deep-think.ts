@@ -85,6 +85,8 @@ export interface DeepThinkOptions {
   modules?: string[];
   /** Disable Thompson Sampling, use uniform random selection */
   uniform?: boolean;
+  /** Bias module selection toward low-appearance modules (single-judge only; ignored otherwise) */
+  lowCountModules?: boolean;
   cwd?: string;
   solverBackends?: string[];  // Array of backends for parallel solvers (supports randomization)
   solverModel?: string;
@@ -145,6 +147,8 @@ export interface SolverOptions {
   context?: string;
   /** Win rates for weighted module selection (Thompson Sampling) */
   winRates?: Map<string, { wins: number; appearances: number }>;
+  /** Bias module selection toward low-appearance modules (single-judge only; ignored otherwise) */
+  lowCountModules?: boolean;
 }
 
 export interface JudgeOptions {
@@ -461,6 +465,25 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     backendModels.set(backend, resolved.model);
   }
 
+  // Requested judge mode (default to 'pairwise' for better cross-backend comparison)
+  const requestedJudgeMode: JudgeMode = options.judgeMode ?? 'pairwise';
+
+  // Low-count module bias should only apply when the *effective* judge mode is single.
+  // (Single-judge stats are the data source for appearances/wins.)
+  const solverK = options.k ?? 3;
+  const plannedCandidateInfos: CandidateInfo[] = Array.from({ length: solverK }, (_, i) => ({
+    id: `planned-${i}`,
+    solverBackend: solverBackends[i % solverBackends.length],
+    content: '',
+  }));
+  const effectiveJudgeModeForModuleSelection = getEffectiveJudgeMode(requestedJudgeMode, plannedCandidateInfos);
+
+  const enableLowCountModules =
+    !!options.lowCountModules &&
+    effectiveJudgeModeForModuleSelection === 'single' &&
+    !options.uniform &&
+    (!options.modules || options.modules.length === 0);
+
   // Load win rates for weighted module selection (Thompson Sampling)
   // Skip if --uniform flag is set or using explicit modules (those bypass weighted selection)
   let winRates: Map<string, { wins: number; appearances: number }> | undefined;
@@ -470,7 +493,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   }
 
   const solverConfig: SolverOptions = {
-    k: options.k ?? 3,
+    k: solverK,
     modules: options.modules,
     categories: options.categories,
     backends: solverBackends,
@@ -481,6 +504,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     cwd: options.cwd ?? process.cwd(),
     context: options.context,
     winRates,
+    lowCountModules: enableLowCountModules,
   };
 
   // Step 3: Resolve judge config
@@ -516,9 +540,6 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   if (!judge.model) {
     throw new Error(`Unable to resolve model for judge backend '${judge.backend}'. Specify --judge-model or set MODEL in config.`);
   }
-
-  // Requested judge mode (default to 'pairwise' for better cross-backend comparison)
-  const requestedJudgeMode: JudgeMode = options.judgeMode ?? 'pairwise';
 
   // Build per-backend model map for pairwise/multi-judge modes
   // Each judge backend uses its own default model (not overridden by options.judgeModel)
@@ -674,6 +695,7 @@ export async function runSolverEnsemble(
     categories: options.modules ? undefined : options.categories,
     modules: options.modules,
     winRates: options.winRates,
+    lowCountModules: options.lowCountModules,
   });
 
   const members: EnsembleMember[] = modules.map((module, i) => {
@@ -951,6 +973,7 @@ export async function* runDeepThink(
           categories: solver.categories,
           modules: solver.modules,
           winRates: solver.winRates,
+          lowCountModules: solver.lowCountModules,
         });
 
         const members: EnsembleMember[] = modules.map((module, i) => {

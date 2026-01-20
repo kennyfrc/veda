@@ -34,6 +34,7 @@ export interface CliOptions {
   distributeSolvers?: boolean;
   solverBackends?: string[];
   uniform?: boolean;  // Disable Thompson Sampling, use uniform random selection
+  lowCountModules?: boolean;  // Bias selection toward low-appearance modules (single-judge only)
   
   // Deep mode per-stage reasoning
   solverReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
@@ -215,6 +216,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.uniform = true;
         i++;
         continue;
+      case '--low-count-modules':
+        options.lowCountModules = true;
+        i++;
+        continue;
       case '--resume':
         options.resume = true;
         i++;
@@ -361,6 +366,7 @@ Options:
                           Formats: category/module, category (random), module_id
                           Example: analytical/so_what_test,creative,systematic
   --uniform               Disable Thompson Sampling, use uniform random selection
+  --low-count-modules     Bias module selection toward low-appearance modules (single-judge)
   --no-verify             Skip verification in deep mode
   --force-verify          Run verification even with high confidence (≥70%)
   --trace <file>          Save trace to YAML file (deep mode)
