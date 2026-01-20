@@ -13,6 +13,36 @@ bun test
 bun run typecheck
 ```
 
+## Release (version/tag sync)
+
+When cutting a release, keep **`package.json` version** and the **git tag** in sync:
+
+- `package.json` version: `X.Y.Z`
+- git tag: `vX.Y.Z`
+
+Recommended flow:
+
+```bash
+# 1) Bump version in package.json
+
+# 2) Verify
+bun test
+bun run typecheck
+bun run build
+
+# 3) Commit + tag (tag should match package.json)
+VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")
+
+git commit -am "chore(release): v$VERSION"
+# or if you want explicit paths:
+# git add -- package.json src/... && git commit -m "chore(release): v$VERSION" -- package.json src/...
+
+git tag -a "v$VERSION" -m "v$VERSION"
+
+# 4) Push
+# git push && git push --tags
+```
+
 ## Code
 
 - TypeScript with strict mode

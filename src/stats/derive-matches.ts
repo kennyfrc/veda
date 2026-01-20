@@ -1,7 +1,7 @@
 /**
  * Derive Glicko-2 Matches from Pairwise Stats
  * 
- * Maps a PairwiseStatEntry to match arrays for each entity type:
+ * Maps a pairwise stat entry to match arrays for each entity type:
  * - solver models (backend:model)
  * - modules (category/moduleId)
  * - categories
@@ -9,7 +9,7 @@
  */
 
 import type {
-  PairwiseStatEntry,
+  AnyPairwiseStatEntry,
   CandidateMetadata,
   VoteRecord,
   MatchesByKey,
@@ -58,7 +58,7 @@ function outcomeToScores(outcome: VoteOutcome): { scoreA: 0 | 0.5 | 1; scoreB: 0
  * Each vote = one match between the two candidates' solver models.
  */
 export function deriveModelMatches(
-  entry: PairwiseStatEntry
+  entry: AnyPairwiseStatEntry
 ): MatchesByKey {
   const candidateMap = new Map<string, CandidateMetadata>();
   for (const c of entry.candidates) {
@@ -99,7 +99,7 @@ export function deriveModelMatches(
  * Each vote = one match between the two candidates' modules.
  */
 export function deriveModuleMatches(
-  entry: PairwiseStatEntry
+  entry: AnyPairwiseStatEntry
 ): MatchesByKey {
   const candidateMap = new Map<string, CandidateMetadata>();
   for (const c of entry.candidates) {
@@ -140,7 +140,7 @@ export function deriveModuleMatches(
  * Each vote = one match between the two candidates' categories.
  */
 export function deriveCategoryMatches(
-  entry: PairwiseStatEntry
+  entry: AnyPairwiseStatEntry
 ): MatchesByKey {
   const candidateMap = new Map<string, CandidateMetadata>();
   for (const c of entry.candidates) {
@@ -186,7 +186,7 @@ export function deriveCategoryMatches(
  * - If verdict is tie/split: draw for all
  */
 export function deriveJudgeMatches(
-  entry: PairwiseStatEntry
+  entry: AnyPairwiseStatEntry
 ): MatchesByKey {
   // Build pair verdict lookup
   const pairVerdicts = new Map<string, VoteOutcome | 'split'>();
@@ -295,7 +295,7 @@ export function deriveJudgeMatches(
  * Derive all matches from a pairwise stat entry.
  * Returns matches grouped by entity type.
  */
-export function deriveAllMatches(entry: PairwiseStatEntry): {
+export function deriveAllMatches(entry: AnyPairwiseStatEntry): {
   judges: MatchesByKey;
   models: MatchesByKey;
   modules: MatchesByKey;
