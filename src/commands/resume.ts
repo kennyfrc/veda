@@ -126,6 +126,13 @@ export async function handleResume(
   // Notify on completion
   if (options.notify ?? globalConfig.notify ?? true) {
     const { notify, formatNotifyMessage } = await import('../util/notify');
-    notify({ title: 'Veda', message: formatNotifyMessage(prompt), subtitle: options.session, backend: backendName, model: config.model });
+    notify({
+      title: 'Veda',
+      message: formatNotifyMessage(prompt),
+      subtitle: options.session,
+      backend: backendName,
+      model: config.model,
+      sound: options.notifySound ?? globalConfig.notifySound,
+    });
   }
 }

@@ -27,6 +27,7 @@ export function simpleConfigToCliOptions(config: SimpleConfig): CliOptions {
     output: outputConfigToPath(config.output),
     json: config.output.format === 'json',
     notify: config.notify,
+    notifySound: config.notifySound,
     // Deep mode flags are not applicable
     deep: false,
     noVerify: false,
@@ -48,6 +49,7 @@ export function deepConfigToCliOptions(config: DeepConfig): CliOptions {
     output: outputConfigToPath(config.output),
     json: config.output.format === 'json',
     notify: config.notify,
+    notifySound: config.notifySound,
     deep: true,
     k: config.k,
     trace: config.trace,
@@ -118,6 +120,7 @@ export function resumeConfigToCliOptions(config: ResumeConfig): CliOptions {
     output: outputConfigToPath(config.output),
     json: config.output.format === 'json',
     notify: config.notify,
+    notifySound: config.notifySound,
     // Not applicable to resume
     deep: false,
     noVerify: false,

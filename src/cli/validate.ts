@@ -56,6 +56,7 @@ const FLAG_DISPLAY_NAMES: Record<string, string> = {
   persona: '--persona',
   reasoning: '--reasoning',
   sandbox: '--sandbox',
+  notifySound: '--notify-sound',
 };
 
 /** Flags that only apply to simple prompt or resume (not deep) */

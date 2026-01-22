@@ -17,6 +17,10 @@ const DEFAULT_CONFIG = `# veda configuration
 
 # Default backend (codex, claude, gemini)
 # BACKEND="codex"
+
+# Notifications
+# NOTIFY="true"
+# NOTIFY_SOUND="Purr"  # macOS sound name, full path, or "none" to disable sound
 `;
 
 const NAVIGATOR_PLAN_PROMPT = `---

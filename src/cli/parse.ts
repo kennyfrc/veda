@@ -23,6 +23,7 @@ const FLAGS_WITH_VALUES = new Set([
   '--categories',
   '--modules',
   '--trace',
+  '--notify-sound',
   '--solver-backend', '--solver-model',
   '--judge-backend', '--judge-model',
   '--verifier-backend', '--verifier-model',
@@ -253,6 +254,9 @@ function parseFlagWithValue(flags: RawFlags, flag: string, value: string): void 
       break;
     case '--trace':
       flags.trace = value;
+      break;
+    case '--notify-sound':
+      flags.notifySound = value;
       break;
     case '--solver-backend':
       flags.solverBackend = value;

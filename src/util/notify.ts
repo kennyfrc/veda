@@ -6,12 +6,16 @@ const BACKEND_DISPLAY_NAMES: Record<string, string> = {
   'gemini-cli': 'Gemini',
 };
 
+const SYSTEM_SOUND_DIR = '/System/Library/Sounds';
+const DEFAULT_NOTIFY_SOUND = 'Purr';
+
 export interface NotifyOptions {
   title: string;
   message: string;
   subtitle?: string;
   backend?: string;
   model?: string;
+  sound?: string;
 }
 
 export function truncate(str: string, maxLength: number = 50): string {
@@ -38,6 +42,25 @@ export function formatBackendModel(backend?: string, model?: string): string | u
   return displayName;
 }
 
+export function resolveNotifySoundPath(sound?: string): string | null {
+  const trimmed = sound?.trim();
+  if (!trimmed) {
+    return `${SYSTEM_SOUND_DIR}/${DEFAULT_NOTIFY_SOUND}.aiff`;
+  }
+
+  const lowered = trimmed.toLowerCase();
+  if (lowered === 'none' || lowered === 'off' || lowered === 'silent') {
+    return null;
+  }
+
+  if (trimmed.includes('/')) {
+    return trimmed;
+  }
+
+  const fileName = trimmed.endsWith('.aiff') ? trimmed : `${trimmed}.aiff`;
+  return `${SYSTEM_SOUND_DIR}/${fileName}`;
+}
+
 /**
  * Send a system notification using macOS osascript and play a sound.
  * Fails gracefully on non-macOS platforms.
@@ -45,7 +68,7 @@ export function formatBackendModel(backend?: string, model?: string): string | u
 export function notify(options: NotifyOptions): void {
   if (process.platform !== 'darwin') return;
 
-  const { title, message, subtitle, backend, model } = options;
+  const { title, message, subtitle, backend, model, sound } = options;
 
   // Build display title: base title + backend/model
   const backendModel = formatBackendModel(backend, model);
@@ -59,6 +82,7 @@ export function notify(options: NotifyOptions): void {
   const subtitlePart = subtitle ? ` subtitle "${subtitle.replace(/"/g, '\\"')}"` : '';
 
   const script = `display notification "${escapedMessage}" with title "${escapedTitle}"${subtitlePart}`;
+  const soundPath = resolveNotifySoundPath(sound);
 
   // Send notification
   spawn('osascript', ['-e', script], {
@@ -66,9 +90,11 @@ export function notify(options: NotifyOptions): void {
     stdio: 'ignore'
   }).unref();
 
-  // Play subtle sound (Pop.aiff as used in pi-mono coding-agent)
-  spawn('afplay', ['/System/Library/Sounds/Pop.aiff'], {
-    detached: true,
-    stdio: 'ignore'
-  }).unref();
+  // Play notification sound (default: Purr)
+  if (soundPath) {
+    spawn('afplay', [soundPath], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref();
+  }
 }

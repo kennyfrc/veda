@@ -146,7 +146,8 @@ function constructSimpleInput(
     sandbox: flags.sandbox as SimpleConfig['sandbox'],
     context: constructContextConfig(flags),
     output: constructOutputConfig(flags),
-    notify: flags.notify ?? true,
+    notify: flags.notify ?? globalConfig.notify ?? true,
+    notifySound: flags.notifySound ?? globalConfig.notifySound,
   };
   
   return { command: 'prompt', mode: 'simple', config };
@@ -230,7 +231,8 @@ function constructDeepInput(
     verify: resolveVerifyConfig(flags),
     stages,
     trace: flags.trace,
-    notify: flags.notify ?? true,
+    notify: flags.notify ?? globalConfig.notify ?? true,
+    notifySound: flags.notifySound ?? globalConfig.notifySound,
   };
   
   return { command: 'prompt', mode: 'deep', config };
@@ -239,7 +241,7 @@ function constructDeepInput(
 function constructResumeInput(
   parsed: ParsedPositionals,
   flags: RawFlags,
-  _globalConfig: Awaited<ReturnType<typeof loadGlobalConfig>>
+  globalConfig: Awaited<ReturnType<typeof loadGlobalConfig>>
 ): VedaInput {
   // Handle --dry-run
   if (flags.dryRun) {
@@ -262,7 +264,8 @@ function constructResumeInput(
     reasoning: flags.reasoning as ResumeConfig['reasoning'],
     sandbox: flags.sandbox as ResumeConfig['sandbox'],
     output: constructOutputConfig(flags),
-    notify: flags.notify ?? true,
+    notify: flags.notify ?? globalConfig.notify ?? true,
+    notifySound: flags.notifySound ?? globalConfig.notifySound,
   };
   
   return { command: 'resume', config };
@@ -301,6 +304,7 @@ function extractFlagsForDryRun(flags: RawFlags): Record<string, unknown> {
   if (flags.output) result.output = flags.output;
   if (flags.json) result.json = true;
   if (flags.notify !== undefined) result.notify = flags.notify;
+  if (flags.notifySound) result.notifySound = flags.notifySound;
   if (flags.k !== undefined) result.k = flags.k;
   if (flags.categories) result.categories = flags.categories;
   if (flags.modules) result.modules = flags.modules;

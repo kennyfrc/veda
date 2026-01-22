@@ -38,6 +38,7 @@ export interface SimpleConfig {
   context: ContextConfig;
   output: OutputConfig;
   notify: boolean;
+  notifySound?: string;
 }
 
 // =============================================================================
@@ -58,6 +59,7 @@ export interface DeepConfig {
   stages: StageConfigs;
   trace?: string;
   notify: boolean;
+  notifySound?: string;
 }
 
 /**
@@ -102,6 +104,7 @@ export interface ResumeConfig {
   sandbox?: SandboxMode;
   output: OutputConfig;
   notify: boolean;
+  notifySound?: string;
 }
 
 // =============================================================================
@@ -196,6 +199,7 @@ export interface RawFlags {
   
   // Notifications
   notify?: boolean;
+  notifySound?: string;
   
   // Deep mode flags
   deep: boolean;

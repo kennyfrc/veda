@@ -19,6 +19,7 @@ export interface CliOptions {
   json?: boolean;
   trace?: string;
   notify?: boolean;
+  notifySound?: string;
   help?: boolean;
   version?: boolean;
   
@@ -69,6 +70,7 @@ const FLAGS_WITH_VALUES = new Set([
   '--categories',
   '--modules',
   '--trace',
+  '--notify-sound',
   // Per-stage overrides for deep mode
   '--solver-backend', '--solver-model',
   '--judge-backend', '--judge-model',
@@ -145,6 +147,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
           break;
         case '--trace':
           options.trace = value;
+          break;
+        case '--notify-sound':
+          options.notifySound = value;
           break;
         case '--solver-backend':
           options.solverBackend = value;
@@ -359,6 +364,7 @@ Options:
   --no-sel                Ignore selection for this run
   --notify                Enable system notifications (default: on)
   --no-notify             Disable system notifications
+  --notify-sound <name>    Notification sound name or path (macOS)
   --deep, -d              Enable deep thinking mode
   -k <num>                Number of parallel solvers (default: 6, max: 12)
   --categories <list>     Reasoning categories (comma-separated)

@@ -427,7 +427,7 @@ export async function handleDeep(
       usageAtCheckpoint: existingCheckpoint.usageAtCheckpoint,
     } : undefined,
   })) {
-    await handleEvent(event, options, prompt, globalConfig.notify, solverBackendForNotification, solverModelForNotification, effectiveSolverReasoning, judge.backend, judge.model, verifier.backend, verifier.model, revision.backend, revision.model, formatterState);
+    await handleEvent(event, options, prompt, globalConfig.notify, globalConfig.notifySound, solverBackendForNotification, solverModelForNotification, effectiveSolverReasoning, judge.backend, judge.model, verifier.backend, verifier.model, revision.backend, revision.model, formatterState);
 
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
@@ -464,6 +464,7 @@ async function handleEvent(
   options: CliOptions,
   prompt: string,
   globalNotify?: boolean,
+  globalNotifySound?: string,
   solverBackend?: string,
   solverModel?: string,
   solverReasoning?: string,
@@ -476,6 +477,7 @@ async function handleEvent(
   formatterState?: FormatterState
 ): Promise<void> {
   const shouldNotify = options.notify ?? globalNotify ?? true;
+  const notifySound = options.notifySound ?? globalNotifySound;
   const state = formatterState ?? createFormatterState();
 
   switch (event.type) {
@@ -532,7 +534,14 @@ async function handleEvent(
       // Notification
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
-          notify({ title: 'Veda Deep', message: `Solver '${module}' complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model }));
+          notify({
+            title: 'Veda Deep',
+            message: `Solver '${module}' complete: ${formatNotifyMessage(prompt)}`,
+            subtitle: options.session,
+            backend,
+            model,
+            sound: notifySound,
+          }));
       }
       break;
     }
@@ -543,7 +552,14 @@ async function handleEvent(
       
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
-          notify({ title: 'Veda Deep', message: `Solvers complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
+          notify({
+            title: 'Veda Deep',
+            message: `Solvers complete: ${formatNotifyMessage(prompt)}`,
+            subtitle: options.session,
+            backend: solverBackend,
+            model: solverModel,
+            sound: notifySound,
+          }));
       }
       break;
     }
@@ -785,7 +801,14 @@ async function handleEvent(
           const msg = isJudge ? 'Judge complete' : event.stage === 'revise' ? 'Revision complete' : 'Verifier complete';
           const backend = isJudge ? judgeBackend : verifierBackend;
           const model = isJudge ? judgeModel : verifierModel;
-          notify({ title: 'Veda Deep', message: `${msg}: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend, model });
+          notify({
+            title: 'Veda Deep',
+            message: `${msg}: ${formatNotifyMessage(prompt)}`,
+            subtitle: options.session,
+            backend,
+            model,
+            sound: notifySound,
+          });
         });
       }
       break;
@@ -850,7 +873,14 @@ async function handleEvent(
     case 'complete': {
       if (shouldNotify) {
         import('../util/notify').then(({ notify, formatNotifyMessage }) =>
-          notify({ title: 'Veda Deep', message: `Complete: ${formatNotifyMessage(prompt)}`, subtitle: options.session, backend: solverBackend, model: solverModel }));
+          notify({
+            title: 'Veda Deep',
+            message: `Complete: ${formatNotifyMessage(prompt)}`,
+            subtitle: options.session,
+            backend: solverBackend,
+            model: solverModel,
+            sound: notifySound,
+          }));
       }
       
       if (event.result) {

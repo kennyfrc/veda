@@ -42,6 +42,7 @@ export interface GlobalConfig {
   model?: string;
   session?: string;
   notify?: boolean;
+  notifySound?: string;
   backendModels?: Record<string, string>;
   backendReasoning?: Record<string, ReasoningLevel>;
   deep?: DeepModeConfig;
@@ -148,6 +149,9 @@ export function parseConfigFile(content: string): GlobalConfig {
           if (lval === 'false') config.notify = false;
           break;
         }
+        case 'NOTIFY_SOUND':
+          config.notifySound = value;
+          break;
       }
     }
   }
