@@ -34,6 +34,8 @@ export interface SelectModulesOptions {
   winRates?: Map<string, { wins: number; appearances: number }>;
   /** Bias module selection toward low-appearance modules (single-judge only; strategy implemented elsewhere). */
   lowCountModules?: boolean;
+  /** Allow multiple module specifiers from the same category. */
+  allowDuplicateCategoriesInSpecifiers?: boolean;
 }
 
 const DEFAULT_MODULES: ReasoningModule[] = [
@@ -383,14 +385,24 @@ function validateModuleIntegrity(modules: ReasoningModule[]): void {
 
 /** Specifiers: "category/module", "category" (random), or "module_id" (legacy) */
 export function selectModules(options: SelectModulesOptions): ReasoningModule[] {
-  const { k, categories, modules, registry = DEFAULT_REGISTRY, winRates, lowCountModules } = options;
+  const {
+    k,
+    categories,
+    modules,
+    registry = DEFAULT_REGISTRY,
+    winRates,
+    lowCountModules,
+    allowDuplicateCategoriesInSpecifiers,
+  } = options;
 
   if (k < 1 || k > 12) {
     throw new Error(`k must be between 1 and 12, got ${k}`);
   }
 
   if (modules && modules.length > 0) {
-    return selectFromSpecifiers(modules, registry);
+    return selectFromSpecifiers(modules, registry, {
+      allowDuplicateCategoriesInSpecifiers,
+    });
   }
 
   const useLowCount = !!lowCountModules && !!winRates && winRates.size > 0;
@@ -470,9 +482,15 @@ function parseModuleSpecifier(
   return { category: undefined, moduleId: resolvedId };
 }
 
-function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): ReasoningModule[] {
+function selectFromSpecifiers(
+  specifiers: string[],
+  registry: ModuleRegistry,
+  options?: { allowDuplicateCategoriesInSpecifiers?: boolean }
+): ReasoningModule[] {
   const result: ReasoningModule[] = [];
   const seenCategories = new Set<ModuleCategory>();
+  const usedByCategory = new Map<ModuleCategory, Set<string>>();
+  const allowDuplicateCategories = !!options?.allowDuplicateCategoriesInSpecifiers;
 
   for (const specifier of specifiers) {
     const { category, moduleId } = parseModuleSpecifier(specifier, registry);
@@ -496,8 +514,11 @@ function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): R
       if (!categoryModules || categoryModules.length === 0) {
         throw new Error(`No modules available in category '${category}'`);
       }
-      const randomIndex = Math.floor(Math.random() * categoryModules.length);
-      module = categoryModules[randomIndex];
+      const used = usedByCategory.get(category) ?? new Set<string>();
+      const available = categoryModules.filter(m => !used.has(m.id));
+      const pool = available.length > 0 ? available : categoryModules;
+      const randomIndex = Math.floor(Math.random() * pool.length);
+      module = pool[randomIndex];
     } else if (moduleId) {
       module = registry.byId[moduleId];
       if (!module) {
@@ -511,18 +532,23 @@ function selectFromSpecifiers(specifiers: string[], registry: ModuleRegistry): R
       throw new Error(`Invalid module specifier: ${specifier}`);
     }
 
-    if (seenCategories.has(module.category)) {
+    if (!allowDuplicateCategories && seenCategories.has(module.category)) {
       throw new Error(
         `Duplicate category '${module.category}'. Each solver must use a different category. ` +
         `Conflict at specifier: ${specifier}`
       );
     }
     seenCategories.add(module.category);
+
+    const used = usedByCategory.get(module.category) ?? new Set<string>();
+    used.add(module.id);
+    usedByCategory.set(module.category, used);
+
     result.push(module);
   }
 
-  if (result.length > 8) {
-    throw new Error(`Too many modules: ${result.length}. Maximum is 8 (one per category).`);
+  if (result.length > 12) {
+    throw new Error(`Too many modules: ${result.length}. Maximum is 12.`);
   }
 
   return result;

@@ -204,11 +204,23 @@ describe('Reasoning Modules', () => {
       })).toThrow(/Unknown module/);
     });
 
-    test('exact modules: errors on duplicate category', () => {
+    test('exact modules: errors on duplicate category by default', () => {
       expect(() => selectModules({
         k: 1,
         modules: ['assumption_analysis', 'causal_analysis'], // both analytical
       })).toThrow(/Duplicate category/);
+    });
+
+    test('exact modules: allows duplicate category when enabled', () => {
+      const result = selectModules({
+        k: 1,
+        modules: ['assumption_analysis', 'causal_analysis'],
+        allowDuplicateCategoriesInSpecifiers: true,
+      });
+
+      expect(result.length).toBe(2);
+      expect(result[0].category).toBe('analytical');
+      expect(result[1].category).toBe('analytical');
     });
 
     test('category/module format: exact module selection', () => {
@@ -234,6 +246,31 @@ describe('Reasoning Modules', () => {
       expect(result.some(m => m.category === 'analytical')).toBe(true);
       expect(result.some(m => m.category === 'creative')).toBe(true);
       expect(result.some(m => m.category === 'systematic')).toBe(true);
+    });
+
+    test('category-only specifiers: avoids repeats until exhausted when enabled', () => {
+      const registry = createModuleRegistry([
+        { id: 'a1', category: 'analytical', name: 'A1', prompt: 'p' },
+        { id: 'a2', category: 'analytical', name: 'A2', prompt: 'p' },
+      ]);
+
+      const originalRandom = Math.random;
+      Math.random = () => 0;
+
+      try {
+        const result = selectModules({
+          k: 2,
+          modules: ['analytical', 'analytical'],
+          registry,
+          allowDuplicateCategoriesInSpecifiers: true,
+        });
+
+        expect(result.length).toBe(2);
+        const ids = new Set(result.map(m => m.id));
+        expect(ids.size).toBe(2);
+      } finally {
+        Math.random = originalRandom;
+      }
     });
 
     test('category/module format: mixed exact and random', () => {
@@ -331,6 +368,15 @@ describe('Reasoning Modules', () => {
 
     test('errors on k > 12', () => {
       expect(() => selectModules({ k: 13 })).toThrow(/must be between 1 and 12/);
+    });
+
+    test('errors on too many module specifiers', () => {
+      const tooMany = REASONING_MODULES.slice(0, 13).map(m => m.id);
+      expect(() => selectModules({
+        k: 1,
+        modules: tooMany,
+        allowDuplicateCategoriesInSpecifiers: true,
+      })).toThrow(/Maximum is 12/);
     });
 
     test('errors on k < 1', () => {

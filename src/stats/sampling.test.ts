@@ -93,34 +93,53 @@ describe('wilsonLower', () => {
 });
 
 describe('Thompson Sampling behavior', () => {
-  it('high-win module tends to be selected more often', () => {
-    // Simulate selection from a category with one strong and one weak module
-    const selectBest = () => {
-      const strongSample = sampleBeta(8 + 1, 2 + 1); // 80% win rate
-      const weakSample = sampleBeta(1 + 1, 9 + 1);   // 10% win rate
-      return strongSample > weakSample ? 'strong' : 'weak';
+  const withSeededRandom = <T>(seed: number, fn: () => T): T => {
+    const originalRandom = Math.random;
+    let state = seed >>> 0;
+    Math.random = () => {
+      state = (state * 1664525 + 1013904223) >>> 0;
+      return state / 0x100000000;
     };
 
-    const results = Array.from({ length: 1000 }, selectBest);
-    const strongCount = results.filter(r => r === 'strong').length;
+    try {
+      return fn();
+    } finally {
+      Math.random = originalRandom;
+    }
+  };
 
-    // Strong module should win most of the time
-    expect(strongCount).toBeGreaterThan(800);
+  it('high-win module tends to be selected more often', () => {
+    withSeededRandom(12345, () => {
+      // Simulate selection from a category with one strong and one weak module
+      const selectBest = () => {
+        const strongSample = sampleBeta(8 + 1, 2 + 1); // 80% win rate
+        const weakSample = sampleBeta(1 + 1, 9 + 1);   // 10% win rate
+        return strongSample > weakSample ? 'strong' : 'weak';
+      };
+
+      const results = Array.from({ length: 1000 }, selectBest);
+      const strongCount = results.filter(r => r === 'strong').length;
+
+      // Strong module should win most of the time
+      expect(strongCount).toBeGreaterThan(800);
+    });
   });
 
   it('unexplored module (0/0) has fair chance', () => {
-    // Beta(1,1) = Uniform, should occasionally beat a moderate performer
-    const selectBest = () => {
-      const moderateSample = sampleBeta(3 + 1, 7 + 1); // 30% win rate
-      const unexploredSample = sampleBeta(0 + 1, 0 + 1); // 0/0 → Beta(1,1)
-      return unexploredSample > moderateSample ? 'unexplored' : 'moderate';
-    };
+    withSeededRandom(67890, () => {
+      // Beta(1,1) = Uniform, should occasionally beat a moderate performer
+      const selectBest = () => {
+        const moderateSample = sampleBeta(3 + 1, 7 + 1); // 30% win rate
+        const unexploredSample = sampleBeta(0 + 1, 0 + 1); // 0/0 → Beta(1,1)
+        return unexploredSample > moderateSample ? 'unexplored' : 'moderate';
+      };
 
-    const results = Array.from({ length: 1000 }, selectBest);
-    const unexploredCount = results.filter(r => r === 'unexplored').length;
+      const results = Array.from({ length: 1000 }, selectBest);
+      const unexploredCount = results.filter(r => r === 'unexplored').length;
 
-    // Unexplored should win a reasonable amount (exploration)
-    expect(unexploredCount).toBeGreaterThan(200);
-    expect(unexploredCount).toBeLessThan(700);
+      // Unexplored should win a reasonable amount (exploration)
+      expect(unexploredCount).toBeGreaterThan(200);
+      expect(unexploredCount).toBeLessThan(700);
+    });
   });
 });

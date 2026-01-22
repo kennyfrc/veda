@@ -696,6 +696,7 @@ export async function runSolverEnsemble(
     modules: options.modules,
     winRates: options.winRates,
     lowCountModules: options.lowCountModules,
+    allowDuplicateCategoriesInSpecifiers: !!options.modules,
   });
 
   const members: EnsembleMember[] = modules.map((module, i) => {
@@ -974,6 +975,7 @@ export async function* runDeepThink(
           modules: solver.modules,
           winRates: solver.winRates,
           lowCountModules: solver.lowCountModules,
+          allowDuplicateCategoriesInSpecifiers: !!solver.modules,
         });
 
         const members: EnsembleMember[] = modules.map((module, i) => {
