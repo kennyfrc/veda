@@ -499,7 +499,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     backends: solverBackends,
     model: options.solverModel,
     backendModels,
-    reasoning: options.solverReasoning ?? 'medium',
+    reasoning: options.solverReasoning ?? 'high',
     sandbox: 'read-only',
     cwd: options.cwd ?? process.cwd(),
     context: options.context,

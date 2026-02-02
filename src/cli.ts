@@ -395,7 +395,7 @@ Deep Mode Stage Overrides:
   --revision-model <name>   Model for revision (default: verifier value)
 
 Deep Mode Reasoning:
-  --solver-reasoning <level>    Reasoning for solvers (default: medium)
+  --solver-reasoning <level>    Reasoning for solvers (default: high)
   --judge-reasoning <level>     Reasoning for judge (default: medium)
   --verifier-reasoning <level>  Reasoning for verifier (default: high)
   --revision-reasoning <level>  Reasoning for revision (default: verifier value)
