@@ -1,6 +1,6 @@
 // DeepThink: parallel solvers → judge aggregation → optional verification.
 
-import { loadGlobalConfig, resolveBackendModel } from '../agent/config';
+import { loadGlobalConfig, resolveBackendModel, resolveBackendModelForStage } from '../agent/config';
 import { AsyncQueue, c } from '../util';
 import type { Message, UsageStats } from '../backend';
 import {
@@ -41,7 +41,7 @@ import { getCurrentEra } from '../core/era';
 
 /**
  * Standardized member ID format: type-index-backend-model-module
- * Examples: solver-0-claude-code-opus-analytical/so_what_test, judge-0-gemini-cli-gemini-pro-NA, verifier-0-codex-gpt-5.2-factual
+ * Examples: solver-0-claude-code-opus-analytical/so_what_test, judge-0-gemini-cli-gemini-pro-NA, verifier-0-codex-gpt-5.3-codex-factual
  * Note: module portion uses category/module_id format for solvers.
  */
 interface MemberIdParts {
@@ -452,7 +452,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   for (const backend of uniqueSolverBackends) {
     // If -m is specified, use that model for all solvers.
     // Otherwise, let each backend use its own default model.
-    const resolved = resolveBackendModel({
+    const resolved = resolveBackendModelForStage('solver', {
       explicitBackend: backend,
       explicitModel: options.solverModel,
       fallbackBackend: backend,
@@ -589,15 +589,19 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
       // Only inherit -m if verifier backend isn't explicitly set
       verifierFallbackModel = options.verifierBackend ? undefined : options.model;
     } else {
-      // No base override - cascade from judge (existing behavior)
+      // No base override:
+      // - cascade backend from judge (keeps "use same provider" behavior)
+      // - BUT let verifier model use its own stage default (don't cascade judge model)
       verifierFallbackBackend = judge.backend;
-      verifierFallbackModel = judge.model;
+      verifierFallbackModel = undefined;
     }
 
-    const verifier = resolveBackendModel({
+    const verifier = resolveBackendModelForStage('verifier', {
       explicitBackend: options.verifierBackend,
       explicitModel: options.verifierModel,
       fallbackBackend: verifierFallbackBackend,
+      // Important: don't cascade judge model into verifier by default.
+      // We want the verifier stage to use its own built-in default model unless explicitly overridden.
       fallbackModel: verifierFallbackModel,
       globalConfig,
     });

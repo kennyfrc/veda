@@ -303,7 +303,7 @@ describe('resolveBackendModel', () => {
         explicitModel: 'gpt',
       });
       expect(result.backend).toBe('codex');
-      expect(result.model).toBe('gpt-5.2');
+      expect(result.model).toBe('gpt-5.3-codex');
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'gpt' });
     });
 

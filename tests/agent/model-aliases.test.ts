@@ -15,7 +15,7 @@ describe('MODEL_ALIASES', () => {
   });
 
   test('contains OpenAI models', () => {
-    expect(MODEL_ALIASES['gpt']).toEqual({ backend: 'codex', model: 'gpt-5.2' });
+    expect(MODEL_ALIASES['gpt']).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
   });
 
   test('contains Gemini models', () => {
@@ -49,7 +49,7 @@ describe('resolveModelAlias', () => {
   });
 
   test('resolves OpenAI aliases', () => {
-    expect(resolveModelAlias('gpt')).toEqual({ backend: 'codex', model: 'gpt-5.2' });
+    expect(resolveModelAlias('gpt')).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
   });
 
   test('resolves Gemini aliases', () => {
@@ -60,7 +60,7 @@ describe('resolveModelAlias', () => {
   test('handles case-insensitive lookup', () => {
     expect(resolveModelAlias('OPUS')).toEqual({ backend: 'claude-code', model: 'opus' });
     expect(resolveModelAlias('Sonnet')).toEqual({ backend: 'claude-code', model: 'sonnet' });
-    expect(resolveModelAlias('GPT')).toEqual({ backend: 'codex', model: 'gpt-5.2' });
+    expect(resolveModelAlias('GPT')).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
   });
 
   test('handles whitespace', () => {

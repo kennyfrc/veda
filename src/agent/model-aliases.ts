@@ -10,7 +10,7 @@ export const MODEL_ALIASES: Record<string, ModelAliasTarget> = {
   'haiku': { backend: 'claude-code', model: 'haiku' },
   
   // OpenAI models (via codex)
-  'gpt': { backend: 'codex', model: 'gpt-5.2' },
+  'gpt': { backend: 'codex', model: 'gpt-5.3-codex' },
   
   // Gemini models
   'gemini-pro': { backend: 'gemini-cli', model: 'gemini-3-pro-preview' },

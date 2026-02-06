@@ -6,7 +6,7 @@
  * 2. Model alias inference (opus → claude-code)
  * 3. Model prefix inference (gpt-5.2 → codex)
  * 4. Config file defaults
- * 5. Built-in defaults (codex/gpt-5.2)
+ * 5. Built-in defaults (codex solver+verifier default: gpt-5.3-codex)
  */
 
 import type { 
@@ -21,7 +21,7 @@ import type {
 } from './types';
 import { CliValidationError } from './types';
 import { resolveModelAlias, MODEL_ALIASES } from '../agent/model-aliases';
-import { getBackendDefaultModel } from '../backend/defaults';
+import { getBackendDefaultModelForStage } from '../backend/defaults';
 import type { GlobalConfig } from '../agent/config';
 
 // =============================================================================
@@ -73,6 +73,8 @@ export interface ResolveOptions {
   explicitBackend?: string;
   explicitModel?: string;
   globalConfig?: GlobalConfig;
+  /** Optional stage to apply stage-specific built-in defaults (deep mode). */
+  stage?: 'base' | 'solver' | 'judge' | 'verifier' | 'revision';
 }
 
 /**
@@ -80,7 +82,7 @@ export interface ResolveOptions {
  * Throws on alias/backend mismatch.
  */
 export function resolveBackendModel(opts: ResolveOptions): ResolvedBackendModel {
-  const { explicitBackend, explicitModel, globalConfig } = opts;
+  const { explicitBackend, explicitModel, globalConfig, stage = 'base' } = opts;
   
   // Try to resolve model alias first
   const aliasTarget = explicitModel ? resolveModelAlias(explicitModel) : undefined;
@@ -139,12 +141,12 @@ export function resolveBackendModel(opts: ResolveOptions): ResolvedBackendModel 
     const globalAlias = resolveModelAlias(globalConfig.model);
     if (globalAlias && globalAlias.backend !== backend) {
       // Global model alias doesn't match our backend, use backend default
-      model = getBackendDefaultModel(backend) ?? 'unknown';
+      model = getBackendDefaultModelForStage(backend, stage) ?? 'unknown';
     } else {
       model = globalConfig.model;
     }
   } else {
-    model = getBackendDefaultModel(backend) ?? 'unknown';
+    model = getBackendDefaultModelForStage(backend, stage) ?? 'unknown';
   }
   
   return { backend, model, source };
@@ -245,6 +247,7 @@ function resolveSolverConfig(
         explicitBackend: backend,
         explicitModel: flags.model,
         globalConfig,
+        stage: 'solver',
       });
       modelPerBackend.set(backend, resolved.model);
     }
@@ -266,6 +269,7 @@ function resolveSolverConfig(
     explicitBackend: effectiveBackend,
     explicitModel: flags.solverModel ?? flags.model,
     globalConfig,
+    stage: 'solver',
   });
   
   return {
@@ -355,6 +359,7 @@ function resolveVerifierConfig(
     explicitBackend: effectiveBackend,
     explicitModel: verifierModel ?? flags.model,
     globalConfig,
+    stage: 'verifier',
   });
   
   return {
@@ -404,6 +409,7 @@ function resolveRevisionConfig(
     explicitBackend: effectiveBackend,
     explicitModel: modelFallback,
     globalConfig,
+    stage: 'revision',
   });
   
   return {

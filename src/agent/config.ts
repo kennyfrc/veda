@@ -1,5 +1,10 @@
 import { getConfigPath } from '../util/paths';
-import { getBackendDefaultModel, getBackendDefaultReasoning } from '../backend/defaults';
+import {
+  getBackendDefaultModel,
+  getBackendDefaultModelForStage,
+  getBackendDefaultReasoning,
+  type ModelStage,
+} from '../backend/defaults';
 import { resolveBackendModelExtracted, tryResolveAliasTarget } from './config-extract';
 
 export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
@@ -246,6 +251,36 @@ export function resolveModel(options: ResolveModelOptions): string | undefined {
   return getBackendDefaultModel(backend);
 }
 
+export interface ResolveModelForStageOptions {
+  backend: string;
+  stage: ModelStage;
+  explicitModel?: string;
+  globalConfig?: GlobalConfig;
+}
+
+/**
+ * Stage-aware model resolution.
+ *
+ * Same precedence as `resolveModel()`, but the final built-in default can vary by stage.
+ */
+export function resolveModelForStage(options: ResolveModelForStageOptions): string | undefined {
+  const { backend, stage, explicitModel, globalConfig } = options;
+
+  if (explicitModel) return explicitModel;
+
+  const userOverride = globalConfig?.backendModels?.[backend];
+  if (userOverride) return userOverride;
+
+  if (globalConfig?.model) {
+    const alias = tryResolveAliasTarget(globalConfig.model);
+    if (!alias || alias.backend === backend) {
+      return globalConfig.model;
+    }
+  }
+
+  return getBackendDefaultModelForStage(backend, stage);
+}
+
 export interface ResolveReasoningOptions {
   backend: string;
   explicitReasoning?: ReasoningLevel;
@@ -293,5 +328,17 @@ export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedB
   return resolveBackendModelExtracted(
     { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig },
     (backend, model) => resolveModel({ backend, explicitModel: model, globalConfig })
+  );
+}
+
+export function resolveBackendModelForStage(
+  stage: ModelStage,
+  opts: ResolveBackendModelOptions
+): ResolvedBackendModel {
+  const { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig } = opts;
+
+  return resolveBackendModelExtracted(
+    { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig },
+    (backend, model) => resolveModelForStage({ backend, stage, explicitModel: model, globalConfig })
   );
 }

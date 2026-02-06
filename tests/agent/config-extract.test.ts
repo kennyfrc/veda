@@ -41,7 +41,7 @@ describe('BackendModelResolver helpers', () => {
 
       const gpt = tryResolveAliasTarget('gpt');
       expect(gpt?.backend).toBe('codex');
-      expect(gpt?.model).toBe('gpt-5.2');
+      expect(gpt?.model).toBe('gpt-5.3-codex');
 
       const geminiPro = tryResolveAliasTarget('gemini-pro');
       expect(geminiPro?.backend).toBe('gemini-cli');
