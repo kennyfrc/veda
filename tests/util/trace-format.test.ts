@@ -251,6 +251,13 @@ describe('trace-format', () => {
       expect(stripped).toContain('▸ codex');
     });
 
+    it('strips redundant backend prefix from model display', () => {
+      const result = formatChatHeader(undefined, 'mu', 'mu/wafer/GLM-5.1');
+      const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+      expect(stripped).toContain('▸ mu/wafer/GLM-5.1');
+      expect(stripped).not.toContain('mu/mu/');
+    });
+
     it('respects line width', () => {
       const result = formatChatHeader('test', 'backend', 'model', 80);
       const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');

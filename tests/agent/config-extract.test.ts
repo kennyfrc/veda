@@ -121,6 +121,36 @@ describe('inferBackendFromModel', () => {
     expect(result.source.kind).toBe('alias');
   });
 
+  test('infers mu from mu/ prefix (wafer model)', () => {
+    const result = resolveBackendModel({
+      explicitModel: 'mu/wafer/GLM-5.1',
+      fallbackBackend: 'codex',
+    });
+    expect(result.backend).toBe('mu');
+    expect(result.model).toBe('mu/wafer/GLM-5.1');
+    expect(result.source.kind).toBe('prefix');
+  });
+
+  test('infers mu from mu/ prefix (long fireworks model path)', () => {
+    const result = resolveBackendModel({
+      explicitModel: 'mu/fireworks/accounts/fireworks/routers/kimi-k2p6',
+      fallbackBackend: 'codex',
+    });
+    expect(result.backend).toBe('mu');
+    expect(result.model).toBe('mu/fireworks/accounts/fireworks/routers/kimi-k2p6');
+    expect(result.source.kind).toBe('prefix');
+  });
+
+  test('explicit backend overrides mu/ prefix inference', () => {
+    const result = resolveBackendModel({
+      explicitBackend: 'codex',
+      explicitModel: 'mu/wafer/GLM-5.1',
+      fallbackBackend: 'codex',
+    });
+    expect(result.backend).toBe('codex');
+    expect(result.model).toBe('mu/wafer/GLM-5.1');
+  });
+
   test('throws error for unknown model', () => {
     expect(() => resolveBackendModel({
       explicitModel: 'unknown-model-xyz',

@@ -356,7 +356,7 @@ describe('resolveBackendModel', () => {
       });
       expect(result.backend).toBe('codex');
       expect(result.model).toBe('gpt-4o');
-      expect(result.source).toEqual({ kind: 'explicit' });
+      expect(result.source).toEqual({ kind: 'prefix' });
     });
 
     test('throws error for unknown model without explicit backend', () => {

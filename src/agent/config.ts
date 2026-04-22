@@ -301,6 +301,7 @@ export function resolveReasoning(options: ResolveReasoningOptions): ReasoningLev
 export type ModelSource =
   | { kind: 'explicit' }
   | { kind: 'alias'; aliasName: string }
+  | { kind: 'prefix' }
   | { kind: 'fallback' }
   | { kind: 'default' };
 

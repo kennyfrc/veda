@@ -339,7 +339,9 @@ export function formatChatHeader(
   } else if (persona) {
     identifier = `${persona} (${backend})`;
   } else if (model) {
-    identifier = `${backend}/${model}`;
+    // Strip redundant backend prefix from model display (e.g. mu/wafer/GLM-5.1 → wafer/GLM-5.1)
+    const displayModel = model.startsWith(`${backend}/`) ? model.slice(backend.length + 1) : model;
+    identifier = `${backend}/${displayModel}`;
   } else {
     identifier = backend;
   }

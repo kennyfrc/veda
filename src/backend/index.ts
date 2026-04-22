@@ -33,13 +33,16 @@ export {
 export { CodexBackend, createCodexBackend } from './codex';
 export { ClaudeBackend, createClaudeBackend } from './claude';
 export { GeminiBackend, createGeminiBackend } from './gemini';
+export { MuBackend, createMuBackend } from './mu';
 
 import { registerBackend } from './registry';
 import { createCodexBackend } from './codex';
 import { createClaudeBackend } from './claude';
 import { createGeminiBackend } from './gemini';
+import { createMuBackend } from './mu';
 
 // Register backends with canonical names
 registerBackend('codex', createCodexBackend);
 registerBackend('claude-code', createClaudeBackend);
 registerBackend('gemini-cli', createGeminiBackend);
+registerBackend('mu', createMuBackend);

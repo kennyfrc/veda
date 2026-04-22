@@ -6,6 +6,7 @@ export const BACKEND_DEFAULT_MODELS: Record<string, string> = {
   'claude-code': 'opus',
   'codex': 'gpt-5.2',
   'gemini-cli': 'gemini-3-pro-preview',
+  'mu': 'mu/fireworks/accounts/fireworks/routers/kimi-k2p6',
 };
 
 /**
@@ -27,6 +28,7 @@ export const BACKEND_DEFAULT_REASONING: Record<string, ReasoningLevel> = {
   'claude-code': 'medium',
   'codex': 'medium',
   'gemini-cli': 'medium',
+  'mu': 'medium',
 };
 
 export function getBackendDefaultModel(backendId: string): string | undefined {
