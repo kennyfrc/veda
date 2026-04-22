@@ -52,12 +52,14 @@ veda sel clear                    # Clear all
 veda -b codex "..."        # OpenAI Codex (default)
 veda -b claude-code "..."  # Anthropic Claude Code
 veda -b gemini-cli "..."   # Google Gemini CLI
+veda -b mu "..."           # mu CLI (any provider/model from ~/.mu/agent/models.json)
 ```
 
 **Note on reasoning configuration:**
 - **Codex:** Uses native `model_reasoning_effort` flag. The `--reasoning` flag works as expected.
 - **Claude Code:** Maps `--reasoning` levels to the `MAX_THINKING_TOKENS` environment variable automatically.
 - **Gemini CLI:** Injects scoped override into `~/.gemini/settings.json`. Automatically cleaned up after execution.
+- **mu CLI:** Maps `--reasoning` to mu's `--thinking` flag and `--sandbox` to mu's `--tools` flag. Supports any provider/model defined in `~/.mu/agent/models.json`.
 
 ### Use Model Aliases
 
@@ -75,6 +77,11 @@ veda -m gpt "..."       # Uses codex with gpt-5.2
 # Gemini models (→ gemini-cli backend)
 veda -m gemini-pro "..."    # Uses gemini-cli with gemini-3-pro-preview
 veda -m gemini-flash "..."  # Uses gemini-cli with gemini-3-flash-preview
+
+# mu models (→ mu backend, auto-inferred from mu/ prefix)
+veda -m mu/wafer/GLM-5.1 "..."                        # wafer provider
+veda -m mu/fireworks/accounts/fireworks/routers/kimi-k2p6 "..."  # fireworks provider
+veda -m mu/neuralwatt/moonshotai/Kimi-K2.6 "..."      # neuralwatt provider
 ```
 
 When you specify both `-b` and `-m`, the model is passed literally (no alias resolution).
@@ -306,8 +313,8 @@ veda deep [options] <prompt>
 Options:
   -S, --session <id>     Session ID (or VEDA_SESSION env)
   -p, --persona <name>   navigator-plan|navigator-chat|reviewer
-  -b, --backend <name>   codex|claude-code|gemini-cli
-  -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|gemini-pro|gemini-flash)
+  -b, --backend <name>   codex|claude-code|gemini-cli|mu
+  -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|gemini-pro|gemini-flash|mu/<provider>/<model-id>)
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
   -k <n>                 Solver count for deep mode (default: 3, max: 8)
   --categories <list>    Reasoning categories (comma-separated)
@@ -346,7 +353,7 @@ src/
 `~/.config/veda/config`:
 ```bash
 # Default backend
-BACKEND="codex"
+BACKEND="mu"
 PERSONA="navigator-chat"
 
 # Per-backend model and reasoning settings
@@ -363,6 +370,9 @@ CLAUDE_CODE_MODEL="opus"
 
 GEMINI_CLI_MODEL="gemini-3-pro-preview"
 # Gemini 3.x: Maps --reasoning to thinkingLevel (LOW|MEDIUM|HIGH)
+
+MU_MODEL="mu/wafer/GLM-5.1"
+# mu CLI: Maps --reasoning to --thinking flag, --sandbox to --tools flag
 #   minimal → LOW
 #   low → LOW
 #   medium → MEDIUM
@@ -378,13 +388,13 @@ GEMINI_CLI_MODEL="gemini-3-pro-preview"
 
 # Deep mode stage defaults (overridden by -b/-m CLI flags)
 DEEP_DISTRIBUTE_SOLVERS="true"
-DEEP_SOLVER_BACKENDS="codex,claude-code,gemini-cli"
-DEEP_JUDGE_BACKEND="codex"
-DEEP_JUDGE_MODEL="gpt-5.2"
-DEEP_VERIFIER_BACKEND="claude-code"
-DEEP_VERIFIER_MODEL="sonnet"
-DEEP_REVISION_BACKEND="codex"
-DEEP_REVISION_MODEL="gpt-5.2"
+DEEP_SOLVER_BACKENDS="mu"
+DEEP_JUDGE_BACKEND="mu"
+DEEP_JUDGE_MODEL="mu/wafer/GLM-5.1"
+DEEP_VERIFIER_BACKEND="mu"
+DEEP_VERIFIER_MODEL="mu/wafer/GLM-5.1"
+DEEP_REVISION_BACKEND="mu"
+DEEP_REVISION_MODEL="mu/wafer/GLM-5.1"
 ```
 
 ## Development
