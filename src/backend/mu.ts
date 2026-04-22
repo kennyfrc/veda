@@ -31,14 +31,16 @@ export function toMuThinking(reasoning: ReasoningLevel): string {
 }
 
 export function toMuTools(sandbox: SandboxMode): string {
-  const readOnlyTools = 'read,grep,glob,list_threads,read_thread,read_image,todo_write,compact';
+  // Base tools always include bash for mu (user preference)
+  // Note: apply_patch and exec_command are GPT-specific, not included for mu models
+  const baseTools = 'read,bash,grep,glob,list_threads,read_thread,read_image,todo_write,compact';
   switch (sandbox) {
     case 'read-only':
-      return readOnlyTools;
+      return baseTools;
     case 'workspace-write':
-      return `${readOnlyTools},edit,apply_patch,write`;
+      return `${baseTools},edit,write`;
     case 'full':
-      return `${readOnlyTools},edit,apply_patch,write,bash,exec_command`;
+      return `${baseTools},edit,write`;
   }
 }
 

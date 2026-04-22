@@ -53,30 +53,34 @@ describe('toMuThinking', () => {
 });
 
 describe('toMuTools', () => {
-  test('read-only returns read-only toolset', () => {
+  test('read-only returns base toolset with bash', () => {
     const result = toMuTools('read-only');
-    expect(result).toBe('read,grep,glob,list_threads,read_thread,read_image,todo_write,compact');
+    expect(result).toBe('read,bash,grep,glob,list_threads,read_thread,read_image,todo_write,compact');
+    expect(result).toContain('bash'); // mu always has bash per user preference
+    expect(result).not.toContain('exec_command'); // GPT-specific, not for mu
+    expect(result).not.toContain('apply_patch'); // GPT-specific, not for mu
   });
 
-  test('workspace-write includes edit,apply_patch,write', () => {
+  test('workspace-write includes edit,write plus bash', () => {
     const result = toMuTools('workspace-write');
     expect(result).toContain('edit');
-    expect(result).toContain('apply_patch');
     expect(result).toContain('write');
-    // Should still include read-only tools
+    expect(result).toContain('bash'); // mu always has bash per user preference
+    expect(result).not.toContain('apply_patch'); // GPT-specific, not for mu
+    expect(result).not.toContain('exec_command'); // GPT-specific, not for mu
+    // Should still include base tools
     expect(result).toContain('read');
     expect(result).toContain('grep');
   });
 
-  test('full includes bash,exec_command', () => {
+  test('full includes edit,write plus bash', () => {
     const result = toMuTools('full');
-    expect(result).toContain('bash');
-    expect(result).toContain('exec_command');
-    // Should include workspace-write tools
     expect(result).toContain('edit');
-    expect(result).toContain('apply_patch');
     expect(result).toContain('write');
-    // Should include read-only tools
+    expect(result).toContain('bash'); // mu always has bash per user preference
+    expect(result).not.toContain('apply_patch'); // GPT-specific, not for mu
+    expect(result).not.toContain('exec_command'); // GPT-specific, not for mu
+    // Should include base tools
     expect(result).toContain('read');
   });
 });
