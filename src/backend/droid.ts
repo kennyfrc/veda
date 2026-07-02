@@ -48,6 +48,7 @@ export class DroidBackend implements Backend {
 
     if (!prompt || !prompt.trim()) {
       yield { type: 'error', content: 'Empty prompt — droid produces no output for empty input.', raw: null };
+      yield { type: 'done', sessionId: undefined, usage: { inputTokens: 0, outputTokens: 0 } };
       return;
     }
 

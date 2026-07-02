@@ -52,14 +52,16 @@ veda sel clear                    # Clear all
 veda -b codex "..."        # OpenAI Codex (default)
 veda -b claude-code "..."  # Anthropic Claude Code
 veda -b gemini-cli "..."   # Google Gemini CLI
-veda -b mu "..."           # mu CLI (any provider/model from ~/.mu/agent/models.json)
+veda -b droid "..."        # Factory Droid (droid exec)
+veda -b jdc "..."          # jdc CLI (any provider/model from ~/.jdc/agent/models.json)
 ```
 
 **Note on reasoning configuration:**
 - **Codex:** Uses native `model_reasoning_effort` flag. The `--reasoning` flag works as expected.
 - **Claude Code:** Maps `--reasoning` levels to the `MAX_THINKING_TOKENS` environment variable automatically.
 - **Gemini CLI:** Injects scoped override into `~/.gemini/settings.json`. Automatically cleaned up after execution.
-- **mu CLI:** Maps `--reasoning` to mu's `--thinking` flag and `--sandbox` to mu's `--tools` flag. Supports any provider/model defined in `~/.mu/agent/models.json`.
+- **jdc CLI:** Maps `--reasoning` to jdc's `--thinking` flag and `--sandbox` to jdc's `--tools` flag. Supports any provider/model defined in `~/.jdc/agent/models.json`.
+- **Droid:** Maps `--reasoning` to `-r` flag and `--sandbox` to `--auto` flag. Supports any model available to `droid exec`.
 
 ### Use Model Aliases
 
@@ -78,10 +80,10 @@ veda -m gpt "..."       # Uses codex with gpt-5.2
 veda -m gemini-pro "..."    # Uses gemini-cli with gemini-3-pro-preview
 veda -m gemini-flash "..."  # Uses gemini-cli with gemini-3-flash-preview
 
-# mu models (→ mu backend, auto-inferred from mu/ prefix)
-veda -m mu/wafer/GLM-5.1 "..."                        # wafer provider
-veda -m mu/fireworks/accounts/fireworks/routers/kimi-k2p6 "..."  # fireworks provider
-veda -m mu/neuralwatt/moonshotai/Kimi-K2.6 "..."      # neuralwatt provider
+# jdc models (→ jdc backend, auto-inferred from jdc/ prefix)
+veda -m jdc/wafer/glm-5.1 "..."                        # wafer provider
+veda -m jdc/fireworks/accounts/fireworks/routers/kimi-k2p6 "..."  # fireworks provider
+veda -m jdc/neuralwatt/moonshotai/Kimi-K2.6 "..."      # neuralwatt provider
 ```
 
 When you specify both `-b` and `-m`, the model is passed literally (no alias resolution).
@@ -313,8 +315,8 @@ veda deep [options] <prompt>
 Options:
   -S, --session <id>     Session ID (or VEDA_SESSION env)
   -p, --persona <name>   navigator-plan|navigator-chat|reviewer
-  -b, --backend <name>   codex|claude-code|gemini-cli|mu
-  -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|gemini-pro|gemini-flash|mu/<provider>/<model-id>)
+  -b, --backend <name>   codex|claude-code|gemini-cli|droid|jdc
+  -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|gemini-pro|gemini-flash|jdc/<provider>/<model-id>)
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
   -k <n>                 Solver count for deep mode (default: 3, max: 8)
   --categories <list>    Reasoning categories (comma-separated)
@@ -339,7 +341,7 @@ Deep Mode Stage Overrides:
 ```
 src/
 ├── core/          # Deep primitives (llm, ensemble, judge, verify, modules)
-├── backend/       # codex.ts, claude.ts, gemini.ts
+├── backend/       # codex.ts, claude.ts, gemini.ts, droid.ts, jdc.ts
 ├── pipelines/     # deep-think.ts (orchestration)
 ├── context/       # Selection and slice management
 ├── conversation/  # Thread persistence
@@ -353,7 +355,7 @@ src/
 `~/.config/veda/config`:
 ```bash
 # Default backend
-BACKEND="mu"
+BACKEND="jdc"
 PERSONA="navigator-chat"
 
 # Per-backend model and reasoning settings
@@ -371,8 +373,17 @@ CLAUDE_CODE_MODEL="opus"
 GEMINI_CLI_MODEL="gemini-3-pro-preview"
 # Gemini 3.x: Maps --reasoning to thinkingLevel (LOW|MEDIUM|HIGH)
 
-MU_MODEL="mu/wafer/GLM-5.1"
-# mu CLI: Maps --reasoning to --thinking flag, --sandbox to --tools flag
+DROID_MODEL="custom:Makora-GLM-5.2-NVFP4-9"
+DROID_REASONING="medium"
+# Droid: Maps --reasoning to -r flag, --sandbox to --auto flag
+#   minimal → off
+#   low → low
+#   medium → medium
+#   high → high
+#   xhigh → high
+
+JDC_MODEL="jdc/wafer/glm-5.1"
+# jdc CLI: Maps --reasoning to --thinking flag, --sandbox to --tools flag
 #   minimal → LOW
 #   low → LOW
 #   medium → MEDIUM
@@ -388,13 +399,13 @@ MU_MODEL="mu/wafer/GLM-5.1"
 
 # Deep mode stage defaults (overridden by -b/-m CLI flags)
 DEEP_DISTRIBUTE_SOLVERS="true"
-DEEP_SOLVER_BACKENDS="mu"
-DEEP_JUDGE_BACKEND="mu"
-DEEP_JUDGE_MODEL="mu/wafer/GLM-5.1"
-DEEP_VERIFIER_BACKEND="mu"
-DEEP_VERIFIER_MODEL="mu/wafer/GLM-5.1"
-DEEP_REVISION_BACKEND="mu"
-DEEP_REVISION_MODEL="mu/wafer/GLM-5.1"
+DEEP_SOLVER_BACKENDS="jdc"
+DEEP_JUDGE_BACKEND="jdc"
+DEEP_JUDGE_MODEL="jdc/wafer/glm-5.1"
+DEEP_VERIFIER_BACKEND="jdc"
+DEEP_VERIFIER_MODEL="jdc/wafer/glm-5.1"
+DEEP_REVISION_BACKEND="jdc"
+DEEP_REVISION_MODEL="jdc/wafer/glm-5.1"
 ```
 
 ## Development
