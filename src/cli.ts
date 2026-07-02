@@ -356,8 +356,8 @@ Options:
   -p, --persona <name>    Persona: navigator-plan, navigator-chat, reviewer, advisor
   -b, --backend <name>    Backend: codex, claude-code, droid, jdc
   -m, --model <name>      Model or alias (auto-selects backend if -b omitted)
-                          Aliases: opus, sonnet, haiku, gpt, glm-5.2, makora
-                          Backend-specific: jdc/<provider>/<model>, custom:Makora-GLM-5.2-NVFP4-9
+                          Aliases: opus, sonnet, haiku, gpt
+                          Backend-specific: jdc/<provider>/<model>, glm-5.2, custom:Makora-GLM-5.2-NVFP4-9
   -r, --reasoning <level> Reasoning: minimal, low, medium, high, xhigh
   --sandbox <mode>        Sandbox: read-only, workspace-write, full
   -o, --output <file>     Save response to file
