@@ -6,7 +6,7 @@ export const BACKEND_DEFAULT_MODELS: Record<string, string> = {
   'claude-code': 'opus',
   'codex': 'gpt-5.2',
   'droid': 'custom:Makora-GLM-5.2-NVFP4-9',
-  'jdc': 'jdc/fireworks/accounts/fireworks/routers/kimi-k2p6',
+  'jdc': 'jdc/makora/zai-org/GLM-5.2-NVFP4',
 };
 
 /**

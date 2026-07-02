@@ -39,7 +39,7 @@ describe('Backend Registry', () => {
   });
 
   test('jdc default model', () => {
-    expect(getBackendDefaultModel('jdc')).toBe('jdc/fireworks/accounts/fireworks/routers/kimi-k2p6');
+    expect(getBackendDefaultModel('jdc')).toBe('jdc/makora/zai-org/GLM-5.2-NVFP4');
   });
 
   test('jdc default reasoning', () => {
