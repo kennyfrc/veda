@@ -353,10 +353,12 @@ Usage:
 
 Options:
   -S, --session <id>      Session ID (or use VEDA_SESSION env)
-  -p, --persona <name>    Use persona (default: navigator-chat)
-  -b, --backend <name>    Backend: codex, claude-code, gemini-cli (default: codex)
-  -m, --model <name>      Model: opus, sonnet, haiku, gpt, gemini-pro, gemini-flash
-                          (auto-selects backend if not specified with -b)
+  -p, --persona <name>    Persona: navigator-plan, navigator-chat, reviewer, advisor
+  -b, --backend <name>    Backend: codex, claude-code, gemini-cli, droid, jdc
+  -m, --model <name>      Model or alias (auto-selects backend if -b omitted)
+                          Aliases: opus, sonnet, haiku, gpt, gemini-pro, gemini-flash,
+                                   glm-5.2, makora
+                          Backend-specific: jdc/<provider>/<model>, custom:Makora-GLM-5.2-NVFP4-9
   -r, --reasoning <level> Reasoning: minimal, low, medium, high, xhigh
   --sandbox <mode>        Sandbox: read-only, workspace-write, full
   -o, --output <file>     Save response to file
@@ -383,6 +385,19 @@ Options:
   --dry-run               Show resolved config without executing
   --help, -h              Show help
   --version, -v           Show version
+
+Personas:
+  navigator-plan          High-reasoning planning (use for initial architecture, once per task)
+  navigator-chat          Medium-reasoning discussion (use for follow-up Q&A)
+  reviewer                Code review with [P0]-[P3] findings
+  advisor                 Second-opinion reviewer (outputs <advisory> blocks)
+
+Backends:
+  codex                   OpenAI Codex (default)
+  claude-code             Anthropic Claude Code
+  gemini-cli              Google Gemini CLI
+  droid                   Factory Droid (droid exec, --auto for sandbox)
+  jdc                     jdc CLI (jdc/<provider>/<model> format)
 
 Deep Mode Stage Overrides:
   --solver-backend <name>   Backend for solvers (default: -b value)
@@ -425,10 +440,22 @@ File Slices:
   file.ts:8               Single line 8
 
 Examples:
-  veda -S agent-1 sel add "src/*.ts"
-  veda -S agent-1 -p navigator-plan "Design a caching layer"
-  veda -S agent-1 resume "What about LRU?"
-  veda -S agent-1 --backend claude-code "Explain this code"
+  # Plan a task with navigator-plan (always pass -b and -m)
+  veda -S plan-auth sel add "src/*.ts"
+  veda -S plan-auth -b droid -m glm-5.2 -p navigator-plan "Design a caching layer"
+  veda -S plan-auth -b jdc -m jdc/crof/glm-5.2 resume "What about LRU?"
+
+  # Quick discussion with navigator-chat
+  veda -S plan-auth -b droid -m glm-5.2 -p navigator-chat "Quick question about X"
+
+  # Advisor review (second opinion)
+  veda -b droid -m glm-5.2 --persona advisor "Review this transcript"
+
+  # Model aliases auto-select backend (no -b needed)
+  veda -m opus "Explain this code"
+  veda -m glm-5.2 "Quick summary"
+
+  # No-selection quick query
   veda --no-sel "What is the CAP theorem?"
 `);
 }

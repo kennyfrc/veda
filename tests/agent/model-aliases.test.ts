@@ -22,6 +22,11 @@ describe('MODEL_ALIASES', () => {
     expect(MODEL_ALIASES['gemini-pro']).toEqual({ backend: 'gemini-cli', model: 'gemini-3-pro-preview' });
     expect(MODEL_ALIASES['gemini-flash']).toEqual({ backend: 'gemini-cli', model: 'gemini-3-flash-preview' });
   });
+
+  test('contains Droid models', () => {
+    expect(MODEL_ALIASES['glm-5.2']).toEqual({ backend: 'droid', model: 'glm-5.2' });
+    expect(MODEL_ALIASES['makora']).toEqual({ backend: 'droid', model: 'custom:Makora-GLM-5.2-NVFP4-9' });
+  });
 });
 
 describe('normalizeModelName', () => {
@@ -57,10 +62,16 @@ describe('resolveModelAlias', () => {
     expect(resolveModelAlias('gemini-flash')).toEqual({ backend: 'gemini-cli', model: 'gemini-3-flash-preview' });
   });
 
+  test('resolves Droid aliases', () => {
+    expect(resolveModelAlias('glm-5.2')).toEqual({ backend: 'droid', model: 'glm-5.2' });
+    expect(resolveModelAlias('makora')).toEqual({ backend: 'droid', model: 'custom:Makora-GLM-5.2-NVFP4-9' });
+  });
+
   test('handles case-insensitive lookup', () => {
     expect(resolveModelAlias('OPUS')).toEqual({ backend: 'claude-code', model: 'opus' });
     expect(resolveModelAlias('Sonnet')).toEqual({ backend: 'claude-code', model: 'sonnet' });
     expect(resolveModelAlias('GPT')).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
+    expect(resolveModelAlias('GLM-5.2')).toEqual({ backend: 'droid', model: 'glm-5.2' });
   });
 
   test('handles whitespace', () => {
@@ -104,9 +115,11 @@ describe('listModelAliases', () => {
     expect(aliases).toContain('gpt');
     expect(aliases).toContain('gemini-pro');
     expect(aliases).toContain('gemini-flash');
+    expect(aliases).toContain('glm-5.2');
+    expect(aliases).toContain('makora');
   });
 
   test('returns expected count', () => {
-    expect(listModelAliases().length).toBe(6);
+    expect(listModelAliases().length).toBe(8);
   });
 });
