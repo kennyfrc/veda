@@ -18,10 +18,10 @@ describe('generatePairs', () => {
     const candidates: CandidateInfo[] = [
       { id: 'a', solverBackend: 'claude', content: 'A' },
       { id: 'b', solverBackend: 'codex', content: 'B' },
-      { id: 'c', solverBackend: 'gemini', content: 'C' },
+      { id: 'c', solverBackend: 'droid', content: 'C' },
     ];
     
-    const pairs = generatePairs(candidates, ['claude', 'codex', 'gemini']);
+    const pairs = generatePairs(candidates, ['claude', 'codex', 'droid']);
     
     // C(3,2) = 3 pairs
     expect(pairs.length).toBe(3);
@@ -32,11 +32,11 @@ describe('generatePairs', () => {
     const candidates: CandidateInfo[] = [
       { id: 'a', solverBackend: 'claude', content: 'A' },
       { id: 'b', solverBackend: 'codex', content: 'B' },
-      { id: 'c', solverBackend: 'gemini', content: 'C' },
+      { id: 'c', solverBackend: 'droid', content: 'C' },
       { id: 'd', solverBackend: 'claude', content: 'D' },
     ];
     
-    const pairs = generatePairs(candidates, ['claude', 'codex', 'gemini']);
+    const pairs = generatePairs(candidates, ['claude', 'codex', 'droid']);
     
     // C(4,2) = 6 pairs
     expect(pairs.length).toBe(6);
@@ -146,12 +146,12 @@ describe('buildPairwiseAssignments', () => {
     const candidates: CandidateInfo[] = [
       { id: 'a', solverBackend: 'claude', content: 'A' },
       { id: 'b', solverBackend: 'codex', content: 'B' },
-      { id: 'c', solverBackend: 'gemini', content: 'C' },
+      { id: 'c', solverBackend: 'droid', content: 'C' },
     ];
     
-    const pairs = generatePairs(candidates, ['claude', 'codex', 'gemini']);
-    const assignments1 = buildPairwiseAssignments(pairs, ['claude', 'codex', 'gemini'], 'same-hash');
-    const assignments2 = buildPairwiseAssignments(pairs, ['claude', 'codex', 'gemini'], 'same-hash');
+    const pairs = generatePairs(candidates, ['claude', 'codex', 'droid']);
+    const assignments1 = buildPairwiseAssignments(pairs, ['claude', 'codex', 'droid'], 'same-hash');
+    const assignments2 = buildPairwiseAssignments(pairs, ['claude', 'codex', 'droid'], 'same-hash');
     
     expect(assignments1).toEqual(assignments2);
   });
@@ -252,7 +252,7 @@ describe('parsePairwiseResponse', () => {
     
     const pairs: CandidatePair[] = [
       { id: 'a:b', candidateA: 'a', candidateB: 'b', backendA: 'claude', backendB: 'codex', isSameBackend: false, eligibleJudges: ['claude'] },
-      { id: 'a:c', candidateA: 'a', candidateB: 'c', backendA: 'claude', backendB: 'gemini', isSameBackend: false, eligibleJudges: ['claude'] },
+      { id: 'a:c', candidateA: 'a', candidateB: 'c', backendA: 'claude', backendB: 'droid', isSameBackend: false, eligibleJudges: ['claude'] },
     ];
     
     const { votes, repaired } = parsePairwiseResponse(response, pairs, 'claude', 'opus');
@@ -327,7 +327,7 @@ describe('computeCopelandScores', () => {
     const candidates: CandidateInfo[] = [
       { id: 'a', solverBackend: 'claude', content: 'A' },
       { id: 'b', solverBackend: 'codex', content: 'B' },
-      { id: 'c', solverBackend: 'gemini', content: 'C' },
+      { id: 'c', solverBackend: 'droid', content: 'C' },
     ];
     
     // a beats b, a beats c, b beats c
@@ -377,7 +377,7 @@ describe('computeCopelandScores', () => {
     const candidates: CandidateInfo[] = [
       { id: 'a', solverBackend: 'claude', content: 'A' },
       { id: 'b', solverBackend: 'codex', content: 'B' },
-      { id: 'c', solverBackend: 'gemini', content: 'C' },
+      { id: 'c', solverBackend: 'droid', content: 'C' },
     ];
     
     // a beats b, c beats a, b beats c → cycle, all Copeland = 0

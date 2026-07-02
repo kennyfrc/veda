@@ -26,7 +26,7 @@ describe('Pinned base suppresses config distribution', () => {
   const configWithDistribution: GlobalConfig = {
     deep: {
       distributeSolvers: true,
-      solverBackends: ['codex', 'claude-code', 'gemini-cli'],
+      solverBackends: ['codex', 'claude-code', 'droid'],
     },
   };
 
@@ -156,14 +156,14 @@ describe('Pinned base suppresses config distribution', () => {
 
     test('--solver-backend overrides -b', () => {
       const stages = resolveDeepStages({
-        flags: { ...baseFlags, solverBackend: 'gemini-cli' },
+        flags: { ...baseFlags, solverBackend: 'droid' },
         baseResolved: explicitBase,
         globalConfig: configWithDistribution,
       });
 
       expect(stages.solver.mode).toBe('fixed');
       if (stages.solver.mode === 'fixed') {
-        expect(stages.solver.backend).toBe('gemini-cli');
+        expect(stages.solver.backend).toBe('droid');
       }
     });
   });

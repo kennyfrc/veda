@@ -192,22 +192,22 @@ describe('derive-matches', () => {
         votes: [
           { pairId: 'c1:c2', judgeBackend: 'claude', judgeModel: 'opus', candidateA: 'c1', candidateB: 'c2', outcome: 'A', confidence: 'high' },
           { pairId: 'c1:c2', judgeBackend: 'codex', judgeModel: 'gpt-5', candidateA: 'c1', candidateB: 'c2', outcome: 'A', confidence: 'medium' },
-          { pairId: 'c1:c2', judgeBackend: 'gemini', judgeModel: 'pro', candidateA: 'c1', candidateB: 'c2', outcome: 'B', confidence: 'low' },
+          { pairId: 'c1:c2', judgeBackend: 'droid', judgeModel: 'pro', candidateA: 'c1', candidateB: 'c2', outcome: 'B', confidence: 'low' },
         ],
         pairResults: undefined,
       });
       const matches = deriveJudgeMatches(entry);
 
-      // Majority is A (2 votes), so claude and codex win, gemini loses
+      // Majority is A (2 votes), so claude and codex win, droid loses
       const claudeJudge = matches.get('judge:claude:opus')!;
       const codexJudge = matches.get('judge:codex:gpt-5')!;
-      const geminiJudge = matches.get('judge:gemini:pro')!;
+      const droidJudge = matches.get('judge:droid:pro')!;
 
       // Claude vs Codex: both voted A (correct) = draw
       expect(claudeJudge.find(m => m.opponentKey === 'judge:codex:gpt-5')!.score).toBe(0.5);
-      // Claude vs Gemini: claude correct, gemini wrong = claude wins
-      expect(claudeJudge.find(m => m.opponentKey === 'judge:gemini:pro')!.score).toBe(1);
-      expect(geminiJudge.find(m => m.opponentKey === 'judge:claude:opus')!.score).toBe(0);
+      // Claude vs Droid: claude correct, droid wrong = claude wins
+      expect(claudeJudge.find(m => m.opponentKey === 'judge:droid:pro')!.score).toBe(1);
+      expect(droidJudge.find(m => m.opponentKey === 'judge:claude:opus')!.score).toBe(0);
     });
   });
 

@@ -60,7 +60,7 @@ describe('Base CLI override precedence', () => {
       { backend: 'codex' },
       { 
         judgeBackend: 'claude-code',
-        verifierBackend: 'gemini-cli',
+        verifierBackend: 'droid',
         revisionBackend: 'claude-code'
       }
     );
@@ -76,7 +76,7 @@ describe('Base CLI override precedence', () => {
       { 
         judgeModel: 'opus',
         verifierModel: 'sonnet',
-        revisionModel: 'gemini-pro'
+        revisionModel: 'glm-5.2'
       }
     );
     
@@ -91,8 +91,8 @@ describe('Base CLI override precedence', () => {
       { 
         judgeBackend: 'claude-code',
         judgeModel: 'opus',
-        verifierBackend: 'gemini-cli',
-        verifierModel: 'gemini-pro',
+        verifierBackend: 'droid',
+        verifierModel: 'glm-5.2',
         revisionBackend: 'claude-code',
         revisionModel: 'sonnet'
       }
@@ -114,10 +114,10 @@ describe('Base CLI override precedence', () => {
         judgeModel: 'opus'  // Explicit judge override
       },
       { 
-        judgeBackend: 'gemini-cli',
-        judgeModel: 'gemini-pro',
-        verifierBackend: 'gemini-cli',
-        verifierModel: 'gemini-pro'
+        judgeBackend: 'droid',
+        judgeModel: 'glm-5.2',
+        verifierBackend: 'droid',
+        verifierModel: 'glm-5.2'
       }
     );
     
@@ -159,15 +159,15 @@ describe('Base CLI override precedence', () => {
       { 
         judgeBackend: 'claude-code',
         judgeModel: 'opus',
-        verifierBackend: 'gemini-cli',
-        verifierModel: 'gemini-pro'
+        verifierBackend: 'droid',
+        verifierModel: 'glm-5.2'
       }
     );
     
     expect(result.judge.backend).toBe('claude-code');
     expect(result.judge.model).toBe('opus');
-    expect(result.verifier.backend).toBe('gemini-cli');
-    expect(result.verifier.model).toBe('gemini-pro');
+    expect(result.verifier.backend).toBe('droid');
+    expect(result.verifier.model).toBe('glm-5.2');
   });
 
   test('-b alone suppresses config backends but not models', () => {
@@ -176,8 +176,8 @@ describe('Base CLI override precedence', () => {
       { 
         judgeBackend: 'claude-code',
         judgeModel: 'opus',  // Config has model
-        verifierBackend: 'gemini-cli',
-        verifierModel: 'gemini-pro'
+        verifierBackend: 'droid',
+        verifierModel: 'glm-5.2'
       }
     );
     

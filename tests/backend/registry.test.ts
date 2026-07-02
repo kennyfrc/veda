@@ -16,11 +16,11 @@ describe('Backend Registry', () => {
     expect(backend.command).toBe('claude');
   });
 
-  test('has gemini-cli backend registered', () => {
-    expect(hasBackend('gemini-cli')).toBe(true);
-    const backend = getBackend('gemini-cli');
-    expect(backend.name).toBe('gemini-cli');
-    expect(backend.command).toBe('gemini');
+  test('has droid backend registered', () => {
+    expect(hasBackend('droid')).toBe(true);
+    const backend = getBackend('droid');
+    expect(backend.name).toBe('droid');
+    expect(backend.command).toBe('droid');
   });
 
   test('has jdc backend registered', () => {
@@ -30,20 +30,12 @@ describe('Backend Registry', () => {
     expect(backend.command).toBe('jdc');
   });
 
-  test('has droid backend registered', () => {
-    expect(hasBackend('droid')).toBe(true);
-    const backend = getBackend('droid');
-    expect(backend.name).toBe('droid');
-    expect(backend.command).toBe('droid');
-  });
-
   test('lists all backends', () => {
     const backends = listBackends();
     expect(backends).toContain('codex');
     expect(backends).toContain('claude-code');
-    expect(backends).toContain('gemini-cli');
-    expect(backends).toContain('jdc');
     expect(backends).toContain('droid');
+    expect(backends).toContain('jdc');
   });
 
   test('jdc default model', () => {
@@ -68,6 +60,6 @@ describe('Backend Registry', () => {
 
   test('throws for old backend names (no aliases)', () => {
     expect(() => getBackend('claude')).toThrow('Unknown backend');
-    expect(() => getBackend('gemini')).toThrow('Unknown backend');
+    expect(() => getBackend('gemini-cli')).toThrow('Unknown backend');
   });
 });

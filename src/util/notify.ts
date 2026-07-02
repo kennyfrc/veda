@@ -3,7 +3,8 @@ import { spawn } from 'node:child_process';
 const BACKEND_DISPLAY_NAMES: Record<string, string> = {
   'claude-code': 'Claude',
   'codex': 'Codex',
-  'gemini-cli': 'Gemini',
+  'droid': 'Droid',
+  'jdc': 'Jetdraft Coder',
 };
 
 const SYSTEM_SOUND_DIR = '/System/Library/Sounds';
@@ -31,7 +32,7 @@ export function formatNotifyMessage(prompt: string | undefined): string {
 /**
  * Format backend ID and model into a readable display string.
  * Returns undefined if no backend is provided.
- * Examples: "Codex GPT-5.2", "Claude Opus", "Gemini gemini-3-pro-preview"
+ * Examples: "Codex GPT-5.2", "Claude Opus", "Droid glm-5.2"
  */
 export function formatBackendModel(backend?: string, model?: string): string | undefined {
   if (!backend) return undefined;

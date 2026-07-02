@@ -29,13 +29,13 @@ describe('selectSolverBackends with distribute mode', () => {
       const result = await selectSolverBackends({
         k: 6,
         distributeSolvers: true,
-        solverBackends: ['claude-code', 'codex', 'gemini-cli'],
+        solverBackends: ['claude-code', 'codex', 'droid'],
       });
 
       expect(result.mode).toBe('distributed');
       expect(result.backends).toEqual([
-        'claude-code', 'codex', 'gemini-cli',
-        'claude-code', 'codex', 'gemini-cli'
+        'claude-code', 'codex', 'droid',
+        'claude-code', 'codex', 'droid'
       ]);
     });
 
@@ -45,10 +45,10 @@ describe('selectSolverBackends with distribute mode', () => {
       const result = await selectSolverBackends({
         k: 5,
         distributeSolvers: true,
-        solverBackends: ['claude-code', 'codex', 'gemini-cli'],
+        solverBackends: ['claude-code', 'codex', 'droid'],
       });
 
-      expect(result.backends).toEqual(['claude-code', 'codex', 'gemini-cli', 'claude-code', 'codex']);
+      expect(result.backends).toEqual(['claude-code', 'codex', 'droid', 'claude-code', 'codex']);
     });
 
     test('round-robin is deterministic (same input = same output)', async () => {
@@ -153,7 +153,7 @@ describe('selectSolverBackends with distribute mode', () => {
       const result = await selectSolverBackends({
         k: 2,
         distributeSolvers: true,
-        solverBackends: ['claude-code', 'codex', 'gemini-cli'],
+        solverBackends: ['claude-code', 'codex', 'droid'],
       });
 
       expect(result.backends).toEqual(['claude-code', 'codex']);
@@ -197,13 +197,13 @@ describe('selectSolverBackends with distribute mode', () => {
       const result1 = await selectSolverBackends({
         k: 6,
         distributeSolvers: true,
-        solverBackends: ['claude-code', 'codex', 'gemini-cli'],
+        solverBackends: ['claude-code', 'codex', 'droid'],
       });
 
       const result2 = await selectSolverBackends({
         k: 6,
         distributeSolvers: true,
-        solverBackends: ['claude-code', 'codex', 'gemini-cli'],
+        solverBackends: ['claude-code', 'codex', 'droid'],
       });
 
       // First backend should always be the same (candidates are sorted)
@@ -231,11 +231,11 @@ describe('selectSolverBackends with distribute mode', () => {
 
       const result = await selectSolverBackends({
         k: 5,
-        baseBackend: 'gemini-cli',
+        baseBackend: 'droid',
       });
 
       expect(result.mode).toBe('fixed');
-      expect(result.backends).toEqual(['gemini-cli', 'gemini-cli', 'gemini-cli', 'gemini-cli', 'gemini-cli']);
+      expect(result.backends).toEqual(['droid', 'droid', 'droid', 'droid', 'droid']);
     });
 
     test('fallback to codex when baseBackend not provided', async () => {
@@ -273,7 +273,7 @@ describe('selectSolverBackends with distribute mode', () => {
       const result = await selectSolverBackends({
         k: 1,
         distributeSolvers: true,
-        solverBackends: ['codex', 'gemini-cli'],
+        solverBackends: ['codex', 'droid'],
       });
 
       expect(result.backends).toEqual(['codex']);
@@ -285,7 +285,7 @@ describe('selectSolverBackends with distribute mode', () => {
       const result = await selectSolverBackends({
         k: 8,
         distributeSolvers: true,
-        solverBackends: ['codex', 'gemini-cli'],
+        solverBackends: ['codex', 'droid'],
       });
 
       expect(result.backends.length).toBe(8);
@@ -299,16 +299,16 @@ describe('selectSolverBackends with distribute mode', () => {
       const result = await selectSolverBackends({
         k: 6,
         distributeSolvers: true,
-        solverBackends: ['claude-code', 'codex', 'gemini-cli'],
+        solverBackends: ['claude-code', 'codex', 'droid'],
       });
 
       // Count occurrences
-      const counts = { 'claude-code': 0, 'codex': 0, 'gemini-cli': 0 };
+      const counts = { 'claude-code': 0, 'codex': 0, 'droid': 0 };
       for (const backend of result.backends) {
         counts[backend]++;
       }
 
-      expect(counts).toEqual({ 'claude-code': 2, 'codex': 2, 'gemini-cli': 2 });
+      expect(counts).toEqual({ 'claude-code': 2, 'codex': 2, 'droid': 2 });
     });
 
     test('distribute mode with k=8 and 3 backends gives 3,3,2', async () => {
@@ -317,15 +317,15 @@ describe('selectSolverBackends with distribute mode', () => {
       const result = await selectSolverBackends({
         k: 8,
         distributeSolvers: true,
-        solverBackends: ['claude-code', 'codex', 'gemini-cli'],
+        solverBackends: ['claude-code', 'codex', 'droid'],
       });
 
-      expect(result.backends).toEqual(['claude-code', 'codex', 'gemini-cli', 'claude-code', 'codex', 'gemini-cli', 'claude-code', 'codex']);
-      const counts = { 'claude-code': 0, 'codex': 0, 'gemini-cli': 0 };
+      expect(result.backends).toEqual(['claude-code', 'codex', 'droid', 'claude-code', 'codex', 'droid', 'claude-code', 'codex']);
+      const counts = { 'claude-code': 0, 'codex': 0, 'droid': 0 };
       for (const backend of result.backends) {
         counts[backend]++;
       }
-      expect(counts).toEqual({ 'claude-code': 3, 'codex': 3, 'gemini-cli': 2 });
+      expect(counts).toEqual({ 'claude-code': 3, 'codex': 3, 'droid': 2 });
     });
   });
 });
@@ -335,6 +335,6 @@ describe('Backend registry', () => {
     const backends = listBackends();
     expect(backends).toContain('codex');
     expect(backends).toContain('claude-code');
-    expect(backends).toContain('gemini-cli');
+    expect(backends).toContain('droid');
   });
 });

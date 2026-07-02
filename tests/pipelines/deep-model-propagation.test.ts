@@ -11,42 +11,42 @@ describe('Deep mode model propagation', () => {
       const { resolveBackendModel } = await import('../../src/agent/config');
       
       const result = resolveBackendModel({
-        explicitBackend: 'gemini-cli',
+        explicitBackend: 'droid',
         explicitModel: undefined,
-        fallbackBackend: 'gemini-cli',
-        fallbackModel: 'gemini-3-pro-preview',  // This simulates base.model from -m
+        fallbackBackend: 'droid',
+        fallbackModel: 'glm-5.2',  // This simulates base.model from -m
       });
       
-      expect(result.model).toBe('gemini-3-pro-preview');
+      expect(result.model).toBe('glm-5.2');
     });
     
     test('explicitModel overrides fallbackModel', async () => {
       const { resolveBackendModel } = await import('../../src/agent/config');
       
       const result = resolveBackendModel({
-        explicitBackend: 'gemini-cli',
-        explicitModel: 'gemini-3-flash-preview',  // --solver-model overrides -m
-        fallbackBackend: 'gemini-cli',
-        fallbackModel: 'gemini-3-pro-preview',  // base.model from -m
+        explicitBackend: 'droid',
+        explicitModel: 'glm-5.2',  // --solver-model overrides -m
+        fallbackBackend: 'droid',
+        fallbackModel: 'glm-5.2',  // base.model from -m
       });
       
-      expect(result.model).toBe('gemini-3-flash-preview');
+      expect(result.model).toBe('glm-5.2');
     });
     
     test('model alias resolves correctly when passed as fallbackModel', async () => {
       const { resolveBackendModel } = await import('../../src/agent/config');
       
-      // When base.model is already resolved (e.g., 'gemini-3-pro-preview' not 'gemini-pro'),
+      // When base.model is already resolved (e.g., 'glm-5.2' not 'glm-5.2'),
       // it should be used as-is
       const result = resolveBackendModel({
-        explicitBackend: 'gemini-cli',
+        explicitBackend: 'droid',
         explicitModel: undefined,
-        fallbackBackend: 'gemini-cli',
-        fallbackModel: 'gemini-3-pro-preview',  // Already resolved, not an alias
+        fallbackBackend: 'droid',
+        fallbackModel: 'glm-5.2',  // Already resolved, not an alias
       });
       
-      expect(result.model).toBe('gemini-3-pro-preview');
-      expect(result.backend).toBe('gemini-cli');
+      expect(result.model).toBe('glm-5.2');
+      expect(result.backend).toBe('droid');
     });
   });
   

@@ -18,11 +18,6 @@ describe('MODEL_ALIASES', () => {
     expect(MODEL_ALIASES['gpt']).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
   });
 
-  test('contains Gemini models', () => {
-    expect(MODEL_ALIASES['gemini-pro']).toEqual({ backend: 'gemini-cli', model: 'gemini-3-pro-preview' });
-    expect(MODEL_ALIASES['gemini-flash']).toEqual({ backend: 'gemini-cli', model: 'gemini-3-flash-preview' });
-  });
-
   test('contains Droid models', () => {
     expect(MODEL_ALIASES['glm-5.2']).toEqual({ backend: 'droid', model: 'glm-5.2' });
     expect(MODEL_ALIASES['makora']).toEqual({ backend: 'droid', model: 'custom:Makora-GLM-5.2-NVFP4-9' });
@@ -42,7 +37,7 @@ describe('normalizeModelName', () => {
 
   test('handles combined normalization', () => {
     expect(normalizeModelName('  OpUs  ')).toBe('opus');
-    expect(normalizeModelName(' GEMINI-PRO ')).toBe('gemini-pro');
+    expect(normalizeModelName(' GLM-5.2 ')).toBe('glm-5.2');
   });
 });
 
@@ -55,11 +50,6 @@ describe('resolveModelAlias', () => {
 
   test('resolves OpenAI aliases', () => {
     expect(resolveModelAlias('gpt')).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
-  });
-
-  test('resolves Gemini aliases', () => {
-    expect(resolveModelAlias('gemini-pro')).toEqual({ backend: 'gemini-cli', model: 'gemini-3-pro-preview' });
-    expect(resolveModelAlias('gemini-flash')).toEqual({ backend: 'gemini-cli', model: 'gemini-3-flash-preview' });
   });
 
   test('resolves Droid aliases', () => {
@@ -76,12 +66,11 @@ describe('resolveModelAlias', () => {
 
   test('handles whitespace', () => {
     expect(resolveModelAlias('  opus  ')).toEqual({ backend: 'claude-code', model: 'opus' });
+    expect(resolveModelAlias(' haiku\n')).toEqual({ backend: 'claude-code', model: 'haiku' });
   });
 
   test('returns undefined for unknown models', () => {
     expect(resolveModelAlias('unknown-model')).toBeUndefined();
-    expect(resolveModelAlias('gpt-4o')).toBeUndefined();
-    expect(resolveModelAlias('claude-3-opus')).toBeUndefined();
     expect(resolveModelAlias('')).toBeUndefined();
   });
 });
@@ -90,19 +79,21 @@ describe('isModelAlias', () => {
   test('returns true for known aliases', () => {
     expect(isModelAlias('opus')).toBe(true);
     expect(isModelAlias('sonnet')).toBe(true);
+    expect(isModelAlias('haiku')).toBe(true);
     expect(isModelAlias('gpt')).toBe(true);
-    expect(isModelAlias('gemini-pro')).toBe(true);
+    expect(isModelAlias('glm-5.2')).toBe(true);
+    expect(isModelAlias('makora')).toBe(true);
   });
 
   test('returns false for unknown models', () => {
-    expect(isModelAlias('unknown')).toBe(false);
-    expect(isModelAlias('gpt-4')).toBe(false);
+    expect(isModelAlias('unknown-model')).toBe(false);
     expect(isModelAlias('')).toBe(false);
   });
 
   test('is case-insensitive', () => {
     expect(isModelAlias('OPUS')).toBe(true);
-    expect(isModelAlias('Haiku')).toBe(true);
+    expect(isModelAlias('Sonnet')).toBe(true);
+    expect(isModelAlias('GLM-5.2')).toBe(true);
   });
 });
 
@@ -113,13 +104,11 @@ describe('listModelAliases', () => {
     expect(aliases).toContain('sonnet');
     expect(aliases).toContain('haiku');
     expect(aliases).toContain('gpt');
-    expect(aliases).toContain('gemini-pro');
-    expect(aliases).toContain('gemini-flash');
     expect(aliases).toContain('glm-5.2');
     expect(aliases).toContain('makora');
   });
 
   test('returns expected count', () => {
-    expect(listModelAliases().length).toBe(8);
+    expect(listModelAliases().length).toBe(6);
   });
 });

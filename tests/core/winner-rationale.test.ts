@@ -16,7 +16,7 @@ describe('winner rationale extraction', () => {
   const candidates: CandidateInfo[] = [
     { id: 'solver-0', solverBackend: 'claude-code', content: 'A' },
     { id: 'solver-1', solverBackend: 'codex', content: 'B' },
-    { id: 'solver-2', solverBackend: 'gemini-cli', content: 'C' },
+    { id: 'solver-2', solverBackend: 'droid', content: 'C' },
   ];
 
   it('should preserve reasoning in RankEntry via ranksByJudge', () => {
@@ -57,10 +57,10 @@ describe('winner rationale extraction', () => {
         usage: { inputTokens: 100, outputTokens: 50 },
       },
       {
-        judgeBackend: 'gemini-cli',
-        judgeModel: 'gemini-3-pro',
+        judgeBackend: 'droid',
+        judgeModel: 'glm-5.2',
         rankings: [
-          { candidateId: 'solver-0', rank: 1, confidence: 'high', reasoning: 'Gemini: Excellent approach.' },
+          { candidateId: 'solver-0', rank: 1, confidence: 'high', reasoning: 'Droid: Excellent approach.' },
           { candidateId: 'solver-1', rank: 2, confidence: 'medium' },
         ],
         poolSize: 2,
@@ -82,12 +82,12 @@ describe('winner rationale extraction', () => {
     const codexRanking = winnerScore!.ranksByJudge.find(r => r.judgeBackend === 'codex');
     expect(codexRanking?.reasoning).toBe('Codex: Clear winner.');
 
-    const geminiRanking = winnerScore!.ranksByJudge.find(r => r.judgeBackend === 'gemini-cli');
-    expect(geminiRanking?.reasoning).toBe('Gemini: Excellent approach.');
+    const droidRanking = winnerScore!.ranksByJudge.find(r => r.judgeBackend === 'droid');
+    expect(droidRanking?.reasoning).toBe('Droid: Excellent approach.');
   });
 
   it('should only include reasoning from judges who gave rank=1 for tie scenario', () => {
-    // Scenario: solver-0 gets rank 1 from codex, rank 2 from gemini
+    // Scenario: solver-0 gets rank 1 from codex, rank 2 from droid
     // Only codex's reasoning should be used for "best rank" rationale
     const judgeResults: JudgePoolResult[] = [
       {
@@ -102,8 +102,8 @@ describe('winner rationale extraction', () => {
         usage: { inputTokens: 100, outputTokens: 50 },
       },
       {
-        judgeBackend: 'gemini-cli',
-        judgeModel: 'gemini-3-pro',
+        judgeBackend: 'droid',
+        judgeModel: 'glm-5.2',
         rankings: [
           { candidateId: 'solver-1', rank: 1, confidence: 'high', reasoning: 'Gemini preferred solver-1.' },
           { candidateId: 'solver-0', rank: 2, confidence: 'medium', reasoning: 'Gemini ranked solver-0 second.' },
@@ -116,16 +116,16 @@ describe('winner rationale extraction', () => {
 
     const result = aggregateJudgeResults(judgeResults, candidates, CONFIDENCE_PENALTY.NONE);
 
-    // Check that solver-0's ranksByJudge includes gemini's reasoning too
+    // Check that solver-0's ranksByJudge includes droid's reasoning too
     const solver0Score = result.scores.find(s => s.candidateId === 'solver-0');
     expect(solver0Score).toBeDefined();
     expect(solver0Score!.ranksByJudge).toHaveLength(2);
 
     // The reasoning is preserved at aggregation level (all rankings)
     // The filtering of "only rank=1" happens in judge-unified when building winnerRationales
-    const geminiRanking = solver0Score!.ranksByJudge.find(r => r.judgeBackend === 'gemini-cli');
-    expect(geminiRanking?.reasoning).toBe('Gemini ranked solver-0 second.');
-    expect(geminiRanking?.rank).toBe(2);
+    const droidRanking = solver0Score!.ranksByJudge.find(r => r.judgeBackend === 'droid');
+    expect(droidRanking?.reasoning).toBe('Gemini ranked solver-0 second.');
+    expect(droidRanking?.rank).toBe(2);
   });
 
   it('should handle missing reasoning gracefully', () => {

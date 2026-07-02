@@ -11,10 +11,6 @@ export const MODEL_ALIASES: Record<string, ModelAliasTarget> = {
   
   // OpenAI models (via codex)
   'gpt': { backend: 'codex', model: 'gpt-5.3-codex' },
-  
-  // Gemini models
-  'gemini-pro': { backend: 'gemini-cli', model: 'gemini-3-pro-preview' },
-  'gemini-flash': { backend: 'gemini-cli', model: 'gemini-3-flash-preview' },
 
   // Droid models (via droid exec)
   'glm-5.2': { backend: 'droid', model: 'glm-5.2' },

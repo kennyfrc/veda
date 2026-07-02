@@ -32,7 +32,6 @@ const MODEL_PREFIX_TO_BACKEND: Record<string, string> = {
   'gpt-': 'codex',
   'o1-': 'codex',
   'o3-': 'codex',
-  'gemini-': 'gemini-cli',
   'claude-': 'claude-code',
   'jdc/': 'jdc',
 };

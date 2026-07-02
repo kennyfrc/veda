@@ -49,21 +49,21 @@ describe('trace-format e2e', () => {
     output.push(formatSolverToolEvent(1, 'claude', 'opus', 'contextual', 'shell', { command: 'cat file.ts' }));
 
     // Simulate streaming tool_start events for solver 2
-    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'analytical', 'Grep'));
-    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'analytical', 'Glob'));
-    output.push(formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash', 'analytical', 'Read'));
+    output.push(formatSolverToolEvent(2, 'droid', 'glm-5.2', 'analytical', 'Grep'));
+    output.push(formatSolverToolEvent(2, 'droid', 'glm-5.2', 'analytical', 'Glob'));
+    output.push(formatSolverToolEvent(2, 'droid', 'glm-5.2', 'analytical', 'Read'));
 
     // solver_complete events (just summary, no tool chain)
     output.push(formatSolverComplete(0, 'codex', 'gpt-5.2', 'empirical', 723));
     output.push(formatSolverComplete(1, 'claude', 'opus', 'contextual', 941));
-    output.push(formatSolverComplete(2, 'gemini-cli', 'gemini-2.5-flash', 'analytical', 713));
+    output.push(formatSolverComplete(2, 'droid', 'glm-5.2', 'analytical', 713));
 
     // ensemble_complete
     output.push(formatPhaseSummary('ensemble complete'));
 
     // JUDGE phase header (emitted on ensemble_complete)
     output.push('');
-    output.push(formatPhaseHeader('judge', 'gemini-3-flash-preview'));
+    output.push(formatPhaseHeader('judge', 'glm-5.2'));
     state.phase = 'judge';
 
     // candidate events
@@ -108,19 +108,19 @@ describe('trace-format e2e', () => {
 
     // Verify phase headers
     expect(stripped).toContain('▸ solve ─');
-    expect(stripped).toContain('▸ judge (gemini-3-flash-preview) ─');
+    expect(stripped).toContain('▸ judge (glm-5.2) ─');
     expect(stripped).toContain('▸ verify (gpt-5.2) ─');
 
     // Verify streaming solver tool events with backend:model:module
     expect(stripped).toContain('[solver-1:codex:gpt-5.2:empirical] → Grep');
     expect(stripped).toContain('[solver-1:codex:gpt-5.2:empirical] → Read');
     expect(stripped).toContain('[solver-2:claude:opus:contextual] → shell: rg -n "test"');
-    expect(stripped).toContain('[solver-3:gemini-cli:gemini-2.5-flash:analytical] → Grep');
+    expect(stripped).toContain('[solver-3:droid:glm-5.2:analytical] → Grep');
 
     // Verify solver completion format (no tool chain, just summary)
     expect(stripped).toContain('[solver-1:codex:gpt-5.2:empirical] → done (723 out)');
     expect(stripped).toContain('[solver-2:claude:opus:contextual] → done (941 out)');
-    expect(stripped).toContain('[solver-3:gemini-cli:gemini-2.5-flash:analytical] → done (713 out)');
+    expect(stripped).toContain('[solver-3:droid:glm-5.2:analytical] → done (713 out)');
 
     // Verify candidate separators
     expect(stripped).toContain('#1 ─');
@@ -225,12 +225,12 @@ describe('trace-format e2e', () => {
 
   test('full model strings are preserved', () => {
     // Test with a long model name
-    const output = formatSolverComplete(0, 'gemini-cli', 'gemini-2.5-flash-preview-05-20', 'analytical', 500);
+    const output = formatSolverComplete(0, 'droid', 'glm-5.2', 'analytical', 500);
     const stripped = stripAnsi(output);
     
     // Full model string should be preserved
-    expect(stripped).toContain('gemini-2.5-flash-preview-05-20');
-    expect(stripped).toContain('[solver-1:gemini-cli:gemini-2.5-flash-preview-05-20:analytical]');
+    expect(stripped).toContain('glm-5.2');
+    expect(stripped).toContain('[solver-1:droid:glm-5.2:analytical]');
     expect(stripped).not.toContain('···'); // No truncation on model name
   });
 });

@@ -185,13 +185,13 @@ describe('parseArgs', () => {
     });
 
     test('parses --verifier-backend flag', () => {
-      const result = parseArgs(['bun', 'script', 'deep', '--verifier-backend', 'gemini-cli', 'hello']);
-      expect(result.options.verifierBackend).toBe('gemini-cli');
+      const result = parseArgs(['bun', 'script', 'deep', '--verifier-backend', 'droid', 'hello']);
+      expect(result.options.verifierBackend).toBe('droid');
     });
 
     test('parses --verifier-model flag', () => {
-      const result = parseArgs(['bun', 'script', 'deep', '--verifier-model', 'gemini-pro', 'hello']);
-      expect(result.options.verifierModel).toBe('gemini-pro');
+      const result = parseArgs(['bun', 'script', 'deep', '--verifier-model', 'glm-5.2', 'hello']);
+      expect(result.options.verifierModel).toBe('glm-5.2');
     });
 
     test('parses all per-stage flags together', () => {
@@ -201,16 +201,16 @@ describe('parseArgs', () => {
         '--solver-model', 'sonnet',
         '--judge-backend', 'codex',
         '--judge-model', 'gpt',
-        '--verifier-backend', 'gemini-cli',
-        '--verifier-model', 'gemini-flash',
+        '--verifier-backend', 'droid',
+        '--verifier-model', 'glm-5.2',
         'solve this problem',
       ]);
       expect(result.options.solverBackend).toBe('claude-code');
       expect(result.options.solverModel).toBe('sonnet');
       expect(result.options.judgeBackend).toBe('codex');
       expect(result.options.judgeModel).toBe('gpt');
-      expect(result.options.verifierBackend).toBe('gemini-cli');
-      expect(result.options.verifierModel).toBe('gemini-flash');
+      expect(result.options.verifierBackend).toBe('droid');
+      expect(result.options.verifierModel).toBe('glm-5.2');
       expect(result.prompt).toBe('solve this problem');
     });
 

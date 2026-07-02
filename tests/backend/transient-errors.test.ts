@@ -12,7 +12,7 @@ describe('spawn retry utilities', () => {
     });
     
     it('detects ENOENT from error message', () => {
-      expect(isSpawnEnoent({ message: 'Executable not found in $PATH: "gemini"' })).toBe(true);
+      expect(isSpawnEnoent({ message: 'Executable not found in $PATH: "droid"' })).toBe(true);
       expect(isSpawnEnoent({ message: 'some error with ENOENT in it' })).toBe(true);
     });
     
@@ -120,35 +120,6 @@ describe('transient error filtering', () => {
       const event = { type: 'error', message: 'Error while Reconnecting... 1/5 to server' };
       const result = normalizeEvent(event);
       expect(result).not.toBeNull();
-    });
-  });
-  
-  describe('gemini backend', () => {
-    const { GeminiBackend } = require('../../src/backend/gemini');
-    const backend = new GeminiBackend();
-    
-    const normalizeEvent = (event: unknown) => {
-      return (backend as any).normalizeEvent(event);
-    };
-    
-    it('filters warning severity errors', () => {
-      const event = { type: 'error', severity: 'warning', message: 'Loop detected' };
-      expect(normalizeEvent(event)).toBeNull();
-    });
-    
-    it('does not filter error severity', () => {
-      const event = { type: 'error', severity: 'error', message: 'Fatal error' };
-      const result = normalizeEvent(event);
-      expect(result).not.toBeNull();
-      expect(result?.type).toBe('error');
-      expect(result?.content).toBe('Fatal error');
-    });
-    
-    it('does not filter when severity is missing (defaults to error)', () => {
-      const event = { type: 'error', message: 'Some error' };
-      const result = normalizeEvent(event);
-      expect(result).not.toBeNull();
-      expect(result?.type).toBe('error');
     });
   });
   

@@ -5,7 +5,6 @@ export type ModelStage = 'base' | 'solver' | 'judge' | 'verifier' | 'revision';
 export const BACKEND_DEFAULT_MODELS: Record<string, string> = {
   'claude-code': 'opus',
   'codex': 'gpt-5.2',
-  'gemini-cli': 'gemini-3-pro-preview',
   'droid': 'custom:Makora-GLM-5.2-NVFP4-9',
   'jdc': 'jdc/fireworks/accounts/fireworks/routers/kimi-k2p6',
 };
@@ -28,7 +27,6 @@ export const BACKEND_STAGE_DEFAULT_MODELS: Record<string, Partial<Record<ModelSt
 export const BACKEND_DEFAULT_REASONING: Record<string, ReasoningLevel> = {
   'claude-code': 'medium',
   'codex': 'medium',
-  'gemini-cli': 'medium',
   'droid': 'medium',
   'jdc': 'medium',
 };

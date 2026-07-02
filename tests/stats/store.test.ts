@@ -110,8 +110,8 @@ describe('StatsStore', () => {
       winner: {
         category: 'systematic',
         moduleId: 'mece_decomposition',
-        backend: 'gemini-cli',
-        model: 'gemini-3-pro-preview',
+        backend: 'droid',
+        model: 'glm-5.2',
       },
       confidence: { level: 'medium', score: 0.5 },
     };
@@ -138,8 +138,8 @@ describe('StatsStore', () => {
       winner: {
         category: 'systematic',
         moduleId: 'mece_decomposition',
-        backend: 'gemini-cli',
-        model: 'gemini-3-pro-preview',
+        backend: 'droid',
+        model: 'glm-5.2',
       },
       confidence: { level: 'high', score: 0.85 },
       aggregatedConfidence: {

@@ -19,8 +19,8 @@ describe('buildJudgeAssignments', () => {
       { id: 'solver-1', solverBackend: 'claude-code', content: 'Answer A2' },
       { id: 'solver-2', solverBackend: 'codex', content: 'Answer B1' },
       { id: 'solver-3', solverBackend: 'codex', content: 'Answer B2' },
-      { id: 'solver-4', solverBackend: 'gemini-cli', content: 'Answer C1' },
-      { id: 'solver-5', solverBackend: 'gemini-cli', content: 'Answer C2' },
+      { id: 'solver-4', solverBackend: 'droid', content: 'Answer C1' },
+      { id: 'solver-5', solverBackend: 'droid', content: 'Answer C2' },
     ];
     
     const assignments = buildJudgeAssignments(candidates, 'test-hash');
@@ -28,26 +28,26 @@ describe('buildJudgeAssignments', () => {
     // Should have 3 judges (one per unique backend)
     expect(assignments.length).toBe(3);
     
-    // claude-code judge should evaluate codex and gemini candidates
+    // claude-code judge should evaluate codex and droid candidates
     const claudeJudge = assignments.find(a => a.judgeBackend === 'claude-code');
     expect(claudeJudge).toBeDefined();
     expect(claudeJudge!.candidateIds).toHaveLength(4);
     expect(claudeJudge!.candidateIds).not.toContain('solver-0');
     expect(claudeJudge!.candidateIds).not.toContain('solver-1');
     
-    // codex judge should evaluate claude and gemini candidates
+    // codex judge should evaluate claude and droid candidates
     const codexJudge = assignments.find(a => a.judgeBackend === 'codex');
     expect(codexJudge).toBeDefined();
     expect(codexJudge!.candidateIds).toHaveLength(4);
     expect(codexJudge!.candidateIds).not.toContain('solver-2');
     expect(codexJudge!.candidateIds).not.toContain('solver-3');
     
-    // gemini judge should evaluate claude and codex candidates
-    const geminiJudge = assignments.find(a => a.judgeBackend === 'gemini-cli');
-    expect(geminiJudge).toBeDefined();
-    expect(geminiJudge!.candidateIds).toHaveLength(4);
-    expect(geminiJudge!.candidateIds).not.toContain('solver-4');
-    expect(geminiJudge!.candidateIds).not.toContain('solver-5');
+    // droid judge should evaluate claude and codex candidates
+    const droidJudge = assignments.find(a => a.judgeBackend === 'droid');
+    expect(droidJudge).toBeDefined();
+    expect(droidJudge!.candidateIds).toHaveLength(4);
+    expect(droidJudge!.candidateIds).not.toContain('solver-4');
+    expect(droidJudge!.candidateIds).not.toContain('solver-5');
   });
   
   it('should create cross-provider assignments with 2 backends', () => {
@@ -85,15 +85,15 @@ describe('buildJudgeAssignments', () => {
     const candidates: CandidateInfo[] = [
       { id: 'solver-0', solverBackend: 'claude-code', content: 'Answer A' },
       { id: 'solver-1', solverBackend: 'codex', content: 'Answer B' },
-      { id: 'solver-2', solverBackend: 'gemini-cli', content: 'Answer C' },
+      { id: 'solver-2', solverBackend: 'droid', content: 'Answer C' },
     ];
     
-    // Only use codex and gemini as judges
-    const assignments = buildJudgeAssignments(candidates, 'test-hash', ['codex', 'gemini-cli']);
+    // Only use codex and droid as judges
+    const assignments = buildJudgeAssignments(candidates, 'test-hash', ['codex', 'droid']);
     
     expect(assignments.length).toBe(2);
     expect(assignments.map(a => a.judgeBackend)).toContain('codex');
-    expect(assignments.map(a => a.judgeBackend)).toContain('gemini-cli');
+    expect(assignments.map(a => a.judgeBackend)).toContain('droid');
     expect(assignments.map(a => a.judgeBackend)).not.toContain('claude-code');
   });
   
@@ -101,7 +101,7 @@ describe('buildJudgeAssignments', () => {
     const candidates: CandidateInfo[] = [
       { id: 'solver-0', solverBackend: 'claude-code', content: 'Answer A' },
       { id: 'solver-1', solverBackend: 'codex', content: 'Answer B' },
-      { id: 'solver-2', solverBackend: 'gemini-cli', content: 'Answer C' },
+      { id: 'solver-2', solverBackend: 'droid', content: 'Answer C' },
     ];
     
     const assignments1 = buildJudgeAssignments(candidates, 'same-hash');
@@ -122,7 +122,7 @@ describe('validateAssignments', () => {
     const candidates: CandidateInfo[] = [
       { id: 'solver-0', solverBackend: 'claude-code', content: 'A' },
       { id: 'solver-1', solverBackend: 'codex', content: 'B' },
-      { id: 'solver-2', solverBackend: 'gemini-cli', content: 'C' },
+      { id: 'solver-2', solverBackend: 'droid', content: 'C' },
     ];
     
     const assignments = buildJudgeAssignments(candidates, 'test');
@@ -135,7 +135,7 @@ describe('validateAssignments', () => {
     const candidates: CandidateInfo[] = [
       { id: 'solver-0', solverBackend: 'claude-code', content: 'A' },
       { id: 'solver-1', solverBackend: 'codex', content: 'B' },
-      { id: 'solver-2', solverBackend: 'gemini-cli', content: 'C' },
+      { id: 'solver-2', solverBackend: 'droid', content: 'C' },
     ];
     
     // Manually create incomplete assignments
@@ -168,7 +168,7 @@ describe('formatRankingPrompt', () => {
     const candidates: CandidateInfo[] = [
       { id: 'solver-0', solverBackend: 'claude-code', content: 'Answer Zero' },
       { id: 'solver-1', solverBackend: 'codex', content: 'Answer One' },
-      { id: 'solver-2', solverBackend: 'gemini-cli', content: 'Answer Two' },
+      { id: 'solver-2', solverBackend: 'droid', content: 'Answer Two' },
     ];
     
     // Shuffle order: 2, 0, 1
@@ -285,7 +285,7 @@ describe('processJudgeResults', () => {
   it('should identify no failures', () => {
     const results: JudgePoolExecutionResult[] = [
       { success: true, value: mockJudgePoolResult('codex'), judgeBackend: 'codex' },
-      { success: true, value: mockJudgePoolResult('gemini-cli'), judgeBackend: 'gemini-cli' },
+      { success: true, value: mockJudgePoolResult('droid'), judgeBackend: 'droid' },
     ];
     
     const { validResults, penalty, failureCount } = processJudgeResults(results);
@@ -298,7 +298,7 @@ describe('processJudgeResults', () => {
   it('should apply some failures penalty', () => {
     const results: JudgePoolExecutionResult[] = [
       { success: true, value: mockJudgePoolResult('codex'), judgeBackend: 'codex' },
-      { success: false, error: 'Timeout', judgeBackend: 'gemini-cli' },
+      { success: false, error: 'Timeout', judgeBackend: 'droid' },
       { success: true, value: mockJudgePoolResult('claude-code'), judgeBackend: 'claude-code' },
     ];
     
@@ -312,7 +312,7 @@ describe('processJudgeResults', () => {
   it('should apply most failures penalty', () => {
     const results: JudgePoolExecutionResult[] = [
       { success: false, error: 'Error 1', judgeBackend: 'codex' },
-      { success: false, error: 'Error 2', judgeBackend: 'gemini-cli' },
+      { success: false, error: 'Error 2', judgeBackend: 'droid' },
       { success: true, value: mockJudgePoolResult('claude-code'), judgeBackend: 'claude-code' },
     ];
     
@@ -329,11 +329,11 @@ describe('aggregateJudgeResults', () => {
     const candidates: CandidateInfo[] = [
       { id: 'solver-0', solverBackend: 'claude-code', content: 'A' },
       { id: 'solver-1', solverBackend: 'codex', content: 'B' },
-      { id: 'solver-2', solverBackend: 'gemini-cli', content: 'C' },
+      { id: 'solver-2', solverBackend: 'droid', content: 'C' },
     ];
     
     // Judge 1 (codex) ranks: solver-0=#1, solver-2=#2
-    // Judge 2 (gemini) ranks: solver-0=#1, solver-1=#2
+    // Judge 2 (droid) ranks: solver-0=#1, solver-1=#2
     // solver-0 should win (always #1)
     const judgeResults: JudgePoolResult[] = [
       {
@@ -348,8 +348,8 @@ describe('aggregateJudgeResults', () => {
         usage: { inputTokens: 100, outputTokens: 50 },
       },
       {
-        judgeBackend: 'gemini-cli',
-        judgeModel: 'gemini-3-pro',
+        judgeBackend: 'droid',
+        judgeModel: 'glm-5.2',
         rankings: [
           { candidateId: 'solver-0', rank: 1, confidence: 'high' },
           { candidateId: 'solver-1', rank: 2, confidence: 'medium' },

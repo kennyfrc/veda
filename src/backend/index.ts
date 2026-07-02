@@ -32,20 +32,17 @@ export {
 
 export { CodexBackend, createCodexBackend } from './codex';
 export { ClaudeBackend, createClaudeBackend } from './claude';
-export { GeminiBackend, createGeminiBackend } from './gemini';
 export { DroidBackend, createDroidBackend } from './droid';
 export { JdcBackend, createJdcBackend } from './jdc';
 
 import { registerBackend } from './registry';
 import { createCodexBackend } from './codex';
 import { createClaudeBackend } from './claude';
-import { createGeminiBackend } from './gemini';
 import { createDroidBackend } from './droid';
 import { createJdcBackend } from './jdc';
 
 // Register backends with canonical names
 registerBackend('codex', createCodexBackend);
 registerBackend('claude-code', createClaudeBackend);
-registerBackend('gemini-cli', createGeminiBackend);
 registerBackend('droid', createDroidBackend);
 registerBackend('jdc', createJdcBackend);

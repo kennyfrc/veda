@@ -15,7 +15,6 @@ const MODEL_PREFIX_TO_BACKEND: Record<string, string> = {
   'gpt-': 'codex',
   'o1-': 'codex',
   'o3-': 'codex',
-  'gemini-': 'gemini-cli',
   'claude-': 'claude-code',
   'jdc/': 'jdc',
 };
@@ -38,7 +37,7 @@ function inferBackendFromModel(modelName: string): string | undefined {
  * Format valid model options for error messages.
  */
 function formatValidModels(): string {
-  const aliasExamples = ['opus', 'sonnet', 'haiku', 'gpt', 'gemini-pro', 'gemini-flash'];
+  const aliasExamples = ['opus', 'sonnet', 'haiku', 'gpt', 'glm-5.2', 'makora'];
   const prefixExamples = Object.entries(MODEL_PREFIX_TO_BACKEND)
     .map(([prefix, backend]) => `${prefix}* (${backend})`)
     .join(', ');

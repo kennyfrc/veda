@@ -41,7 +41,7 @@ import { getCurrentEra } from '../core/era';
 
 /**
  * Standardized member ID format: type-index-backend-model-module
- * Examples: solver-0-claude-code-opus-analytical/so_what_test, judge-0-gemini-cli-gemini-pro-NA, verifier-0-codex-gpt-5.3-codex-factual
+ * Examples: solver-0-claude-code-opus-analytical/so_what_test, judge-0-droid-glm-5.2-NA, verifier-0-codex-gpt-5.3-codex-factual
  * Note: module portion uses category/module_id format for solvers.
  */
 interface MemberIdParts {
@@ -1334,8 +1334,7 @@ export async function* runDeepThink(
             if (candidateInfo) {
               // Short backend name for display
               const shortBackend = candidateInfo.solverBackend
-                .replace('claude-code', 'claude')
-                .replace('gemini-cli', 'gemini');
+                .replace('claude-code', 'claude');
               labelMap.push({
                 candidateId: candidateInfo.id,
                 label: `#${displayIdx + 1} ${shortBackend}`,
@@ -1529,8 +1528,7 @@ export async function* runDeepThink(
               const info = candidateInfos[originalIdx];
               if (info) {
                 const shortBackend = info.solverBackend
-                  .replace('claude-code', 'claude')
-                  .replace('gemini-cli', 'gemini');
+                  .replace('claude-code', 'claude');
                 labelLookup.set(info.id, `#${displayIdx + 1} ${shortBackend}`);
               }
             }

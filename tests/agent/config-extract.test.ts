@@ -18,7 +18,7 @@ describe('BackendModelResolver helpers', () => {
     });
 
     test('is idempotent', () => {
-      const input = 'gemini-pro';
+      const input = 'glm-5.2';
       expect(resolveModelAliasNormalized(input)).toBe(input);
     });
   });
@@ -43,9 +43,9 @@ describe('BackendModelResolver helpers', () => {
       expect(gpt?.backend).toBe('codex');
       expect(gpt?.model).toBe('gpt-5.3-codex');
 
-      const geminiPro = tryResolveAliasTarget('gemini-pro');
-      expect(geminiPro?.backend).toBe('gemini-cli');
-      expect(geminiPro?.model).toBe('gemini-3-pro-preview');
+      const glm = tryResolveAliasTarget('glm-5.2');
+      expect(glm?.backend).toBe('droid');
+      expect(glm?.model).toBe('glm-5.2');
     });
 
     test('is case insensitive', () => {
@@ -65,7 +65,7 @@ describe('inferBackendFromModel', () => {
   test('infers codex from gpt- prefix', () => {
     const result = resolveBackendModel({
       explicitModel: 'gpt-5.2',
-      fallbackBackend: 'gemini-cli',
+      fallbackBackend: 'droid',
     });
     expect(result.backend).toBe('codex');
     expect(result.model).toBe('gpt-5.2');
@@ -74,7 +74,7 @@ describe('inferBackendFromModel', () => {
   test('infers codex from o1- prefix', () => {
     const result = resolveBackendModel({
       explicitModel: 'o1-preview',
-      fallbackBackend: 'gemini-cli',
+      fallbackBackend: 'droid',
     });
     expect(result.backend).toBe('codex');
   });
@@ -82,17 +82,17 @@ describe('inferBackendFromModel', () => {
   test('infers codex from o3- prefix', () => {
     const result = resolveBackendModel({
       explicitModel: 'o3-mini',
-      fallbackBackend: 'gemini-cli',
+      fallbackBackend: 'droid',
     });
     expect(result.backend).toBe('codex');
   });
 
-  test('infers gemini-cli from gemini- prefix', () => {
+  test('infers jdc from jdc/ prefix', () => {
     const result = resolveBackendModel({
-      explicitModel: 'gemini-2.0-flash',
+      explicitModel: 'jdc/crof/glm-5.2',
       fallbackBackend: 'codex',
     });
-    expect(result.backend).toBe('gemini-cli');
+    expect(result.backend).toBe('jdc');
   });
 
   test('infers claude-code from claude- prefix', () => {
@@ -105,11 +105,11 @@ describe('inferBackendFromModel', () => {
 
   test('explicit backend overrides inference', () => {
     const result = resolveBackendModel({
-      explicitBackend: 'gemini-cli',
+      explicitBackend: 'droid',
       explicitModel: 'gpt-5.2',
       fallbackBackend: 'codex',
     });
-    expect(result.backend).toBe('gemini-cli');
+    expect(result.backend).toBe('droid');
   });
 
   test('alias takes precedence over inference', () => {
@@ -161,7 +161,7 @@ describe('inferBackendFromModel', () => {
   test('case insensitive prefix matching', () => {
     const result = resolveBackendModel({
       explicitModel: 'GPT-5.2',
-      fallbackBackend: 'gemini-cli',
+      fallbackBackend: 'droid',
     });
     expect(result.backend).toBe('codex');
   });

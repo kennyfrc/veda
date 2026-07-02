@@ -51,7 +51,6 @@ veda sel clear                    # Clear all
 ```bash
 veda -b codex "..."        # OpenAI Codex (default)
 veda -b claude-code "..."  # Anthropic Claude Code
-veda -b gemini-cli "..."   # Google Gemini CLI
 veda -b droid "..."        # Factory Droid (droid exec)
 veda -b jdc "..."          # jdc CLI (any provider/model from ~/.jdc/agent/models.json)
 ```
@@ -59,7 +58,6 @@ veda -b jdc "..."          # jdc CLI (any provider/model from ~/.jdc/agent/model
 **Note on reasoning configuration:**
 - **Codex:** Uses native `model_reasoning_effort` flag. The `--reasoning` flag works as expected.
 - **Claude Code:** Maps `--reasoning` levels to the `MAX_THINKING_TOKENS` environment variable automatically.
-- **Gemini CLI:** Injects scoped override into `~/.gemini/settings.json`. Automatically cleaned up after execution.
 - **jdc CLI:** Maps `--reasoning` to jdc's `--thinking` flag and `--sandbox` to jdc's `--tools` flag. Supports any provider/model defined in `~/.jdc/agent/models.json`.
 - **Droid:** Maps `--reasoning` to `-r` flag and `--sandbox` to `--auto` flag. Supports any model available to `droid exec`.
 
@@ -76,9 +74,6 @@ veda -m haiku "..."     # Uses claude-code with haiku
 # OpenAI models (→ codex backend)
 veda -m gpt "..."       # Uses codex with gpt-5.2
 
-# Gemini models (→ gemini-cli backend)
-veda -m gemini-pro "..."    # Uses gemini-cli with gemini-3-pro-preview
-veda -m gemini-flash "..."  # Uses gemini-cli with gemini-3-flash-preview
 
 # jdc models (→ jdc backend, auto-inferred from jdc/ prefix)
 veda -m jdc/wafer/glm-5.1 "..."                        # wafer provider
@@ -158,7 +153,7 @@ Precedence order (highest to lowest):
 ```bash
 # Even distribution: 2 solvers per backend (k=6, 3 backends)
 veda deep -k 6 --distribute-solvers "Complex problem"
-veda deep -k 6 --distribute-solvers --solver-backends claude-code,gemini-cli,codex "Custom backends"
+veda deep -k 6 --distribute-solvers --solver-backends claude-code,codex,droid "Custom backends"
 ```
 
 Order is deterministic: explicit `--solver-backends` is normalized (trim/lowercase/dedup) and sorted before round-robin.
@@ -315,8 +310,8 @@ veda deep [options] <prompt>
 Options:
   -S, --session <id>     Session ID (or VEDA_SESSION env)
   -p, --persona <name>   navigator-plan|navigator-chat|reviewer
-  -b, --backend <name>   codex|claude-code|gemini-cli|droid|jdc
-  -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|gemini-pro|gemini-flash|jdc/<provider>/<model-id>)
+  -b, --backend <name>   codex|claude-code|droid|jdc
+  -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|glm-5.2|makora|jdc/<provider>/<model-id>)
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
   -k <n>                 Solver count for deep mode (default: 3, max: 8)
   --categories <list>    Reasoning categories (comma-separated)
@@ -341,7 +336,7 @@ Deep Mode Stage Overrides:
 ```
 src/
 ├── core/          # Deep primitives (llm, ensemble, judge, verify, modules)
-├── backend/       # codex.ts, claude.ts, gemini.ts, droid.ts, jdc.ts
+├── backend/       # codex.ts, claude.ts, droid.ts, jdc.ts
 ├── pipelines/     # deep-think.ts (orchestration)
 ├── context/       # Selection and slice management
 ├── conversation/  # Thread persistence
@@ -370,7 +365,6 @@ CLAUDE_CODE_MODEL="opus"
 #   high → 31999 (32k-1 tokens)
 #   xhigh → 63999 (64k-1 tokens)
 
-GEMINI_CLI_MODEL="gemini-3-pro-preview"
 # Gemini 3.x: Maps --reasoning to thinkingLevel (LOW|MEDIUM|HIGH)
 
 DROID_MODEL="custom:Makora-GLM-5.2-NVFP4-9"
@@ -395,7 +389,6 @@ JDC_MODEL="jdc/wafer/glm-5.1"
 #   medium → 16000
 #   high → 32000
 #   xhigh → 32000
-# Implementation: Injects scoped override into ~/.gemini/settings.json
 
 # Deep mode stage defaults (overridden by -b/-m CLI flags)
 DEEP_DISTRIBUTE_SOLVERS="true"

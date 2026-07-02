@@ -43,9 +43,9 @@ describe('trace-format', () => {
     });
 
     it('includes full model string without truncation', () => {
-      const result = formatSolverToolEvent(2, 'gemini-cli', 'gemini-2.5-flash-preview-05-20', 'creative', 'Read');
+      const result = formatSolverToolEvent(2, 'droid', 'glm-5.2', 'creative', 'Read');
       const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
-      expect(stripped).toContain('[solver-3:gemini-cli:gemini-2.5-flash-preview-05-20:creative]');
+      expect(stripped).toContain('[solver-3:droid:glm-5.2:creative]');
     });
   });
 
@@ -130,9 +130,9 @@ describe('trace-format', () => {
     });
 
     it('includes suffix when provided', () => {
-      const result = formatPhaseHeader('judge', 'gemini-3-flash');
+      const result = formatPhaseHeader('judge', 'glm-5.2');
       expect(result).toContain('judge');
-      expect(result).toContain('gemini-3-flash');
+      expect(result).toContain('glm-5.2');
     });
 
     it('fills to specified width', () => {

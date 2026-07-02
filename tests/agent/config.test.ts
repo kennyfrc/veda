@@ -21,13 +21,13 @@ BACKEND="claude-code"
     const content = `
 CLAUDE_CODE_MODEL=opus
 CODEX_MODEL=gpt-4o
-GEMINI_CLI_MODEL=gemini-2.5-pro
+DROID_MODEL=glm-5.2
 `;
     const config = parseConfigFile(content);
     expect(config.backendModels).toEqual({
       'claude-code': 'opus',
       'codex': 'gpt-4o',
-      'gemini-cli': 'gemini-2.5-pro',
+      'droid': 'glm-5.2',
     });
   });
 
@@ -35,13 +35,13 @@ GEMINI_CLI_MODEL=gemini-2.5-pro
     const content = `
 CLAUDE_CODE_REASONING=high
 CODEX_REASONING=medium
-GEMINI_CLI_REASONING=low
+DROID_REASONING=low
 `;
     const config = parseConfigFile(content);
     expect(config.backendReasoning).toEqual({
       'claude-code': 'high',
       'codex': 'medium',
-      'gemini-cli': 'low',
+      'droid': 'low',
     });
   });
 
@@ -133,10 +133,10 @@ DEEP_SOLVER_BACKENDS=
 
   test('trims whitespace from solver backends', () => {
     const content = `
-DEEP_SOLVER_BACKENDS=" codex , claude-code , gemini-cli "
+DEEP_SOLVER_BACKENDS=" codex , claude-code , droid "
 `;
     const config = parseConfigFile(content);
-    expect(config.deep?.solverBackends).toEqual(['codex', 'claude-code', 'gemini-cli']);
+    expect(config.deep?.solverBackends).toEqual(['codex', 'claude-code', 'droid']);
   });
 });
 
@@ -233,8 +233,8 @@ describe('resolveModel', () => {
     expect(resolveModel({ backend: 'codex' })).toBe('gpt-5.2');
   });
 
-  test('returns built-in default for gemini-cli', () => {
-    expect(resolveModel({ backend: 'gemini-cli' })).toBe('gemini-3-pro-preview');
+  test('returns built-in default for droid', () => {
+    expect(resolveModel({ backend: 'droid' })).toBe('custom:Makora-GLM-5.2-NVFP4-9');
   });
 
   test('explicit model takes precedence over config', () => {
@@ -307,22 +307,22 @@ describe('resolveBackendModel', () => {
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'gpt' });
     });
 
-    test('resolves gemini-pro alias to gemini-cli backend', () => {
+    test('resolves glm-5.2 alias to droid backend', () => {
       const result = resolveBackendModel({
-        explicitModel: 'gemini-pro',
+        explicitModel: 'glm-5.2',
       });
-      expect(result.backend).toBe('gemini-cli');
-      expect(result.model).toBe('gemini-3-pro-preview');
-      expect(result.source).toEqual({ kind: 'alias', aliasName: 'gemini-pro' });
+      expect(result.backend).toBe('droid');
+      expect(result.model).toBe('glm-5.2');
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm-5.2' });
     });
 
-    test('resolves gemini-flash alias to gemini-cli backend', () => {
+    test('resolves glm-5.2 alias to droid backend', () => {
       const result = resolveBackendModel({
-        explicitModel: 'gemini-flash',
+        explicitModel: 'glm-5.2',
       });
-      expect(result.backend).toBe('gemini-cli');
-      expect(result.model).toBe('gemini-3-flash-preview');
-      expect(result.source).toEqual({ kind: 'alias', aliasName: 'gemini-flash' });
+      expect(result.backend).toBe('droid');
+      expect(result.model).toBe('glm-5.2');
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm-5.2' });
     });
   });
 
@@ -339,10 +339,10 @@ describe('resolveBackendModel', () => {
 
     test('treats sonnet as literal model when backend is explicit', () => {
       const result = resolveBackendModel({
-        explicitBackend: 'gemini-cli',
+        explicitBackend: 'droid',
         explicitModel: 'sonnet',
       });
-      expect(result.backend).toBe('gemini-cli');
+      expect(result.backend).toBe('droid');
       expect(result.model).toBe('sonnet');
       expect(result.source).toEqual({ kind: 'explicit' });
     });
@@ -409,10 +409,10 @@ describe('resolveBackendModel', () => {
 
     test('uses explicit backend default model', () => {
       const result = resolveBackendModel({
-        explicitBackend: 'gemini-cli',
+        explicitBackend: 'droid',
       });
-      expect(result.backend).toBe('gemini-cli');
-      expect(result.model).toBe('gemini-3-pro-preview');
+      expect(result.backend).toBe('droid');
+      expect(result.model).toBe('custom:Makora-GLM-5.2-NVFP4-9');
       expect(result.source).toEqual({ kind: 'explicit' });
     });
   });
@@ -498,20 +498,20 @@ describe('resolveBackendModel', () => {
   describe('edge cases', () => {
     test('handles alias with leading/trailing whitespace', () => {
       const result = resolveBackendModel({
-        explicitModel: '  gemini-pro  ',
+        explicitModel: '  glm-5.2  ',
       });
-      expect(result.backend).toBe('gemini-cli');
-      expect(result.model).toBe('gemini-3-pro-preview');
-      expect(result.source).toEqual({ kind: 'alias', aliasName: 'gemini-pro' });
+      expect(result.backend).toBe('droid');
+      expect(result.model).toBe('glm-5.2');
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm-5.2' });
     });
 
     test('handles alias with internal whitespace in mixed case', () => {
       const result = resolveBackendModel({
-        explicitModel: '  GEMINI-PRO  ',
+        explicitModel: '  MAKORA  ',
       });
-      expect(result.backend).toBe('gemini-cli');
-      expect(result.model).toBe('gemini-3-pro-preview');
-      expect(result.source).toEqual({ kind: 'alias', aliasName: 'gemini-pro' });
+      expect(result.backend).toBe('droid');
+      expect(result.model).toBe('custom:Makora-GLM-5.2-NVFP4-9');
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'makora' });
     });
 
     test('handles empty string model - uses backend default', () => {
@@ -541,16 +541,16 @@ describe('resolveBackendModel', () => {
   });
 
   describe('CRITICAL: mismatched backend and alias', () => {
-    test('explicit codex backend with gemini-pro alias treats as literal model', () => {
+    test('explicit codex backend with glm-5.2 alias treats as literal model', () => {
       // This documents the current behavior: when backend is explicit and
       // differs from alias backend, the model is treated as literal
       const result = resolveBackendModel({
         explicitBackend: 'codex',
-        explicitModel: 'gemini-pro', // Alias for gemini-cli
+        explicitModel: 'glm-5.2', // Alias for droid
       });
 
       expect(result.backend).toBe('codex');
-      expect(result.model).toBe('gemini-pro'); // NOT gemini-3-pro-preview
+      expect(result.model).toBe('glm-5.2'); // NOT glm-5.2
       expect(result.source).toEqual({ kind: 'explicit' });
     });
 

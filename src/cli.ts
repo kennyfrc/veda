@@ -354,10 +354,9 @@ Usage:
 Options:
   -S, --session <id>      Session ID (or use VEDA_SESSION env)
   -p, --persona <name>    Persona: navigator-plan, navigator-chat, reviewer, advisor
-  -b, --backend <name>    Backend: codex, claude-code, gemini-cli, droid, jdc
+  -b, --backend <name>    Backend: codex, claude-code, droid, jdc
   -m, --model <name>      Model or alias (auto-selects backend if -b omitted)
-                          Aliases: opus, sonnet, haiku, gpt, gemini-pro, gemini-flash,
-                                   glm-5.2, makora
+                          Aliases: opus, sonnet, haiku, gpt, glm-5.2, makora
                           Backend-specific: jdc/<provider>/<model>, custom:Makora-GLM-5.2-NVFP4-9
   -r, --reasoning <level> Reasoning: minimal, low, medium, high, xhigh
   --sandbox <mode>        Sandbox: read-only, workspace-write, full
@@ -395,7 +394,6 @@ Personas:
 Backends:
   codex                   OpenAI Codex (default)
   claude-code             Anthropic Claude Code
-  gemini-cli              Google Gemini CLI
   droid                   Factory Droid (droid exec, --auto for sandbox)
   jdc                     jdc CLI (jdc/<provider>/<model> format)
 

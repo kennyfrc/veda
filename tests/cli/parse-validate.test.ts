@@ -260,12 +260,12 @@ describe('detectConflicts', () => {
   });
   
   test('rejects --solver-backends without --distribute-solvers', () => {
-    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--solver-backends', 'gemini-cli,codex', 'solve']);
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--solver-backends', 'droid,codex', 'solve']);
     expect(() => detectConflicts(flags)).toThrow(/--solver-backends requires --distribute-solvers/);
   });
   
   test('allows --solver-backends with --distribute-solvers', () => {
-    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--distribute-solvers', '--solver-backends', 'gemini-cli,codex', 'solve']);
+    const { flags } = tokenizeArgv(['node', 'veda', '--deep', '--distribute-solvers', '--solver-backends', 'droid,codex', 'solve']);
     expect(() => detectConflicts(flags)).not.toThrow();
   });
 });
@@ -337,9 +337,9 @@ describe('resolveBackendModel', () => {
   });
   
   test('uses explicit backend with default model', () => {
-    const result = resolveBackendModel({ explicitBackend: 'gemini-cli' });
-    expect(result.backend).toBe('gemini-cli');
-    expect(result.model).toBe('gemini-3-pro-preview');
+    const result = resolveBackendModel({ explicitBackend: 'droid' });
+    expect(result.backend).toBe('droid');
+    expect(result.model).toBe('custom:Makora-GLM-5.2-NVFP4-9');
     expect(result.source).toBe('explicit');
   });
   
@@ -362,7 +362,7 @@ describe('integration: parseAndValidate', () => {
       if (result.mode === 'simple') {
         expect(result.config.prompt).toBe('hello world');
         // Backend depends on user's config; verify it's a valid backend
-        expect(['codex', 'claude-code', 'gemini-cli', 'jdc', 'droid']).toContain(result.config.backend);
+        expect(['codex', 'claude-code', 'droid', 'jdc', 'droid']).toContain(result.config.backend);
       }
     }
   });
