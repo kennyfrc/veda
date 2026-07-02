@@ -15,6 +15,7 @@ export const MODEL_ALIASES: Record<string, ModelAliasTarget> = {
   // Droid models (via droid exec)
   'glm-5.2': { backend: 'droid', model: 'glm-5.2' },
   'makora': { backend: 'droid', model: 'custom:Makora-GLM-5.2-NVFP4-9' },
+  'fable': { backend: 'droid', model: 'claude-fable-5' },
 };
 
 export function normalizeModelName(input: string): string {

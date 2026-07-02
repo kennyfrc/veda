@@ -21,6 +21,7 @@ describe('MODEL_ALIASES', () => {
   test('contains Droid models', () => {
     expect(MODEL_ALIASES['glm-5.2']).toEqual({ backend: 'droid', model: 'glm-5.2' });
     expect(MODEL_ALIASES['makora']).toEqual({ backend: 'droid', model: 'custom:Makora-GLM-5.2-NVFP4-9' });
+    expect(MODEL_ALIASES['fable']).toEqual({ backend: 'droid', model: 'claude-fable-5' });
   });
 });
 
@@ -55,6 +56,7 @@ describe('resolveModelAlias', () => {
   test('resolves Droid aliases', () => {
     expect(resolveModelAlias('glm-5.2')).toEqual({ backend: 'droid', model: 'glm-5.2' });
     expect(resolveModelAlias('makora')).toEqual({ backend: 'droid', model: 'custom:Makora-GLM-5.2-NVFP4-9' });
+    expect(resolveModelAlias('fable')).toEqual({ backend: 'droid', model: 'claude-fable-5' });
   });
 
   test('handles case-insensitive lookup', () => {
@@ -83,6 +85,7 @@ describe('isModelAlias', () => {
     expect(isModelAlias('gpt')).toBe(true);
     expect(isModelAlias('glm-5.2')).toBe(true);
     expect(isModelAlias('makora')).toBe(true);
+    expect(isModelAlias('fable')).toBe(true);
   });
 
   test('returns false for unknown models', () => {
@@ -106,9 +109,10 @@ describe('listModelAliases', () => {
     expect(aliases).toContain('gpt');
     expect(aliases).toContain('glm-5.2');
     expect(aliases).toContain('makora');
+    expect(aliases).toContain('fable');
   });
 
   test('returns expected count', () => {
-    expect(listModelAliases().length).toBe(6);
+    expect(listModelAliases().length).toBe(7);
   });
 });
