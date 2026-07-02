@@ -362,7 +362,7 @@ describe('integration: parseAndValidate', () => {
       if (result.mode === 'simple') {
         expect(result.config.prompt).toBe('hello world');
         // Backend depends on user's config; verify it's a valid backend
-        expect(['codex', 'claude-code', 'gemini-cli', 'mu']).toContain(result.config.backend);
+        expect(['codex', 'claude-code', 'gemini-cli', 'jdc', 'droid']).toContain(result.config.backend);
       }
     }
   });

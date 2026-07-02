@@ -23,11 +23,18 @@ describe('Backend Registry', () => {
     expect(backend.command).toBe('gemini');
   });
 
-  test('has mu backend registered', () => {
-    expect(hasBackend('mu')).toBe(true);
-    const backend = getBackend('mu');
-    expect(backend.name).toBe('mu');
-    expect(backend.command).toBe('mu');
+  test('has jdc backend registered', () => {
+    expect(hasBackend('jdc')).toBe(true);
+    const backend = getBackend('jdc');
+    expect(backend.name).toBe('jdc');
+    expect(backend.command).toBe('jdc');
+  });
+
+  test('has droid backend registered', () => {
+    expect(hasBackend('droid')).toBe(true);
+    const backend = getBackend('droid');
+    expect(backend.name).toBe('droid');
+    expect(backend.command).toBe('droid');
   });
 
   test('lists all backends', () => {
@@ -35,15 +42,24 @@ describe('Backend Registry', () => {
     expect(backends).toContain('codex');
     expect(backends).toContain('claude-code');
     expect(backends).toContain('gemini-cli');
-    expect(backends).toContain('mu');
+    expect(backends).toContain('jdc');
+    expect(backends).toContain('droid');
   });
 
-  test('mu default model', () => {
-    expect(getBackendDefaultModel('mu')).toBe('mu/fireworks/accounts/fireworks/routers/kimi-k2p6');
+  test('jdc default model', () => {
+    expect(getBackendDefaultModel('jdc')).toBe('jdc/fireworks/accounts/fireworks/routers/kimi-k2p6');
   });
 
-  test('mu default reasoning', () => {
-    expect(getBackendDefaultReasoning('mu')).toBe('medium');
+  test('jdc default reasoning', () => {
+    expect(getBackendDefaultReasoning('jdc')).toBe('medium');
+  });
+
+  test('droid default model', () => {
+    expect(getBackendDefaultModel('droid')).toBe('custom:Makora-GLM-5.2-NVFP4-9');
+  });
+
+  test('droid default reasoning', () => {
+    expect(getBackendDefaultReasoning('droid')).toBe('medium');
   });
 
   test('throws for unknown backend', () => {

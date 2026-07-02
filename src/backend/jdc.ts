@@ -2,21 +2,21 @@ import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './
 import type { SandboxMode, ReasoningLevel } from '../agent/config';
 import { spawnCliWithRetry, commandExists, parseNdjsonStream } from './util/spawn';
 
-export function parseMuModel(model: string): { provider: string; model: string } {
-  if (!model.startsWith('mu/')) {
-    throw new Error(`Model string must start with mu/: ${model}`);
+export function parseJdcModel(model: string): { provider: string; model: string } {
+  if (!model.startsWith('jdc/')) {
+    throw new Error(`Model string must start with jdc/: ${model}`);
   }
-  const rest = model.slice('mu/'.length);
+  const rest = model.slice('jdc/'.length);
   const firstSlash = rest.indexOf('/');
   if (firstSlash === -1) {
-    throw new Error(`Model string must start with mu/ and contain provider/model: ${model}`);
+    throw new Error(`Model string must start with jdc/ and contain provider/model: ${model}`);
   }
   const provider = rest.slice(0, firstSlash);
   const modelName = rest.slice(firstSlash + 1);
   return { provider, model: modelName };
 }
 
-export function toMuThinking(reasoning: ReasoningLevel): string {
+export function toJdcThinking(reasoning: ReasoningLevel): string {
   switch (reasoning) {
     case 'minimal':
       return 'minimal';
@@ -30,9 +30,9 @@ export function toMuThinking(reasoning: ReasoningLevel): string {
   }
 }
 
-export function toMuTools(sandbox: SandboxMode): string {
-  // Base tools always include bash for mu (user preference)
-  // Note: apply_patch and exec_command are GPT-specific, not included for mu models
+export function toJdcTools(sandbox: SandboxMode): string {
+  // Base tools always include bash for jdc (user preference)
+  // Note: apply_patch and exec_command are GPT-specific, not included for jdc models
   const baseTools = 'read,bash,grep,glob,list_threads,read_thread,read_image,todo_write,compact';
   switch (sandbox) {
     case 'read-only':
@@ -44,15 +44,15 @@ export function toMuTools(sandbox: SandboxMode): string {
   }
 }
 
-export class MuBackend implements Backend {
-  readonly name = 'mu';
-  readonly command = 'mu';
+export class JdcBackend implements Backend {
+  readonly name = 'jdc';
+  readonly command = 'jdc';
   readonly systemPromptFile = undefined;
 
   async *run(options: RunOptions): AsyncIterable<Message> {
     const { prompt, context, config, cwd } = options;
 
-    const { provider, model } = parseMuModel(config.model);
+    const { provider, model } = parseJdcModel(config.model);
 
     const args: string[] = [
       '--mode', 'json',
@@ -60,8 +60,8 @@ export class MuBackend implements Backend {
       '-p',
       '--provider', provider,
       '--model', model,
-      '--thinking', toMuThinking(config.reasoning),
-      '--tools', toMuTools(config.sandbox),
+      '--thinking', toJdcThinking(config.reasoning),
+      '--tools', toJdcTools(config.sandbox),
     ];
 
     if (config.systemPrompt) {
@@ -85,7 +85,7 @@ export class MuBackend implements Backend {
   }
 
   async *resume(_options: ResumeOptions): AsyncIterable<Message> {
-    throw new Error('Resume not supported for mu backend');
+    throw new Error('Resume not supported for jdc backend');
   }
 
   async isAvailable(): Promise<boolean> {
@@ -122,7 +122,7 @@ export class MuBackend implements Backend {
 
     switch (type) {
       case 'agent_start': {
-        // Synthesize a sessionId since mu JSON mode lacks session_meta
+        // Synthesize a sessionId since jdc JSON mode lacks session_meta
         return {
           type: 'init',
           sessionId: crypto.randomUUID(),
@@ -190,6 +190,6 @@ export class MuBackend implements Backend {
   }
 }
 
-export function createMuBackend(): MuBackend {
-  return new MuBackend();
+export function createJdcBackend(): JdcBackend {
+  return new JdcBackend();
 }

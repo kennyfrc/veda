@@ -252,10 +252,10 @@ describe('trace-format', () => {
     });
 
     it('strips redundant backend prefix from model display', () => {
-      const result = formatChatHeader(undefined, 'mu', 'mu/wafer/GLM-5.1');
+      const result = formatChatHeader(undefined, 'jdc', 'jdc/wafer/glm-5.1');
       const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
-      expect(stripped).toContain('▸ mu/wafer/GLM-5.1');
-      expect(stripped).not.toContain('mu/mu/');
+      expect(stripped).toContain('▸ jdc/wafer/glm-5.1');
+      expect(stripped).not.toContain('jdc/jdc/');
     });
 
     it('respects line width', () => {

@@ -34,7 +34,7 @@ const MODEL_PREFIX_TO_BACKEND: Record<string, string> = {
   'o3-': 'codex',
   'gemini-': 'gemini-cli',
   'claude-': 'claude-code',
-  'mu/': 'mu',
+  'jdc/': 'jdc',
 };
 
 function inferBackendFromPrefix(model: string): string | undefined {

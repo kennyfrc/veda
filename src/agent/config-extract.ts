@@ -17,7 +17,7 @@ const MODEL_PREFIX_TO_BACKEND: Record<string, string> = {
   'o3-': 'codex',
   'gemini-': 'gemini-cli',
   'claude-': 'claude-code',
-  'mu/': 'mu',
+  'jdc/': 'jdc',
 };
 
 /**
@@ -248,7 +248,7 @@ export function resolveBackendModelExtracted(
   } else if (explicitBackend) {
     source = { kind: 'explicit' };
   } else if (explicitModel && inferBackendFromModel(explicitModel)) {
-    // Backend inferred from model prefix (e.g. mu/wafer/GLM-5.1 → mu)
+    // Backend inferred from model prefix (e.g. jdc/wafer/glm-5.1 → jdc)
     source = { kind: 'prefix' };
   } else if (explicitModel || explicitBackend) {
     source = { kind: 'explicit' };

@@ -6,7 +6,8 @@ export const BACKEND_DEFAULT_MODELS: Record<string, string> = {
   'claude-code': 'opus',
   'codex': 'gpt-5.2',
   'gemini-cli': 'gemini-3-pro-preview',
-  'mu': 'mu/fireworks/accounts/fireworks/routers/kimi-k2p6',
+  'droid': 'custom:Makora-GLM-5.2-NVFP4-9',
+  'jdc': 'jdc/fireworks/accounts/fireworks/routers/kimi-k2p6',
 };
 
 /**
@@ -28,7 +29,8 @@ export const BACKEND_DEFAULT_REASONING: Record<string, ReasoningLevel> = {
   'claude-code': 'medium',
   'codex': 'medium',
   'gemini-cli': 'medium',
-  'mu': 'medium',
+  'droid': 'medium',
+  'jdc': 'medium',
 };
 
 export function getBackendDefaultModel(backendId: string): string | undefined {
