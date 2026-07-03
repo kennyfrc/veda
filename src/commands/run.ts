@@ -7,7 +7,7 @@ import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 import type { Message } from '../backend';
 import { resolve } from 'path';
-import { formatUsageStats, formatChatHeader, formatChatToolEvent, formatChatComplete } from '../util';
+import { formatUsageStats, formatChatHeader, formatChatToolEvent, formatChatComplete, saveResponseYaml, c } from '../util';
 
 export async function handleRun(
   prompt: string,
@@ -118,6 +118,20 @@ export async function handleRun(
     process.exit(1);
   }
   
+  // Save full response to YAML (stdout may truncate long responses)
+  let responsePath: string | undefined;
+  if (!options.json) {
+    responsePath = await saveResponseYaml({
+      session: options.session,
+      persona: options.persona,
+      backend: backendName,
+      model: config.model,
+      prompt,
+      response: response.text,
+      usage: response.usage,
+    });
+  }
+
   if (options.output) {
     await Bun.write(options.output, response.text);
     console.error(`Response saved to ${options.output}`);
@@ -132,6 +146,10 @@ export async function handleRun(
     }, null, 2));
   } else {
     console.log(response.text);
+  }
+
+  if (responsePath) {
+    console.error(`${c.dim('[response]')} ${c.cyan(responsePath)}`);
   }
 
   if (options.notify ?? globalConfig.notify ?? true) {

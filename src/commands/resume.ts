@@ -3,7 +3,7 @@ import { getDefaults, loadGlobalConfig } from '../agent/config';
 import { resolveAgentConfig } from '../agent/persona';
 import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
-import { formatUsageStats, formatChatHeader, formatChatToolEvent, formatChatComplete } from '../util';
+import { formatUsageStats, formatChatHeader, formatChatToolEvent, formatChatComplete, saveResponseYaml, c } from '../util';
 
 export async function handleResume(
   prompt: string | undefined,
@@ -110,6 +110,20 @@ export async function handleResume(
     process.exit(1);
   }
   
+  // Save full response to YAML (stdout may truncate long responses)
+  let responsePath: string | undefined;
+  if (!options.json) {
+    responsePath = await saveResponseYaml({
+      session: options.session,
+      persona: options.persona,
+      backend: backendName,
+      model: config.model,
+      prompt,
+      response: text,
+      usage,
+    });
+  }
+
   // Output
   if (options.output) {
     await Bun.write(options.output, text);
@@ -121,6 +135,10 @@ export async function handleResume(
     console.log(JSON.stringify({ text, sessionId, usage }, null, 2));
   } else {
     console.log(text);
+  }
+
+  if (responsePath) {
+    console.error(`${c.dim('[response]')} ${c.cyan(responsePath)}`);
   }
 
   // Notify on completion
