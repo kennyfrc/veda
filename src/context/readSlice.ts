@@ -40,6 +40,9 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<Result<Read
     // Optimization: if no slice is requested, use the optimized file.text()
     if (slice.sliceType === 'full') {
       const content = await file.text();
+      if (content.includes('\0')) {
+        return err(new Error(`Binary file skipped (contains null bytes): ${displayPath}`));
+      }
       const lineCount = content.split('\n').length;
       return ok({
         absolutePath,
@@ -95,6 +98,9 @@ export async function readSliceText(opts: ReadSliceOptions): Promise<Result<Read
     }
 
     const content = lines.join('\n');
+    if (content.includes('\0')) {
+      return err(new Error(`Binary file skipped (contains null bytes): ${displayPath}`));
+    }
     const result = ok({
       absolutePath,
       displayPath,

@@ -22,6 +22,8 @@ async function withTestStore<T>(fn: (store: ContextStore) => Promise<T>): Promis
   await writeFile(join(testFilesDir, 'c.ts'), 'content of c');
   await mkdir(join(testFilesDir, 'sub'), { recursive: true });
   await writeFile(join(testFilesDir, 'sub', 'd.ts'), 'content of d');
+  // Binary file with null bytes (PNG header)
+  await writeFile(join(testFilesDir, 'image.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x0d, 0x0a, 0x1a, 0x0a]));
 
   const store = new ContextStore({
     sessionId: TEST_SESSION,
@@ -202,6 +204,20 @@ describe('ContextStore', () => {
       expect(details.length).toBe(2);
       expect(details[0].lines).toBeGreaterThan(0);
       expect(details[0].tokens).toBeGreaterThan(0);
+    });
+  });
+
+  test('serialize skips binary files with null bytes', async () => {
+    await withTestStore(async store => {
+      await store.add(['a.ts', 'image.png', 'b.ts']);
+      const serialized = await store.serialize();
+
+      // Text files should be included
+      expect(serialized).toContain('line1');
+      expect(serialized).toContain('content of b');
+      // Binary file should be skipped (no null bytes in output)
+      expect(serialized).not.toContain('\0');
+      expect(serialized).not.toContain('image.png');
     });
   });
 });
