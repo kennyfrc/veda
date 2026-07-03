@@ -47,3 +47,5 @@ export {
   type PhaseState,
   type FormatterState,
 } from './trace-format';
+
+export { saveResponseYaml, type ResponseSaveOptions } from './response-save';
