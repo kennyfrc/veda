@@ -414,6 +414,9 @@ export function classifyCommand(positionals: string[], flags: RawFlags): ParsedP
     case 'init':
       return { command: 'init', args: [] };
     
+    case 'guide':
+      return { command: 'guide', args: [] };
+    
     case 'personas':
       return {
         command: 'personas',

@@ -340,121 +340,128 @@ export function parseArgs(argv: string[]): ParsedArgs {
 }
 
 export function showHelp(): void {
-  console.log(`veda - AI CLI wrapper with multi-backend support
+  console.log(`veda - Pair Programming CLI with multi-backend support
 
-Usage:
-  veda [options] <prompt>              Run a prompt
-  veda sel <cmd> [args...]             Manage file selection
-  veda personas                        List personas
-  veda resume [prompt]                 Resume conversation
-  veda deep <prompt>                   Deep thinking mode
-  veda stats [options]                 View judge statistics
-  veda init                            Initialize config
+veda pairs you (the Driver) with AI collaborators (Navigator + Reviewer) using
+a driver-navigator workflow inspired by pair programming best practices.
 
-Options:
-  -S, --session <id>      Session ID (or use VEDA_SESSION env)
-  -p, --persona <name>    Persona: navigator-plan, navigator-chat, reviewer, advisor
-  -b, --backend <name>    Backend: codex, claude-code, droid, jdc
-  -m, --model <name>      Model or alias (auto-selects backend if -b omitted)
-                          Aliases: opus, sonnet, haiku, gpt
-                          Backend-specific: jdc/<provider>/<model>, glm-5.2, custom:Makora-GLM-5.2-NVFP4-9
-  -r, --reasoning <level> Reasoning: minimal, low, medium, high, xhigh
-  --sandbox <mode>        Sandbox: read-only, workspace-write, full
-  -o, --output <file>     Save response to file
-  -f, --files <file>      Ad-hoc files (doesn't modify selection)
-  --no-sel                Ignore selection for this run
-  --notify                Enable system notifications (default: on)
-  --no-notify             Disable system notifications
-  --notify-sound <name>    Notification sound name or path (macOS)
-  --deep, -d              Enable deep thinking mode
-  -k <num>                Number of parallel solvers (default: 6, max: 12)
-  --categories <list>     Reasoning categories (comma-separated)
-  --modules <list>        Module specifiers (comma-separated)
-                          Formats: category/module, category (random), module_id
-                          Example: analytical/so_what_test,creative,systematic
-  --uniform               Disable Thompson Sampling, use uniform random selection
-  --low-count-modules     Bias module selection toward low-appearance modules (single-judge)
-  --no-verify             Skip verification in deep mode
-  --force-verify          Run verification even with high confidence (≥70%)
-  --trace <file>          Save trace to YAML file (deep mode)
-  --resume                Resume from checkpoint (deep mode)
-  --force                 Overwrite existing checkpoint on new run
-  --force-resume          Resume despite run identity mismatch
-  --json                  Output raw JSON
-  --dry-run               Show resolved config without executing
-  --help, -h              Show help
-  --version, -v           Show version
+  You (Driver)     explore, edit, implement, run tests
+  Navigator        plans, stress-tests, directs (read-only tools, no edits)
+  Reviewer         reviews finished work (read-only, after implementation)
 
-Personas:
-  navigator-plan          High-reasoning planning (use for initial architecture, once per task)
-  navigator-chat          Medium-reasoning discussion (use for follow-up Q&A)
-  reviewer                Code review with [P0]-[P3] findings
-  advisor                 Second-opinion reviewer (outputs <advisory> blocks)
+== Quick Start ==
 
-Backends:
-  codex                   OpenAI Codex (default)
-  claude-code             Anthropic Claude Code
-  droid                   Factory Droid (droid exec, --auto for sandbox)
-  jdc                     jdc CLI (jdc/<provider>/<model> format)
+  # 1. Set context for the Navigator
+  veda -S impl-my-task sel add "src/auth/" "src/api/users.ts"
 
-Deep Mode Stage Overrides:
-  --solver-backend <name>   Backend for solvers (default: -b value)
-  --solver-model <name>     Model for solvers (default: -m value)
-  --judge-backend <name>    Backend for judge (default: -b value)
-  --judge-model <name>      Model for judge (default: -m value)
-  --verifier-backend <name> Backend for verifier (default: -b value)
-  --verifier-model <name>   Model for verifier (default: -m value)
-  --revision-backend <name> Backend for revision (default: verifier value)
-  --revision-model <name>   Model for revision (default: verifier value)
+  # 2. Plan with Navigator (commit to a position, get alternatives + kill criteria)
+  veda -S impl-my-task -b droid -m claude-sonnet-4-5-20250929 -p navigator-plan \\
+    'Goal: add JWT auth. Approach: jwt.sign in login, verify middleware. Non-goal: OAuth.'
 
-Deep Mode Reasoning:
-  --solver-reasoning <level>    Reasoning for solvers (default: high)
-  --judge-reasoning <level>     Reasoning for judge (default: medium)
-  --verifier-reasoning <level>  Reasoning for verifier (default: high)
-  --revision-reasoning <level>  Reasoning for revision (default: verifier value)
+  # 3. Discuss follow-ups (same session)
+  veda -S impl-my-task -b droid -m claude-sonnet-4-5-20250929 -p navigator-chat \\
+    'What about edge case X?'
 
-Deep Mode Backends:
-  --distribute-solvers      Distribute solver backends evenly (round-robin)
-  --solver-backends <list>  Comma-separated backends for --distribute-solvers
+  # 4. Implement (you do this, not the Navigator)
 
-Selection Commands:
-  sel add <files...>      Add files to selection (supports globs)
-  sel rm <files...>       Remove files from selection
-  sel ls                  List selected files with token counts
-  sel clear               Clear selection
-  sel tokens              Show total token count
+  # 5. Review with Reviewer
+  git diff > /tmp/changes.diff
+  veda -S review-my-task sel add /tmp/changes.diff src/auth/
+  veda -S review-my-task -b droid -m claude-sonnet-4-5-20250929 -p reviewer \\
+    'Implementation complete. Please review.'
 
-Stats Commands (Glicko-2 Ratings):
-  stats                   View ratings (group by module)
-  stats --by-category     Group by reasoning category
-  stats --by-model        Group by solver model (backend:model)
-  stats --by-judge        Group by judge (backend:model)
-  stats --limit <n>       Show top N entities (default: 20)
-  stats --json            Output as JSON
+== Commands ==
 
-File Slices:
-  file.ts:10-20           Lines 10-20
-  file.ts:15-             Line 15 to EOF
-  file.ts:8               Single line 8
+  veda <prompt>                    Run a prompt (default persona: navigator-chat)
+  veda guide                       Print the full pair programming guide
+  veda personas                    List personas (with descriptions)
+  veda personas <name>             Show a persona's system prompt
+  veda sel <cmd> [args]            Manage file selection (add, rm, ls, clear, tokens)
+  veda resume [prompt]             Resume a conversation
+  veda deep <prompt>               Deep thinking mode (multi-solver + judge + verify)
+  veda stats [options]             View judge statistics
+  veda init                        Initialize config and personas
 
-Examples:
-  # Plan a task with navigator-plan (always pass -b and -m)
+== Options ==
+
+  -S, --session <id>        Session ID (isolates selection + conversation)
+  -p, --persona <name>      Persona: navigator-plan, navigator-chat, reviewer, advisor
+  -b, --backend <name>      Backend: codex, claude-code, droid, jdc
+  -m, --model <name>        Model or alias (auto-selects backend if -b omitted)
+                            Aliases: opus, sonnet, haiku, gpt
+  -r, --reasoning <level>   Reasoning: minimal, low, medium, high, xhigh
+  --sandbox <mode>          Sandbox: read-only, workspace-write, full
+  -o, --output <file>       Save response to file
+  -f, --files <file>        Ad-hoc files (doesn't modify selection)
+  --no-sel                  Ignore selection for this run
+  --notify / --no-notify    Toggle system notifications (default: on)
+  --notify-sound <name>     Notification sound (macOS)
+  --json                    Output raw JSON
+  --help, -h                Show this help
+  --version, -v             Show version
+
+== Deep Mode ==
+
+  --deep, -d                Enable deep thinking mode
+  -k <num>                  Parallel solvers (default: 6, max: 12)
+  --categories <list>       Reasoning categories (comma-separated)
+  --modules <list>           Module specifiers (category/module format)
+  --no-verify               Skip verification
+  --force-verify            Force verification even at high confidence
+  --trace <file>            Save trace to YAML
+  --resume                  Resume from checkpoint
+  --distribute-solvers       Distribute solvers across backends (round-robin)
+  --solver-backends <list>  Backends for distribution
+
+  Per-stage overrides:
+  --solver-backend/--model   --judge-backend/--model
+  --verifier-backend/--model --revision-backend/--model
+  --solver-reasoning         --judge-reasoning
+  --verifier-reasoning       --revision-reasoning
+
+== Selection ==
+
+  sel add <files...>        Add files (supports globs and slices: file.ts:10-20)
+  sel rm <files...>         Remove files
+  sel ls                    List selected files with token counts
+  sel clear                 Clear selection
+  sel tokens                Show total token count
+
+== Stats ==
+
+  stats                      View ratings (group by module)
+  stats --by-category        Group by reasoning category
+  stats --by-model           Group by solver model
+  stats --by-judge           Group by judge
+  stats --limit <n>          Show top N (default: 20)
+  stats --json               Output as JSON
+
+== File Slices ==
+
+  file.ts:10-20              Lines 10-20
+  file.ts:15-                Line 15 to EOF
+  file.ts:8                  Single line 8
+  "src/*.ts:1-50"            First 50 lines of each matched file
+
+== Examples ==
+
+  # Plan a task
   veda -S plan-auth sel add "src/*.ts"
   veda -S plan-auth -b droid -m glm-5.2 -p navigator-plan "Design a caching layer"
-  veda -S plan-auth -b jdc -m jdc/crof/glm-5.2 resume "What about LRU?"
 
-  # Quick discussion with navigator-chat
+  # Quick discussion
   veda -S plan-auth -b droid -m glm-5.2 -p navigator-chat "Quick question about X"
 
-  # Advisor review (second opinion)
-  veda -b droid -m glm-5.2 --persona advisor "Review this transcript"
-
-  # Model aliases auto-select backend (no -b needed)
+  # Model aliases (auto-selects backend)
   veda -m opus "Explain this code"
-  veda -m glm-5.2 "Quick summary"
 
-  # No-selection quick query
-  veda --no-sel "What is the CAP theorem?"
+  # View the full guide
+  veda guide
+
+  # View a persona's prompt
+  veda personas navigator-plan
+
+For the full pair programming workflow, run: veda guide
 `);
 }
 

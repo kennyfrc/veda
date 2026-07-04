@@ -16,6 +16,7 @@ export type VedaInput =
   | { command: 'sel'; subcommand: SelSubcommand; args: string[]; session: string }
   | { command: 'stats'; config: StatsConfig }
   | { command: 'init' }
+  | { command: 'guide' }
   | { command: 'personas'; subcommand?: string }
   | { command: 'help' }
   | { command: 'version' }

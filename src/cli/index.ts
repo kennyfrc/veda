@@ -55,6 +55,9 @@ export async function parseAndValidate(argv: string[]): Promise<VedaInput> {
   if (parsed.command === 'init') {
     return { command: 'init' };
   }
+  if (parsed.command === 'guide') {
+    return { command: 'guide' };
+  }
   if (parsed.command === 'personas') {
     return { command: 'personas', subcommand: parsed.subcommand };
   }
