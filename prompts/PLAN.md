@@ -1,6 +1,6 @@
 ## Your Task
 
-Please collaborate, discuss, align with the Navigator model on the plan, using `veda -S plan-TASKNAME -p navigator-plan`. Navigator has no access to tool calls, therefore you need to provide extensive context through `veda sel add`. Always start with full files. The 80k-100k token range is acceptable; ~80k is ideal. Only use slices if you exceed 100k tokens. Use `-p navigator-plan` to start, then switch to `-p navigator-chat` if you'd like to discuss further. Only use `navigator-plan` once or unless the user instructs you to do so.
+Please collaborate, discuss, align with the Navigator model on the plan, using `veda -S plan-TASKNAME -p navigator-plan`. The Navigator has **read-only tools** (`Read`, `Grep`, `Glob`, `LS`, `git status/log/diff`) but cannot edit or run mutating commands — it advises, you implement. You still provide curated context through `veda sel add` to focus the Navigator's attention and control token cost; the Navigator can verify your claims against the actual code using its read tools. Always start with full files. The 80k-100k token range is acceptable; ~80k is ideal. Only use slices if you exceed 100k tokens. Use `-p navigator-plan` to start, then switch to `-p navigator-chat` if you'd like to discuss further. Only use `navigator-plan` once or unless the user instructs you to do so.
 
 ### Escaping Backticks in Prompts (Critical)
 
@@ -82,11 +82,14 @@ Prefer full files when possible—more context is better for Navigator.
 
 Use `veda -S plan-TASKNAME -p navigator-plan` to start planning, then `veda -S plan-TASKNAME -p navigator-chat` for follow-up discussion.
 
-Think of Navigator as a senior engineer you're pairing with:
-- Share your understanding and proposed approach
-- Ask for input on tricky decisions
-- Discuss tradeoffs and alternatives
-- Confirm alignment before you start implementing
+Think of Navigator as a senior engineer you're pairing with. Your opening message to the Navigator should commit to a position, not ask an open-ended question:
+
+- State the goal and your proposed approach (take a stance — the Navigator stress-tests it)
+- Provide evidence anchors (file:function references for your key claims)
+- Name constraints and non-goals
+- Ask 1-2 specific questions where you are genuinely uncertain
+
+Expect the Navigator to respond with: alternative approaches, a recommended Plan A + a fallback, stepwise verifiable increments, kill criteria, and open questions. Align before you start implementing.
 
 Example flow:
 ```bash
@@ -94,8 +97,8 @@ Example flow:
 veda -S plan-auth-refactor sel clear
 veda -S plan-auth-refactor sel add "src/auth/" "src/api/users.ts"
 
-# 2. Start planning conversation
-veda -S plan-auth-refactor -p navigator-plan "Here's my understanding of the task and proposed approach: [details]. What do you think?"
+# 2. Start planning conversation — commit to a position
+veda -S plan-auth-refactor -p navigator-plan 'Goal: migrate session auth to JWT. Proposed approach: add jwt.sign in login handler, add verify middleware in src/auth/middleware.ts. Non-goal: OAuth. Key question: should we rotate keys per-env? What do you think?'
 
 # 3. Continue discussion (session-scoped resume)
 veda -S plan-auth-refactor resume "What about edge case X?"
@@ -114,6 +117,9 @@ Use `veda -S plan-TASKNAME resume` to continue the same conversation, or start f
 After aligning with Navigator:
 - Execute the plan using your native editing tools
 - Validate as you go (check files, search for issues)
+- Checkpoint with Navigator at plan-step boundaries: report "step N done, verified by X"
+- On failure: paste the actual error/test output verbatim and ask "repair or switch?"
+- Two similar failures = mandatory Navigator consult before a third attempt
 - You can consult Navigator mid-implementation if you hit unexpected questions:
   ```bash
   veda -S plan-auth-refactor -p navigator-chat "Quick question: should X handle Y this way?"
