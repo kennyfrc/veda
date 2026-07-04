@@ -1,6 +1,6 @@
 ## Your Task
 
-Please collaborate, discuss, align, and implement with the Navigator model on the plan, using `veda -S impl-TASKNAME -p navigator-plan`. The Navigator has **read-only tools** (`Read`, `Grep`, `Glob`, `LS`, `git status/log/diff`) but cannot edit or run mutating commands — it advises, you implement. You still provide curated context through `veda sel add` to focus the Navigator's attention and control token cost; the Navigator can verify your claims against the actual code using its read tools. Always start with full files. The 80k-100k token range is acceptable; ~80k is ideal. Only use slices if you exceed 100k tokens. Use `-p navigator-plan` to start, then switch to `-p navigator-chat` if you'd like to discuss further. Only use `navigator-plan` once or unless the user instructs you to do so.
+Please collaborate, discuss, align, and implement with the Navigator model on the plan, using `veda -S impl-TASKNAME -p navigator-plan`. The Navigator has **read-only tools** (`Read`, `Grep`, `Glob`, `LS`, `git status/log/diff`) but cannot edit or run mutating commands — it advises, you implement. You still provide curated context through `veda sel add` to focus the Navigator's attention and control token cost; the Navigator can verify your claims against the actual code using its read tools. Always start with full files. The 80k-150k token range is acceptable. Only use slices if you exceed 150k tokens. Use `-p navigator-plan` to start, then switch to `-p navigator-chat` if you'd like to discuss further. Only use `navigator-plan` once or unless the user instructs you to do so.
 
 ### Escaping Backticks in Prompts (Critical)
 
@@ -47,11 +47,11 @@ veda -S impl-auth-feature sel add "src/feature/" "src/shared/utils.ts"
 veda -S impl-auth-feature sel ls
 ```
 
-**Always start by selecting full files.** Check token count with `sel ls`. The 80k-100k range is acceptable; ~80k is ideal.
+**Always start by selecting full files.** Check token count with `sel ls`. The 80k-150k range is acceptable.
 
 ### File Slices (Line Ranges)
 
-**Only use slices if you exceed ~100k tokens.** When paring down, target ~80k tokens.
+**Only use slices if you exceed ~150k tokens.** When paring down, target ~120k tokens.
 
 ```bash
 # Select specific line ranges (only when over budget)
@@ -71,8 +71,8 @@ veda -S impl-auth-feature sel add "src/*.c:1-80"     # First 80 lines of each .c
 **Selection strategy:**
 1. Start with full files—always
 2. Check `sel ls` for token count
-3. If under 100k tokens → you're done, full files are fine
-4. If over 100k tokens → pare down to ~80k using slices on the largest files
+3. If under 150k tokens → you're done, full files are fine
+4. If over 150k tokens → pare down to ~120k using slices on the largest files
 
 Prefer full files when possible—more context is better for Navigator.
 

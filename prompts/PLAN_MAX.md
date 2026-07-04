@@ -74,11 +74,11 @@ veda -S impl-auth-feature sel add "src/feature/" "src/shared/utils.ts"
 veda -S impl-auth-feature sel ls
 ```
 
-**Always start by selecting full files.** Check token count with `sel ls`. The 80k-100k range is acceptable; ~80k is ideal.
+**Always start by selecting full files.** Check token count with `sel ls`. The 80k-150k range is acceptable.
 
 ### File Slices (Line Ranges)
 
-**Only use slices if you exceed ~100k tokens.** When paring down, target ~80k tokens.
+**Only use slices if you exceed ~150k tokens.** When paring down, target ~120k tokens.
 
 ```bash
 # Select specific line ranges (only when over budget)
@@ -98,8 +98,8 @@ veda -S impl-auth-feature sel add "src/*.c:1-80"     # First 80 lines of each .c
 **Selection strategy:**
 1. Start with full files—always
 2. Check `sel ls` for token count
-3. If under 100k tokens → you're done, full files are fine
-4. If over 100k tokens → pare down to ~80k using slices on the largest files
+3. If under 150k tokens → you're done, full files are fine
+4. If over 150k tokens → pare down to ~120k using slices on the largest files
 
 Prefer full files when possible—more context is better for Navigator.
 
@@ -196,6 +196,6 @@ Key commands:
 - `veda -S review-TASKNAME -p reviewer` for code review (medium reasoning)
 - `veda -S impl-TASKNAME resume` to continue a conversation (session-scoped)
 - All personas run in read-only sandbox mode
-- Always start with full files for Navigator context. 80k-100k tokens is acceptable; ~80k is ideal. Only use slices if you exceed 100k tokens.
+- Always start with full files for Navigator context. 80k-150k tokens is acceptable. Only use slices if you exceed 150k tokens.
 - **Use descriptive session names** (e.g., `impl-auth-feature`, `review-auth-feature`) to avoid conflicts with other agents
 

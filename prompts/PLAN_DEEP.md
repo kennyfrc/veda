@@ -51,7 +51,7 @@ veda -S deep-api-versioning ...   # Deep thinking about API versioning
 
 Build context with `veda sel add` before running deep mode. The context is passed to all solvers.
 
-**Always start by selecting full files.** Check token count with `sel ls`. The 80k-100k range is acceptable; ~80k is ideal. Deep mode runs multiple solvers, so large context multiplies cost.
+**Always start by selecting full files.** Check token count with `sel ls`. The 80k-150k range is acceptable. Deep mode runs multiple solvers, so large context multiplies cost.
 
 ```bash
 # Clear and build selection (use your session name)
@@ -64,7 +64,7 @@ veda -S deep-cache-design sel ls
 
 ### File Slices
 
-**Only use slices if you exceed ~100k tokens.** When paring down, target ~80k tokens.
+**Only use slices if you exceed ~150k tokens.** When paring down, target ~120k tokens.
 
 ```bash
 # Selection-based slices
