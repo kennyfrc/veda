@@ -1,10 +1,14 @@
 ## Your Task: Review-Fix Loop with Reviewer Process after Implementation
 
-You must always perform at least one final review with the Reviewer model via `veda -S review-TASKNAME -p reviewer` after all implementation work is complete.  
+You must always perform at least one final review with the Reviewer model via `veda -S review-TASKNAME -m fable -p reviewer` after all implementation work is complete.  
 That final review must run recursively in a Review → Fix → Review loop until Reviewer is satisfied that no further changes are needed.  
 You must not use Reviewer mid-implementation; Reviewer is for the final review phase only.
 
 During implementation, you should keep the work on track via mid-implementation validation such as build/compilation/test-style checks (using the tools you have), not via Reviewer.
+
+**Always pass `-m` (model) explicitly.** The `fable` alias auto-selects the droid backend with `claude-fable-5`. Use `-b <backend> -m <model>` for explicit control.
+
+**Involve the user when the work genuinely requires them.** Use your `ask_user` tool (or plain questions if unavailable) when the goal is ambiguous, a decision would change scope, cost, or direction, or input only the user can provide. Reviewer advises; the user decides. Otherwise, when you have enough information to act, act.
 
 ### Escaping Backticks in Prompts (Critical)
 
@@ -16,7 +20,7 @@ veda -p reviewer "Check if `getData()` handles errors"
 # Results in: sh: getData(): command not found
 
 # GOOD - use single quotes (simplest):
-veda -S review-data-handler -p reviewer 'Check if `getData()` handles errors correctly.'
+veda -S review-data-handler -m fable -p reviewer 'Check if `getData()` handles errors correctly.'
 
 # GOOD - escape backticks in double quotes:
 veda -p reviewer "Check if \`getData()\` handles errors"
@@ -37,7 +41,7 @@ veda -S review-api-fix ...          # Reviewing API bug fix
 
 ### Reviewer Model notes
 
-* Receives final review requests via `veda -S review-TASKNAME -p reviewer`.
+* Receives final review requests via `veda -S review-TASKNAME -m fable -p reviewer`.
 * Reviews with diffs included in selection (save diff to file, add to selection).
 * Reviews the completed implementation, flags issues with priority tags [P0]-[P3], and provides an overall verdict.
 * Must be used at least once at the end of implementation for a final, holistic review.
@@ -56,7 +60,7 @@ Call Reviewer to initiate final review of the completed implementation:
 * Save the diff (excluding binaries): `git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.gif' ':(exclude)*.ico' ':(exclude)*.woff' ':(exclude)*.woff2' ':(exclude)*.ttf' ':(exclude)*.eot' ':(exclude)*.mp4' ':(exclude)*.webm' ':(exclude)*.pdf' ':(exclude)*.zip' ':(exclude)*.tar' ':(exclude)*.gz' > /tmp/changes.diff`
   * Or scope to specific paths: `git diff -- path/to/src/ > /tmp/changes.diff`
 * Build selection with diff + relevant source files via `veda -S review-TASKNAME sel add`
-* Send review request via `veda -S review-TASKNAME -p reviewer`
+* Send review request via `veda -S review-TASKNAME -m fable -p reviewer`
 
 Example final review request:
 
@@ -80,7 +84,7 @@ veda -S my-review sel ls
 # Should show /tmp/changes.diff with token count - if not, re-add it!
 
 # Request review
-veda -S my-review -p reviewer "Final Review Request: Implementation for this task is complete.
+veda -S my-review -m fable -p reviewer "Final Review Request: Implementation for this task is complete.
 Overall summary of changes:
 - Added X feature
 - Modified Y to handle Z
@@ -137,7 +141,7 @@ veda -S my-review sel ls
 # Must show /tmp/changes.diff with non-zero token count!
 
 # Request re-review with updated diff
-veda -S my-review -p reviewer "Final Review Follow-up: I have addressed your feedback:
+veda -S my-review -m fable -p reviewer "Final Review Follow-up: I have addressed your feedback:
 - Fixed X (P1 issue)
 - Added handling for Y
 - Updated Z as suggested
@@ -172,18 +176,23 @@ Please re-review and confirm whether any issues remain or if the implementation 
 
 If the answer to #2 or #3 is yes → skip it.
 
+---
+
+Before ending your turn, check your last paragraph. If it is a plan, a list of next steps, or a promise about work you have not done ("I'll...", "let me know when..."), do that work now. End your turn only when the task is complete or you are blocked on input only the user can provide.
+
+When you write your final summary, write it for a reader who did not see any of the working thread. Lead with the outcome in one sentence, then the supporting detail. Drop the working shorthand: write complete sentences, spell out terms, and don't use arrow chains or labels you made up earlier. If you have to choose between short and clear, choose clear.
 
 ## Reminders
 
-Make sure to onboard yourself with veda at `~/.pi/agent/docs/veda.md` before acting.
+Make sure to onboard yourself with veda at `~/.jdc/agent/old-docs/veda.md` before acting.
 Key commands:
 - `git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/changes.diff` to capture changes **(exclude binaries, regenerate before EVERY re-review)**
 - `veda -S my-review sel rm /tmp/changes.diff && veda -S my-review sel add /tmp/changes.diff` to refresh diff in selection
 - `veda -S my-review sel clear` then `veda -S my-review sel add` to build context
 - `veda -S my-review sel add file.c:10-50` to add specific line ranges (slices)
 - `veda -S my-review sel ls` to verify selection and token count  
-- `veda -S my-review -p reviewer` for review requests (medium reasoning, read-only sandbox)
-- `veda -S my-review resume` to continue the review conversation (session-scoped)
+- `veda -S my-review -m fable -p reviewer` for review requests (medium reasoning, read-only sandbox)
+- `veda -S my-review -m fable resume` to continue the review conversation (session-scoped)
 - Look for verdict: "patch is correct" or "patch is incorrect"
 - **Only fix [P0]/[P1]** — skip P2/P3 and low-confidence suggestions
 - Output goes to stdout; use `-o file.md` to save response
@@ -200,9 +209,9 @@ Before every review request, verify:
 
 ### File Slices for Reviews
 
-**Always start by selecting full files.** Check token count with `sel ls`. The 80k-150k range is acceptable.
+**Always start by selecting full files.** Check token count with `sel ls`. The 75k-125k range is acceptable.
 
-**Only use slices if you exceed ~150k tokens.** When paring down, target ~120k tokens.
+**Only use slices if you exceed 125k tokens.** Pare down starting with the largest files.
 
 ```bash
 veda -S review-auth-refactor sel add src/auth.c:50-120   # Only the modified function
