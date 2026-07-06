@@ -132,6 +132,12 @@ export async function handleRun(
     });
   }
 
+  // Emit the saved path BEFORE the body so it's always visible even when
+  // stdout truncates the response (long responses get cut off mid-sentence).
+  if (responsePath) {
+    console.error(`${c.dim('[response]')} ${c.cyan(responsePath)}`);
+  }
+
   if (options.output) {
     await Bun.write(options.output, response.text);
     console.error(`Response saved to ${options.output}`);
@@ -146,10 +152,6 @@ export async function handleRun(
     }, null, 2));
   } else {
     console.log(response.text);
-  }
-
-  if (responsePath) {
-    console.error(`${c.dim('[response]')} ${c.cyan(responsePath)}`);
   }
 
   if (options.notify ?? globalConfig.notify ?? true) {

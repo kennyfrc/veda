@@ -124,6 +124,12 @@ export async function handleResume(
     });
   }
 
+  // Emit the saved path BEFORE the body so it's always visible even when
+  // stdout truncates the response (long responses get cut off mid-sentence).
+  if (responsePath) {
+    console.error(`${c.dim('[response]')} ${c.cyan(responsePath)}`);
+  }
+
   // Output
   if (options.output) {
     await Bun.write(options.output, text);
@@ -135,10 +141,6 @@ export async function handleResume(
     console.log(JSON.stringify({ text, sessionId, usage }, null, 2));
   } else {
     console.log(text);
-  }
-
-  if (responsePath) {
-    console.error(`${c.dim('[response]')} ${c.cyan(responsePath)}`);
   }
 
   // Notify on completion
