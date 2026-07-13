@@ -153,10 +153,10 @@ export function formatToolStart(
   toolInput?: unknown,
   maxLength: number = FORMAT_CONFIG.truncateAt
 ): string {
-  if (toolName === 'shell' && toolInput && typeof toolInput === 'object') {
+  if ((toolName === 'shell' || toolName === 'bash') && toolInput && typeof toolInput === 'object') {
     const input = toolInput as { command?: string };
     const cmd = input.command ?? '';
-    return `shell: ${truncateWithCount(cmd, maxLength)}`;
+    return `${toolName}: ${truncateWithCount(cmd, maxLength)}`;
   }
   
   if (toolName === 'file_change') {

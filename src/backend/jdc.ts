@@ -177,6 +177,24 @@ export class JdcBackend implements Backend {
         return null;
       }
 
+      case 'tool_execution_start': {
+        return {
+          type: 'tool_start',
+          toolName: e.toolName as string | undefined,
+          toolInput: e.args,
+          raw: event,
+        };
+      }
+
+      case 'tool_execution_end': {
+        return {
+          type: 'tool_result',
+          toolName: e.toolName as string | undefined,
+          toolResult: e.result,
+          raw: event,
+        };
+      }
+
       case 'message_start':
       case 'message_end':
       case 'turn_start': {
