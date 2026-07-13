@@ -75,6 +75,8 @@ export interface ResolveOptions {
   globalConfig?: GlobalConfig;
   /** Optional stage to apply stage-specific built-in defaults (deep mode). */
   stage?: 'base' | 'solver' | 'judge' | 'verifier' | 'revision';
+  /** Reasoning level from model alias (used when no explicit -r flag). */
+  aliasReasoning?: ReasoningLevel;
 }
 
 /**
@@ -82,7 +84,7 @@ export interface ResolveOptions {
  * Throws on alias/backend mismatch.
  */
 export function resolveBackendModel(opts: ResolveOptions): ResolvedBackendModel {
-  const { explicitBackend, explicitModel, globalConfig, stage = 'base' } = opts;
+  const { explicitBackend, explicitModel, globalConfig, stage = 'base', aliasReasoning: _aliasReasoning } = opts;
   
   // Try to resolve model alias first
   const aliasTarget = explicitModel ? resolveModelAlias(explicitModel) : undefined;
@@ -148,8 +150,11 @@ export function resolveBackendModel(opts: ResolveOptions): ResolvedBackendModel 
   } else {
     model = getBackendDefaultModelForStage(backend, stage) ?? 'unknown';
   }
-  
-  return { backend, model, source };
+
+  // Capture reasoning from alias if it provided one
+  const aliasReasoning = aliasTarget?.reasoning as ResolvedBackendModel['aliasReasoning'];
+
+  return { backend, model, source, aliasReasoning };
 }
 
 // =============================================================================
@@ -167,11 +172,12 @@ export interface StageResolveOptions {
  */
 export function resolveDeepStages(opts: StageResolveOptions): StageConfigs {
   const { flags, baseResolved, globalConfig } = opts;
+  const aliasReasoning = baseResolved.aliasReasoning;
   
-  const solver = resolveSolverConfig(flags, baseResolved, globalConfig);
-  const judge = resolveJudgeConfig(flags, baseResolved, globalConfig);
-  const verifier = resolveVerifierConfig(flags, baseResolved, globalConfig);
-  const revision = resolveRevisionConfig(flags, baseResolved, globalConfig);
+  const solver = resolveSolverConfig(flags, baseResolved, globalConfig, aliasReasoning);
+  const judge = resolveJudgeConfig(flags, baseResolved, globalConfig, aliasReasoning);
+  const verifier = resolveVerifierConfig(flags, baseResolved, globalConfig, aliasReasoning);
+  const revision = resolveRevisionConfig(flags, baseResolved, globalConfig, aliasReasoning);
   
   return { solver, judge, verifier, revision };
 }
@@ -179,7 +185,8 @@ export function resolveDeepStages(opts: StageResolveOptions): StageConfigs {
 function resolveSolverConfig(
   flags: RawFlags,
   base: ResolvedBackendModel,
-  globalConfig?: GlobalConfig
+  globalConfig?: GlobalConfig,
+  aliasReasoning?: ReasoningLevel
 ): SolverConfig {
   const deepConfig = globalConfig?.deep;
   
@@ -206,7 +213,7 @@ function resolveSolverConfig(
       : (deepConfig?.distributeSolvers ?? false);
   
   // Resolve reasoning for solver stage
-  const reasoning = resolveStageReasoning(flags, 'solver', globalConfig);
+  const reasoning = resolveStageReasoning(flags, 'solver', globalConfig, aliasReasoning);
   
   if (useDistributed) {
     // If solver model is an alias, it determines the backend (can't use sonnet on codex)
@@ -283,7 +290,8 @@ function resolveSolverConfig(
 function resolveJudgeConfig(
   flags: RawFlags,
   base: ResolvedBackendModel,
-  globalConfig?: GlobalConfig
+  globalConfig?: GlobalConfig,
+  aliasReasoning?: ReasoningLevel
 ): StageConfig {
   const deepConfig = globalConfig?.deep;
   
@@ -320,14 +328,15 @@ function resolveJudgeConfig(
   return {
     backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
-    reasoning: resolveStageReasoning(flags, 'judge', globalConfig),
+    reasoning: resolveStageReasoning(flags, 'judge', globalConfig, aliasReasoning),
   };
 }
 
 function resolveVerifierConfig(
   flags: RawFlags,
   base: ResolvedBackendModel,
-  globalConfig?: GlobalConfig
+  globalConfig?: GlobalConfig,
+  aliasReasoning?: ReasoningLevel
 ): StageConfig {
   const deepConfig = globalConfig?.deep;
   
@@ -365,14 +374,15 @@ function resolveVerifierConfig(
   return {
     backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
-    reasoning: resolveStageReasoning(flags, 'verifier', globalConfig),
+    reasoning: resolveStageReasoning(flags, 'verifier', globalConfig, aliasReasoning),
   };
 }
 
 function resolveRevisionConfig(
   flags: RawFlags,
   base: ResolvedBackendModel,
-  globalConfig?: GlobalConfig
+  globalConfig?: GlobalConfig,
+  aliasReasoning?: ReasoningLevel
 ): StageConfig {
   const deepConfig = globalConfig?.deep;
   
@@ -415,7 +425,7 @@ function resolveRevisionConfig(
   return {
     backend: effectiveBackend ?? resolved.backend,
     model: resolved.model,
-    reasoning: resolveStageReasoning(flags, 'revision', globalConfig),
+    reasoning: resolveStageReasoning(flags, 'revision', globalConfig, aliasReasoning),
   };
 }
 
@@ -450,7 +460,8 @@ function isValidReasoning(level: string): level is ReasoningLevel {
 export function resolveStageReasoning(
   flags: RawFlags,
   stage: 'solver' | 'judge' | 'verifier' | 'revision',
-  globalConfig?: GlobalConfig
+  globalConfig?: GlobalConfig,
+  aliasReasoning?: ReasoningLevel
 ): ReasoningLevel {
   const deepConfig = globalConfig?.deep;
   
@@ -484,6 +495,11 @@ export function resolveStageReasoning(
     return baseReasoning as ReasoningLevel;
   }
   
+  // Alias reasoning (e.g., sol alias sets reasoning: high)
+  if (aliasReasoning) {
+    return aliasReasoning;
+  }
+  
   // Config file default
   const configValue = {
     solver: deepConfig?.solverReasoning,
@@ -498,7 +514,7 @@ export function resolveStageReasoning(
   
   // For revision without -r, fall back to verifier's effective reasoning
   if (stage === 'revision') {
-    return resolveStageReasoning(flags, 'verifier', globalConfig);
+    return resolveStageReasoning(flags, 'verifier', globalConfig, aliasReasoning);
   }
   
   return STAGE_DEFAULTS[stage];

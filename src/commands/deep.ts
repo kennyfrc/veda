@@ -335,22 +335,23 @@ export async function handleDeep(
       })
     : verifier;
 
-  // Resolve effective reasoning for each stage (CLI stage flag > base -r > config > default)
+  // Resolve effective reasoning for each stage (CLI stage flag > base -r > alias > config > default)
   // When cliHasBaseReasoning, base -r takes precedence over config defaults
+  const aliasReasoning = base.aliasReasoning;
   const effectiveSolverReasoning = options.solverReasoning 
-    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.solverReasoning)
+    ?? (cliHasBaseReasoning ? options.reasoning : aliasReasoning ?? deepConfig.solverReasoning)
     ?? resolveReasoning({ backend: solverBackendForNotification, globalConfig });
 
   const effectiveJudgeReasoning = options.judgeReasoning 
-    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.judgeReasoning)
+    ?? (cliHasBaseReasoning ? options.reasoning : aliasReasoning ?? deepConfig.judgeReasoning)
     ?? 'medium';
 
   const effectiveVerifierReasoning = options.verifierReasoning 
-    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.verifierReasoning)
+    ?? (cliHasBaseReasoning ? options.reasoning : aliasReasoning ?? deepConfig.verifierReasoning)
     ?? 'high';
 
   const effectiveRevisionReasoning = options.revisionReasoning 
-    ?? (cliHasBaseReasoning ? options.reasoning : deepConfig.revisionReasoning)
+    ?? (cliHasBaseReasoning ? options.reasoning : aliasReasoning ?? deepConfig.revisionReasoning)
     ?? effectiveVerifierReasoning;
 
   let finalResult: DeepThinkResult | undefined;

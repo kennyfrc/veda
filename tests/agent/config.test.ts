@@ -307,22 +307,24 @@ describe('resolveBackendModel', () => {
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'gpt' });
     });
 
-    test('resolves glm-5.2 alias to droid backend', () => {
+    test('resolves glm alias to jdc backend with reasoning', () => {
       const result = resolveBackendModel({
-        explicitModel: 'glm-5.2',
+        explicitModel: 'glm',
       });
-      expect(result.backend).toBe('droid');
-      expect(result.model).toBe('glm-5.2');
-      expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm-5.2' });
+      expect(result.backend).toBe('jdc');
+      expect(result.model).toBe('jdc/makora/zai-org/GLM-5.2-NVFP4');
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm' });
+      expect(result.aliasReasoning).toBe('high');
     });
 
-    test('resolves glm-5.2 alias to droid backend', () => {
+    test('resolves sol alias to jdc backend with reasoning', () => {
       const result = resolveBackendModel({
-        explicitModel: 'glm-5.2',
+        explicitModel: 'sol',
       });
-      expect(result.backend).toBe('droid');
-      expect(result.model).toBe('glm-5.2');
-      expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm-5.2' });
+      expect(result.backend).toBe('jdc');
+      expect(result.model).toBe('jdc/openai-codex/gpt-5.6-sol');
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'sol' });
+      expect(result.aliasReasoning).toBe('medium');
     });
   });
 
@@ -498,20 +500,20 @@ describe('resolveBackendModel', () => {
   describe('edge cases', () => {
     test('handles alias with leading/trailing whitespace', () => {
       const result = resolveBackendModel({
-        explicitModel: '  glm-5.2  ',
+        explicitModel: '  glm  ',
       });
-      expect(result.backend).toBe('droid');
-      expect(result.model).toBe('glm-5.2');
-      expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm-5.2' });
+      expect(result.backend).toBe('jdc');
+      expect(result.model).toBe('jdc/makora/zai-org/GLM-5.2-NVFP4');
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm' });
     });
 
     test('handles alias with internal whitespace in mixed case', () => {
       const result = resolveBackendModel({
-        explicitModel: '  MAKORA  ',
+        explicitModel: '  SOL  ',
       });
-      expect(result.backend).toBe('droid');
-      expect(result.model).toBe('custom:Makora-GLM-5.2-NVFP4-9');
-      expect(result.source).toEqual({ kind: 'alias', aliasName: 'makora' });
+      expect(result.backend).toBe('jdc');
+      expect(result.model).toBe('jdc/openai-codex/gpt-5.6-sol');
+      expect(result.source).toEqual({ kind: 'alias', aliasName: 'sol' });
     });
 
     test('handles empty string model - uses backend default', () => {
@@ -541,16 +543,16 @@ describe('resolveBackendModel', () => {
   });
 
   describe('CRITICAL: mismatched backend and alias', () => {
-    test('explicit codex backend with glm-5.2 alias treats as literal model', () => {
+    test('explicit codex backend with glm alias treats as literal model', () => {
       // This documents the current behavior: when backend is explicit and
       // differs from alias backend, the model is treated as literal
       const result = resolveBackendModel({
         explicitBackend: 'codex',
-        explicitModel: 'glm-5.2', // Alias for droid
+        explicitModel: 'glm', // Alias for jdc
       });
 
       expect(result.backend).toBe('codex');
-      expect(result.model).toBe('glm-5.2'); // NOT glm-5.2
+      expect(result.model).toBe('glm'); // NOT resolved to jdc model
       expect(result.source).toEqual({ kind: 'explicit' });
     });
 

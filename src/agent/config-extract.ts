@@ -37,7 +37,7 @@ function inferBackendFromModel(modelName: string): string | undefined {
  * Format valid model options for error messages.
  */
 function formatValidModels(): string {
-  const aliasExamples = ['opus', 'sonnet', 'haiku', 'gpt', 'glm-5.2', 'makora'];
+  const aliasExamples = ['opus', 'sonnet', 'haiku', 'gpt', 'glm', 'sol'];
   const prefixExamples = Object.entries(MODEL_PREFIX_TO_BACKEND)
     .map(([prefix, backend]) => `${prefix}* (${backend})`)
     .join(', ');
@@ -76,6 +76,7 @@ export function validateModelOrThrow(modelName: string, explicitBackend?: string
 export interface AliasTarget {
   backend: string;
   model: string;
+  reasoning?: string;
 }
 
 /**
@@ -259,5 +260,10 @@ export function resolveBackendModelExtracted(
     source = { kind: 'default' };
   }
 
-  return { backend, model, source };
+  // Capture reasoning from alias if it provided one and was used
+  const aliasReasoning = (useAlias && aliasTarget?.reasoning)
+    ? aliasTarget.reasoning as ResolvedBackendModel['aliasReasoning']
+    : undefined;
+
+  return { backend, model, source, aliasReasoning };
 }

@@ -18,7 +18,7 @@ describe('BackendModelResolver helpers', () => {
     });
 
     test('is idempotent', () => {
-      const input = 'glm-5.2';
+      const input = 'glm';
       expect(resolveModelAliasNormalized(input)).toBe(input);
     });
   });
@@ -43,9 +43,15 @@ describe('BackendModelResolver helpers', () => {
       expect(gpt?.backend).toBe('codex');
       expect(gpt?.model).toBe('gpt-5.3-codex');
 
-      const glm = tryResolveAliasTarget('glm-5.2');
-      expect(glm?.backend).toBe('droid');
-      expect(glm?.model).toBe('glm-5.2');
+      const glm = tryResolveAliasTarget('glm');
+      expect(glm?.backend).toBe('jdc');
+      expect(glm?.model).toBe('jdc/makora/zai-org/GLM-5.2-NVFP4');
+      expect(glm?.reasoning).toBe('high');
+
+      const sol = tryResolveAliasTarget('sol');
+      expect(sol?.backend).toBe('jdc');
+      expect(sol?.model).toBe('jdc/openai-codex/gpt-5.6-sol');
+      expect(sol?.reasoning).toBe('medium');
     });
 
     test('is case insensitive', () => {

@@ -135,6 +135,8 @@ export interface ResolveConfigOptions {
   backend?: string;
   baseDir?: string;
   systemPrompt?: string;
+  /** Reasoning level from model alias (used when no explicit -r flag). */
+  aliasReasoning?: ReasoningLevel;
 }
 
 export async function resolveAgentConfig(
@@ -168,6 +170,7 @@ export async function resolveAgentConfig(
   });
   
   const reasoning = options.reasoning 
+    ?? options.aliasReasoning
     ?? personaReasoning 
     ?? resolveReasoning({
         backend: options.backend,

@@ -149,6 +149,8 @@ export interface ResolvedBackendModel {
   backend: string;
   model: string;
   source: ResolutionSource;
+  /** Reasoning level from alias, if the alias specified one. */
+  aliasReasoning?: ReasoningLevel;
 }
 
 // =============================================================================
