@@ -1,4 +1,5 @@
 import { DEFAULT_SESSION, isValidSessionId } from './util/paths';
+import { listModelAliases } from './agent/model-aliases';
 
 export interface CliOptions {
   session: string;
@@ -388,7 +389,7 @@ a driver-navigator workflow inspired by pair programming best practices.
   -p, --persona <name>      Persona: navigator-plan, navigator-chat, reviewer, advisor
   -b, --backend <name>      Backend: codex, claude-code, droid, jdc
   -m, --model <name>        Model or alias (auto-selects backend if -b omitted)
-                            Aliases: opus, sonnet, haiku, gpt
+                            Aliases: ${listModelAliases().join(', ')}
   -r, --reasoning <level>   Reasoning: minimal, low, medium, high, xhigh
   --sandbox <mode>          Sandbox: read-only, workspace-write, full
   -o, --output <file>       Save response to file
