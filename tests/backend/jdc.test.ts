@@ -105,3 +105,74 @@ describe('JdcBackend', () => {
     }).toThrow('Resume not supported for jdc backend');
   });
 });
+
+describe('JdcBackend.normalizeEvent — tool events', () => {
+  const backend = new JdcBackend();
+  const normalize = (event: unknown) => (backend as unknown as { normalizeEvent(e: unknown): unknown }).normalizeEvent(event);
+
+  test('tool_execution_start → tool_start with toolName and args', () => {
+    const event = {
+      type: 'tool_execution_start',
+      toolCallId: 'call_abc',
+      toolName: 'read',
+      args: { path: '/tmp/foo.txt' },
+    };
+    const msg = normalize(event);
+    expect(msg).toEqual({
+      type: 'tool_start',
+      toolName: 'read',
+      toolInput: { path: '/tmp/foo.txt' },
+      raw: event,
+    });
+  });
+
+  test('tool_execution_start for bash includes command args', () => {
+    const event = {
+      type: 'tool_execution_start',
+      toolCallId: 'call_def',
+      toolName: 'bash',
+      args: { command: 'rg -n "test" src/' },
+    };
+    const msg = normalize(event);
+    expect(msg).toEqual({
+      type: 'tool_start',
+      toolName: 'bash',
+      toolInput: { command: 'rg -n "test" src/' },
+      raw: event,
+    });
+  });
+
+  test('tool_execution_end → tool_result with toolName and result', () => {
+    const event = {
+      type: 'tool_execution_end',
+      toolCallId: 'call_abc',
+      toolName: 'read',
+      result: 'file contents here',
+      isError: false,
+    };
+    const msg = normalize(event);
+    expect(msg).toEqual({
+      type: 'tool_result',
+      toolName: 'read',
+      toolResult: 'file contents here',
+      raw: event,
+    });
+  });
+
+  test('tool_execution_end with error result', () => {
+    const event = {
+      type: 'tool_execution_end',
+      toolCallId: 'call_err',
+      toolName: 'read',
+      result: 'ENOENT: no such file or directory',
+      isError: true,
+    };
+    const msg = normalize(event);
+    expect(msg).toEqual({
+      type: 'tool_result',
+      toolName: 'read',
+      toolResult: 'ENOENT: no such file or directory',
+      raw: event,
+    });
+  });
+});

@@ -120,6 +120,18 @@ describe('trace-format', () => {
     it('returns tool name for unknown tools', () => {
       expect(formatToolStart('Grep')).toBe('Grep');
     });
+
+    it('formats bash commands with truncation (jdc uses bash, droid uses shell)', () => {
+      const result = formatToolStart('bash', { command: 'rg -n "test" src/' });
+      expect(result).toContain('bash:');
+      expect(result).toContain('rg');
+    });
+
+    it('truncates long bash commands', () => {
+      const longCmd = 'rg -n "SolverId|solverIds|solver_ids" src tests --type ts --glob "*.ts" | head -100';
+      const result = formatToolStart('bash', { command: longCmd }, 40);
+      expect(result).toContain('···');
+    });
   });
 
   describe('formatPhaseHeader', () => {
