@@ -19,9 +19,12 @@ describe('MODEL_ALIASES', () => {
   });
 
   test('contains Droid models', () => {
-    expect(MODEL_ALIASES['glm-5.2']).toEqual({ backend: 'droid', model: 'glm-5.2' });
-    expect(MODEL_ALIASES['makora']).toEqual({ backend: 'droid', model: 'custom:Makora-GLM-5.2-NVFP4-9' });
     expect(MODEL_ALIASES['fable']).toEqual({ backend: 'droid', model: 'claude-fable-5' });
+  });
+
+  test('contains jdc models with reasoning', () => {
+    expect(MODEL_ALIASES['glm']).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
+    expect(MODEL_ALIASES['sol']).toEqual({ backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'medium' });
   });
 });
 
@@ -38,7 +41,7 @@ describe('normalizeModelName', () => {
 
   test('handles combined normalization', () => {
     expect(normalizeModelName('  OpUs  ')).toBe('opus');
-    expect(normalizeModelName(' GLM-5.2 ')).toBe('glm-5.2');
+    expect(normalizeModelName(' GLM ')).toBe('glm');
   });
 });
 
@@ -54,16 +57,20 @@ describe('resolveModelAlias', () => {
   });
 
   test('resolves Droid aliases', () => {
-    expect(resolveModelAlias('glm-5.2')).toEqual({ backend: 'droid', model: 'glm-5.2' });
-    expect(resolveModelAlias('makora')).toEqual({ backend: 'droid', model: 'custom:Makora-GLM-5.2-NVFP4-9' });
     expect(resolveModelAlias('fable')).toEqual({ backend: 'droid', model: 'claude-fable-5' });
+  });
+
+  test('resolves jdc aliases with reasoning', () => {
+    expect(resolveModelAlias('glm')).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
+    expect(resolveModelAlias('sol')).toEqual({ backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'medium' });
   });
 
   test('handles case-insensitive lookup', () => {
     expect(resolveModelAlias('OPUS')).toEqual({ backend: 'claude-code', model: 'opus' });
     expect(resolveModelAlias('Sonnet')).toEqual({ backend: 'claude-code', model: 'sonnet' });
     expect(resolveModelAlias('GPT')).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
-    expect(resolveModelAlias('GLM-5.2')).toEqual({ backend: 'droid', model: 'glm-5.2' });
+    expect(resolveModelAlias('GLM')).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
+    expect(resolveModelAlias('SOL')).toEqual({ backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'medium' });
   });
 
   test('handles whitespace', () => {
@@ -83,9 +90,9 @@ describe('isModelAlias', () => {
     expect(isModelAlias('sonnet')).toBe(true);
     expect(isModelAlias('haiku')).toBe(true);
     expect(isModelAlias('gpt')).toBe(true);
-    expect(isModelAlias('glm-5.2')).toBe(true);
-    expect(isModelAlias('makora')).toBe(true);
     expect(isModelAlias('fable')).toBe(true);
+    expect(isModelAlias('glm')).toBe(true);
+    expect(isModelAlias('sol')).toBe(true);
   });
 
   test('returns false for unknown models', () => {
@@ -96,7 +103,8 @@ describe('isModelAlias', () => {
   test('is case-insensitive', () => {
     expect(isModelAlias('OPUS')).toBe(true);
     expect(isModelAlias('Sonnet')).toBe(true);
-    expect(isModelAlias('GLM-5.2')).toBe(true);
+    expect(isModelAlias('GLM')).toBe(true);
+    expect(isModelAlias('SOL')).toBe(true);
   });
 });
 
@@ -107,9 +115,9 @@ describe('listModelAliases', () => {
     expect(aliases).toContain('sonnet');
     expect(aliases).toContain('haiku');
     expect(aliases).toContain('gpt');
-    expect(aliases).toContain('glm-5.2');
-    expect(aliases).toContain('makora');
     expect(aliases).toContain('fable');
+    expect(aliases).toContain('glm');
+    expect(aliases).toContain('sol');
   });
 
   test('returns expected count', () => {

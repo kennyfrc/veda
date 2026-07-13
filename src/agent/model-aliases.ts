@@ -1,6 +1,8 @@
 export interface ModelAliasTarget {
   backend: string;
   model: string;
+  /** Optional default reasoning level for this alias. */
+  reasoning?: string;
 }
 
 export const MODEL_ALIASES: Record<string, ModelAliasTarget> = {
@@ -13,9 +15,11 @@ export const MODEL_ALIASES: Record<string, ModelAliasTarget> = {
   'gpt': { backend: 'codex', model: 'gpt-5.3-codex' },
 
   // Droid models (via droid exec)
-  'glm-5.2': { backend: 'droid', model: 'glm-5.2' },
-  'makora': { backend: 'droid', model: 'custom:Makora-GLM-5.2-NVFP4-9' },
   'fable': { backend: 'droid', model: 'claude-fable-5' },
+
+  // jdc models (via jdc CLI)
+  'glm': { backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' },
+  'sol': { backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'medium' },
 };
 
 export function normalizeModelName(input: string): string {
