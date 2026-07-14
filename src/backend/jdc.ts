@@ -30,17 +30,29 @@ export function toJdcThinking(reasoning: ReasoningLevel): string {
   }
 }
 
-export function toJdcTools(sandbox: SandboxMode): string {
+export function toJdcTools(sandbox: SandboxMode, requestedTools?: string[]): string {
   // Base tools always include bash for jdc (user preference)
   // Note: apply_patch and exec_command are GPT-specific, not included for jdc models
-  const baseTools = 'read,bash,grep,glob,list_threads,read_thread,read_image,todo_write,compact';
+  const baseTools = ['read', 'bash', 'grep', 'glob', 'list_threads', 'read_thread', 'todo_write', 'compact'];
+  const sandboxTools = sandbox === 'read-only'
+    ? baseTools
+    : [...baseTools, 'edit', 'write'];
+
+  if (requestedTools !== undefined) {
+    const allowed = new Set(sandboxTools);
+    const filtered = requestedTools.filter(tool => allowed.has(tool));
+    // JDC treats an empty --tools value as "use defaults", so retain only the
+    // least-capable read tool when a persona requests no tools.
+    return filtered.length > 0 ? filtered.join(',') : 'read';
+  }
+
   switch (sandbox) {
     case 'read-only':
-      return baseTools;
+      return baseTools.join(',');
     case 'workspace-write':
-      return `${baseTools},edit,write`;
+      return sandboxTools.join(',');
     case 'full':
-      return `${baseTools},edit,write`;
+      return sandboxTools.join(',');
   }
 }
 
@@ -61,7 +73,7 @@ export class JdcBackend implements Backend {
       '--provider', provider,
       '--model', model,
       '--thinking', toJdcThinking(config.reasoning),
-      '--tools', toJdcTools(config.sandbox),
+      '--tools', toJdcTools(config.sandbox, config.tools),
     ];
 
     if (config.systemPrompt) {

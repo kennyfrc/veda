@@ -23,7 +23,7 @@ describe('persona', () => {
     await mkdir(join(TEST_PERSONAS_DIR, 'navigator-plan'));
     await writeFile(
       join(TEST_PERSONAS_DIR, 'navigator-plan', 'AGENTS.md'),
-      '---\nreasoning: high\n---\n# Navigator Plan\n\nYou are a planning assistant.'
+      '---\nreasoning: high\ntools: read,grep,glob\n---\n# Navigator Plan\n\nYou are a planning assistant.'
     );
 
     await mkdir(join(TEST_PERSONAS_DIR, 'navigator-chat'));
@@ -35,7 +35,7 @@ describe('persona', () => {
     await mkdir(join(TEST_PERSONAS_DIR, 'reviewer'));
     await writeFile(
       join(TEST_PERSONAS_DIR, 'reviewer', 'AGENTS.md'),
-      '---\nreasoning: medium\n---\n# Reviewer\n\nYou are a code reviewer.'
+      '---\nreasoning: medium\ntools: none\n---\n# Reviewer\n\nYou are a code reviewer.'
     );
 
     // Create empty directory (should not be listed)
@@ -72,6 +72,9 @@ describe('persona', () => {
       expect(plan.defaultReasoning).toBe('high');
       expect(chat.defaultReasoning).toBe('medium');
       expect(reviewer.defaultReasoning).toBe('medium');
+      expect(plan.tools).toEqual(['read', 'grep', 'glob']);
+      expect(chat.tools).toBeUndefined();
+      expect(reviewer.tools).toEqual([]);
     });
   });
 
@@ -144,6 +147,38 @@ describe('persona', () => {
       );
       
       expect(config.reasoning).toBe('high');
+    });
+
+    test('persona reasoning takes precedence over model alias reasoning', async () => {
+      const config = await resolveAgentConfig(
+        { aliasReasoning: 'high', backend: 'jdc', baseDir: TEST_BASE },
+        defaults
+      );
+
+      expect(config.reasoning).toBe('medium');
+    });
+
+    test('explicit reasoning takes precedence over persona and alias reasoning', async () => {
+      const config = await resolveAgentConfig(
+        { reasoning: 'low', aliasReasoning: 'high', backend: 'jdc', baseDir: TEST_BASE },
+        defaults
+      );
+
+      expect(config.reasoning).toBe('low');
+    });
+
+    test('loads persona tool policy into agent config', async () => {
+      const plan = await resolveAgentConfig(
+        { persona: 'navigator-plan', backend: 'jdc', baseDir: TEST_BASE },
+        defaults
+      );
+      const reviewer = await resolveAgentConfig(
+        { persona: 'reviewer', backend: 'jdc', baseDir: TEST_BASE },
+        defaults
+      );
+
+      expect(plan.tools).toEqual(['read', 'grep', 'glob']);
+      expect(reviewer.tools).toEqual([]);
     });
 
     test('overrides persona', async () => {
@@ -238,6 +273,25 @@ You are a helper.`;
       expect(metadata).toEqual({ reasoning: 'high' });
     });
 
+    test('parses a comma-separated tool allowlist', () => {
+      const content = `---
+reasoning: medium
+tools: read, grep, glob
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata).toEqual({ reasoning: 'medium', tools: ['read', 'grep', 'glob'] });
+    });
+
+    test('parses tools none as an empty allowlist', () => {
+      const content = `---
+tools: none
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata).toEqual({ tools: [] });
+    });
+
     test('parses all valid reasoning levels', () => {
       const levels: ('minimal' | 'low' | 'medium' | 'high' | 'xhigh')[] =
         ['minimal', 'low', 'medium', 'high', 'xhigh'];
@@ -271,7 +325,7 @@ reasoning: medium
       expect(metadata.reasoning).toBe('medium');
     });
 
-    test('handles multiple frontmatter fields (parses only reasoning)', () => {
+    test('ignores unsupported frontmatter fields', () => {
       const content = `---
 name: custom
 reasoning: xhigh

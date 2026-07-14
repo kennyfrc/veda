@@ -22,6 +22,8 @@ export interface AgentConfig {
   model: string;
   reasoning: ReasoningLevel;
   sandbox: SandboxMode;
+  /** Optional tool allowlist. Undefined preserves backend defaults; [] requests no tools. */
+  tools?: string[];
   systemPrompt: string;
   systemPromptPath?: string;
 }

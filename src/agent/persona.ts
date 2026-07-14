@@ -6,6 +6,8 @@ import { resolveModel, resolveReasoning } from './config';
 
 export interface PersonaMetadata {
   reasoning?: ReasoningLevel;
+  /** Tool allowlist. An empty array means no tools. */
+  tools?: string[];
   // Future: sandbox?, category?, etc.
 }
 
@@ -14,6 +16,7 @@ export interface Persona {
   systemPrompt: string;
   path: string;
   defaultReasoning: ReasoningLevel;
+  tools?: string[];
   metadata?: PersonaMetadata; // Parsed from frontmatter
 }
 
@@ -54,6 +57,10 @@ export function parsePersonaMetadata(content: string): PersonaMetadata {
           if (validReasoning.includes(normalizedValue as ReasoningLevel)) {
             metadata.reasoning = normalizedValue as ReasoningLevel;
           }
+        } else if (normalizedKey === 'tools') {
+          metadata.tools = normalizedValue === 'none'
+            ? []
+            : normalizedValue.split(',').map(tool => tool.trim()).filter(Boolean);
         }
         // Future: parse other metadata fields here
       }
@@ -96,6 +103,7 @@ export async function loadPersona(name: string, optionsOrBaseDir?: LoadPersonaOp
     systemPrompt,
     path: agentsPath,
     defaultReasoning,
+    tools: options.metadata?.tools ?? frontmatterMetadata.tools,
     metadata: frontmatterMetadata,
   };
 }
@@ -135,6 +143,7 @@ export interface ResolveConfigOptions {
   backend?: string;
   baseDir?: string;
   systemPrompt?: string;
+  tools?: string[];
   /** Reasoning level from model alias (used when no explicit -r flag). */
   aliasReasoning?: ReasoningLevel;
 }
@@ -149,6 +158,7 @@ export async function resolveAgentConfig(
   let systemPrompt: string;
   let systemPromptPath: string | undefined;
   let personaReasoning: ReasoningLevel | undefined;
+  let personaTools: string[] | undefined;
   
   if (options.systemPrompt) {
     systemPrompt = options.systemPrompt;
@@ -157,6 +167,7 @@ export async function resolveAgentConfig(
     systemPrompt = persona.systemPrompt;
     systemPromptPath = persona.path;
     personaReasoning = persona.defaultReasoning;
+    personaTools = persona.tools;
   }
   
   if (!options.backend) {
@@ -170,8 +181,8 @@ export async function resolveAgentConfig(
   });
   
   const reasoning = options.reasoning 
-    ?? options.aliasReasoning
     ?? personaReasoning 
+    ?? options.aliasReasoning
     ?? resolveReasoning({
         backend: options.backend,
         globalConfig,
@@ -181,6 +192,7 @@ export async function resolveAgentConfig(
     model: model ?? '',
     reasoning,
     sandbox: options.sandbox ?? 'read-only',
+    tools: options.tools ?? personaTools,
     systemPrompt,
     systemPromptPath,
   };

@@ -20,6 +20,8 @@ export interface LlmRequest {
   model?: string;
   reasoning?: Reasoning;
   sandbox?: Sandbox;
+  /** Optional tool allowlist. Undefined uses backend defaults; [] requests no tools. */
+  tools?: string[];
   cwd?: string;
   onMessage?: (msg: Message) => void;
 }
@@ -42,6 +44,7 @@ export async function runLlm(req: LlmRequest): Promise<LlmResponse> {
       model: req.model ?? '',
       reasoning: req.reasoning ?? 'medium',
       sandbox: req.sandbox ?? 'read-only',
+      tools: req.tools,
       systemPrompt: req.systemPrompt,
     },
     cwd: req.cwd,
@@ -72,6 +75,7 @@ export async function* streamLlm(req: LlmRequest): AsyncIterable<Message> {
       model: req.model ?? '',
       reasoning: req.reasoning ?? 'medium',
       sandbox: req.sandbox ?? 'read-only',
+      tools: req.tools,
       systemPrompt: req.systemPrompt,
     },
     cwd: req.cwd,

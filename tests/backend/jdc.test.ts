@@ -59,7 +59,7 @@ describe('toJdcThinking', () => {
 describe('toJdcTools', () => {
   test('read-only returns base toolset with bash', () => {
     const result = toJdcTools('read-only');
-    expect(result).toBe('read,bash,grep,glob,list_threads,read_thread,read_image,todo_write,compact');
+    expect(result).toBe('read,bash,grep,glob,list_threads,read_thread,todo_write,compact');
     expect(result).toContain('bash'); // jdc always has bash per user preference
     expect(result).not.toContain('exec_command'); // GPT-specific, not for jdc
     expect(result).not.toContain('apply_patch'); // GPT-specific, not for jdc
@@ -86,6 +86,18 @@ describe('toJdcTools', () => {
     expect(result).not.toContain('exec_command'); // GPT-specific, not for jdc
     // Should include base tools
     expect(result).toContain('read');
+  });
+
+  test('uses a persona tool allowlist when provided', () => {
+    expect(toJdcTools('read-only', ['read', 'grep', 'glob'])).toBe('read,grep,glob');
+  });
+
+  test('prevents an empty policy from restoring JDC default tools', () => {
+    expect(toJdcTools('read-only', [])).toBe('read');
+  });
+
+  test('persona tool policy cannot expand sandbox capabilities', () => {
+    expect(toJdcTools('read-only', ['read', 'edit', 'write'])).toBe('read');
   });
 });
 

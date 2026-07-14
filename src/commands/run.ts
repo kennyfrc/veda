@@ -85,6 +85,7 @@ export async function handleRun(
     model: config.model,
     reasoning: config.reasoning,
     sandbox: config.sandbox,
+    tools: config.tools,
     cwd: process.cwd(),
     onMessage,
   });
