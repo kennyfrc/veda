@@ -1,6 +1,6 @@
 ## Your Task
 
-Full driver–navigator–reviewer lifecycle: collaborate with the Navigator, implement the plan, then have the Reviewer review the completed work. Same as `PLAN.md` (plan + align with Navigator) plus execution, plus a final Reviewer pass. The Navigator has **read-only tools** (`Read`, `Grep`, `Glob`, `LS`, `git status/log/diff`) but cannot edit or run mutating commands — it advises, you implement. The Reviewer reviews after implementation is complete. You still provide curated context via `veda sel add`.
+Full driver–navigator–reviewer lifecycle: collaborate with the Navigator, implement the plan, then have the Reviewer review the completed work. Same as `PLAN.md` (plan + align with Navigator) plus execution, plus a final Reviewer pass. Navigator works from files shared via `veda sel add` and may use only `Read`, `Grep`, and `Glob` once when a material fact is missing; Reviewer works only from supplied context.
 
 **Always pass `-m` (model) explicitly.** The `fable` alias auto-selects the droid backend with `claude-fable-5`. Use `-b <backend> -m <model>` for explicit control.
 

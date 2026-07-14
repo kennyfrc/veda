@@ -1,6 +1,6 @@
 ## Your Task
 
-Collaborate, discuss, align, and implement with the Navigator model using `veda -S impl-TASKNAME -m fable -p navigator-plan`. Same as `PLAN.md` (plan + align with Navigator), except you also execute the plan after alignment. The Navigator has **read-only tools** (`Read`, `Grep`, `Glob`, `LS`, `git status/log/diff`) but cannot edit or run mutating commands — it advises, you implement. You still provide curated context via `veda sel add` so the Navigator can verify your claims against the actual code; selection focuses attention and controls token cost.
+Collaborate, discuss, align, and implement with the Navigator model using `veda -S impl-TASKNAME -m fable -p navigator-plan`. Same as `PLAN.md` (plan + align with Navigator), except you also execute the plan after alignment. Navigator works from files shared via `veda sel add` and may use only `Read`, `Grep`, and `Glob` once when a material fact is missing; it cannot edit or run commands.
 
 **Always pass `-m` (model) explicitly.** The `fable` alias auto-selects the droid backend with `claude-fable-5`. Use `-b <backend> -m <model>` for explicit control.
 

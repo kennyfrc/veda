@@ -1,6 +1,6 @@
 ## Your Task
 
-Collaborate, discuss, and align with the Navigator model on a plan using `veda -S plan-TASKNAME -m fable -p navigator-plan`. This applies to any kind of work: solving a problem, debugging, research, writing, analysis, or planning a course of action. Navigator has no tool access; everything it knows comes from the files you share via `veda sel add` and what you write in your prompts.
+Collaborate, discuss, and align with the Navigator model on a plan using `veda -S plan-TASKNAME -m fable -p navigator-plan`. This applies to any kind of work: solving a problem, debugging, research, writing, analysis, or planning a course of action. Navigator works from files shared via `veda sel add` and may use only `Read`, `Grep`, and `Glob` once when a material fact is missing.
 
 **Always pass `-m` (model) explicitly.** The `fable` alias auto-selects the droid backend with `claude-fable-5`. Use `-b <backend> -m <model>` for explicit control.
 
