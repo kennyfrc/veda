@@ -19,7 +19,7 @@ export const MODEL_ALIASES: Record<string, ModelAliasTarget> = {
 
   // jdc models (via jdc CLI)
   'glm': { backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' },
-  'sol': { backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'high' },
+  'sol': { backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'high' },
 };
 
 export function normalizeModelName(input: string): string {

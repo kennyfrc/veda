@@ -317,12 +317,12 @@ describe('resolveBackendModel', () => {
       expect(result.aliasReasoning).toBe('high');
     });
 
-    test('resolves sol alias to jdc backend with reasoning', () => {
+    test('resolves sol alias to codex backend with reasoning', () => {
       const result = resolveBackendModel({
         explicitModel: 'sol',
       });
-      expect(result.backend).toBe('jdc');
-      expect(result.model).toBe('jdc/openai-codex/gpt-5.6-sol');
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('gpt-5.6-sol');
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'sol' });
       expect(result.aliasReasoning).toBe('high');
     });
@@ -511,8 +511,8 @@ describe('resolveBackendModel', () => {
       const result = resolveBackendModel({
         explicitModel: '  SOL  ',
       });
-      expect(result.backend).toBe('jdc');
-      expect(result.model).toBe('jdc/openai-codex/gpt-5.6-sol');
+      expect(result.backend).toBe('codex');
+      expect(result.model).toBe('gpt-5.6-sol');
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'sol' });
     });
 

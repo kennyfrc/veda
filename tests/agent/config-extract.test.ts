@@ -49,8 +49,8 @@ describe('BackendModelResolver helpers', () => {
       expect(glm?.reasoning).toBe('high');
 
       const sol = tryResolveAliasTarget('sol');
-      expect(sol?.backend).toBe('jdc');
-      expect(sol?.model).toBe('jdc/openai-codex/gpt-5.6-sol');
+      expect(sol?.backend).toBe('codex');
+      expect(sol?.model).toBe('gpt-5.6-sol');
       expect(sol?.reasoning).toBe('high');
     });
 
