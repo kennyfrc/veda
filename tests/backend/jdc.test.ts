@@ -92,8 +92,8 @@ describe('toJdcTools', () => {
     expect(toJdcTools('read-only', ['read', 'grep', 'glob'])).toBe('read,grep,glob');
   });
 
-  test('prevents an empty policy from restoring JDC default tools', () => {
-    expect(toJdcTools('read-only', [])).toBe('read');
+  test('empty tool list returns empty string (no tools)', () => {
+    expect(toJdcTools('read-only', [])).toBe('');
   });
 
   test('persona tool policy cannot expand sandbox capabilities', () => {

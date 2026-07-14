@@ -21,6 +21,7 @@ export interface CliOptions {
   trace?: string;
   notify?: boolean;
   notifySound?: string;
+  noTools?: boolean;
   help?: boolean;
   version?: boolean;
   
@@ -199,6 +200,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
     switch (arg) {
       case '--no-sel':
         options.noSel = true;
+        i++;
+        continue;
+      case '--no-tools':
+      case '-nt':
+        options.noTools = true;
         i++;
         continue;
       case '--deep':
@@ -392,6 +398,7 @@ a driver-navigator workflow inspired by pair programming best practices.
                             Aliases: ${listModelAliases().join(', ')}
   -r, --reasoning <level>   Reasoning: minimal, low, medium, high, xhigh
   --sandbox <mode>          Sandbox: read-only, workspace-write, full
+  --no-tools, -nt           Disable all tools (agent responds from context only)
   -o, --output <file>       Save response to file
   -f, --files <file>        Ad-hoc files (doesn't modify selection)
   --no-sel                  Ignore selection for this run

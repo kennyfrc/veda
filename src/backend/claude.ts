@@ -36,6 +36,11 @@ export class ClaudeBackend implements Backend {
     if (config.model) args.push('--model', config.model);
     if (config.sandbox) args.push('--permission-mode', toClaudePermissionMode(config.sandbox));
 
+    // Disable all tools when the persona/flag requests an empty tool list.
+    if (config.tools !== undefined && config.tools.length === 0) {
+      args.push('--tools', '');
+    }
+
     args.push('--print');
     args.push('--output-format', 'stream-json');
     args.push('--verbose');

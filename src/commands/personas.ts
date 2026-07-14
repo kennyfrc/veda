@@ -46,6 +46,10 @@ function personaDescription(name: string): string {
       return 'High-reasoning planning (use once per task)';
     case 'navigator-chat':
       return 'Medium-reasoning in-flight discussion';
+    case 'navigator-plan-notools':
+      return 'Planning mode, no tool access (context-only)';
+    case 'navigator-chat-notools':
+      return 'In-flight discussion, no tool access (context-only)';
     case 'reviewer':
       return 'Code review with [P0]-[P3] findings';
     case 'advisor':

@@ -39,10 +39,16 @@ export function toJdcTools(sandbox: SandboxMode, requestedTools?: string[]): str
     : [...baseTools, 'edit', 'write'];
 
   if (requestedTools !== undefined) {
+    if (requestedTools.length === 0) {
+      // Explicitly no tools — return empty string so jdc receives --tools ""
+      // (requires the resolveToolSelection patch to honor [] instead of falling
+      // back to defaults)
+      return '';
+    }
     const allowed = new Set(sandboxTools);
     const filtered = requestedTools.filter(tool => allowed.has(tool));
-    // JDC treats an empty --tools value as "use defaults", so retain only the
-    // least-capable read tool when a persona requests no tools.
+    // If after filtering nothing remains (e.g., persona requested tools not in
+    // the sandbox allowlist), fall back to least-capable read tool.
     return filtered.length > 0 ? filtered.join(',') : 'read';
   }
 
@@ -73,8 +79,15 @@ export class JdcBackend implements Backend {
       '--provider', provider,
       '--model', model,
       '--thinking', toJdcThinking(config.reasoning),
-      '--tools', toJdcTools(config.sandbox, config.tools),
     ];
+
+    // Use --no-tools when an empty tool list is requested (requires jdc patch).
+    // Falls back to --tools with the computed list otherwise.
+    if (config.tools !== undefined && config.tools.length === 0) {
+      args.push('--no-tools');
+    } else {
+      args.push('--tools', toJdcTools(config.sandbox, config.tools));
+    }
 
     if (config.systemPrompt) {
       args.push('--system-prompt', config.systemPrompt);

@@ -38,6 +38,27 @@ veda -S impl-auth-feature -p navigator-plan 'The function uses \`console.log\` t
 | **Navigator** | Collaborate on approach, provide architectural guidance, verify your claims with read tools, help think through tradeoffs |
 | **Reviewer** | Final code review after implementation is complete |
 
+### No-Tools Mode
+
+Use \`--no-tools\` (or \`-nt\`) to disable all tool access for a run. The agent responds from the provided context only — no file reads, no grep, no shell commands. This is useful when:
+
+- You want a pure reasoning response without tool-call overhead
+- The selected context is sufficient and you don't want the agent exploring
+- You're using a model on a backend that charges per tool call
+
+\`\`\`bash
+# Disable tools for a single run (works with any persona)
+veda -S impl-auth-feature -m sol --no-tools -p navigator-plan 'Design a caching layer'
+
+# Or use the dedicated notools personas (tools: none in frontmatter)
+veda -S impl-auth-feature -m sol -p navigator-plan-notools 'Design a caching layer'
+\`\`\`
+
+| Persona | Default Reasoning | Use Case |
+|---------|-------------------|----------|
+| \`navigator-plan-notools\` | high | Planning without tool access (context-only) |
+| \`navigator-chat-notools\` | medium | In-flight discussion without tool access (context-only) |
+
 ---
 
 ## Workflow
@@ -196,6 +217,7 @@ Key commands:
 - \`veda -S impl-TASKNAME -p navigator-plan\` for initial planning (xhigh reasoning)
 - \`veda -S impl-TASKNAME -p navigator-chat\` for follow-up discussion (medium reasoning)
 - \`veda -S review-TASKNAME -p reviewer\` for code review (medium reasoning)
+- \`veda -S impl-TASKNAME --no-tools\` to disable all tools (context-only response)
 - \`veda -S impl-TASKNAME resume\` to continue a conversation (session-scoped)
 - Navigator personas expose only read/search tools; Reviewer and Advisor expose no tools
 - Always start with full files for Navigator context. 80k-150k tokens is acceptable. Only use slices if you exceed 150k tokens.

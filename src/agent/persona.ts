@@ -3,6 +3,7 @@ import { join } from 'path';
 import { getPersonasDir, getPersonaDir } from '../util/paths';
 import type { ReasoningLevel, AgentConfig, SandboxMode, GlobalConfig } from './config';
 import { resolveModel, resolveReasoning } from './config';
+import { SANDBOX_NOTICE } from './sandbox';
 
 export interface PersonaMetadata {
   reasoning?: ReasoningLevel;
@@ -144,6 +145,7 @@ export interface ResolveConfigOptions {
   baseDir?: string;
   systemPrompt?: string;
   tools?: string[];
+  noTools?: boolean;
   /** Reasoning level from model alias (used when no explicit -r flag). */
   aliasReasoning?: ReasoningLevel;
 }
@@ -192,8 +194,15 @@ export async function resolveAgentConfig(
     model: model ?? '',
     reasoning,
     sandbox: options.sandbox ?? 'read-only',
-    tools: options.tools ?? personaTools,
-    systemPrompt,
+    tools: (options.noTools ? [] : options.tools) ?? personaTools,
+    systemPrompt: withNoToolsNotice(systemPrompt, options.noTools ? [] : (options.tools ?? personaTools)),
     systemPromptPath,
   };
+}
+
+function withNoToolsNotice(systemPrompt: string, tools: string[] | undefined): string {
+  // tools === undefined → backend defaults (no notice needed)
+  // tools === [] → explicitly no tools; prepend the no-access sandbox notice
+  if (tools === undefined || tools.length > 0) return systemPrompt;
+  return SANDBOX_NOTICE + systemPrompt;
 }

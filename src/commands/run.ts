@@ -38,6 +38,7 @@ export async function handleRun(
       reasoning: options.reasoning,
       sandbox: options.sandbox,
       backend: backendName,
+      noTools: options.noTools,
       aliasReasoning: resolved.aliasReasoning,
     },
     defaults,

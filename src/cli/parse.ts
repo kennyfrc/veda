@@ -37,6 +37,7 @@ const FLAGS_WITH_VALUES = new Set([
 
 const BOOLEAN_FLAGS = new Set([
   '--no-sel',
+  '--no-tools', '-nt',
   '--deep', '-d',
   '--no-verify',
   '--force-verify',
@@ -58,6 +59,7 @@ const BOOLEAN_FLAGS = new Set([
 
 // All known flags for suggestion matching
 const ALL_FLAGS = new Set([...FLAGS_WITH_VALUES, ...BOOLEAN_FLAGS]);
+
 
 /**
  * Suggest a similar flag using Levenshtein distance.
@@ -145,6 +147,7 @@ export function tokenizeArgv(argv: string[]): { flags: RawFlags; positionals: st
     help: false,
     version: false,
     dryRun: false,
+    noTools: false,
   };
   
   const positionals: string[] = [];
@@ -310,6 +313,10 @@ function parseBooleanFlag(flags: RawFlags, flag: string): void {
   switch (flag) {
     case '--no-sel':
       flags.noSel = true;
+      break;
+    case '--no-tools':
+    case '-nt':
+      flags.noTools = true;
       break;
     case '--deep':
     case '-d':

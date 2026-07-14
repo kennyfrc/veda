@@ -62,6 +62,14 @@ export class DroidBackend implements Backend {
 
     args.push(...toDroidAutoArgs(config.sandbox ?? 'read-only'));
 
+    // Droid CLI doesn't support zero tools (--enabled-tools '' is treated as
+    // "no restriction"). The closest we can get is restricting to Read only —
+    // a harmless read-only tool. The SANDBOX_NOTICE in the system prompt tells
+    // the model not to call any tools at all.
+    if (config.tools !== undefined && config.tools.length === 0) {
+      args.push('--enabled-tools', 'Read');
+    }
+
     if (config.systemPrompt) {
       args.push('--append-system-prompt', config.systemPrompt);
     } else if (config.systemPromptPath) {
@@ -100,6 +108,14 @@ export class DroidBackend implements Backend {
     args.push('-r', toDroidReasoning(config.reasoning));
 
     args.push(...toDroidAutoArgs(config.sandbox ?? 'read-only'));
+
+    // Droid CLI doesn't support zero tools (--enabled-tools '' is treated as
+    // "no restriction"). The closest we can get is restricting to Read only —
+    // a harmless read-only tool. The SANDBOX_NOTICE in the system prompt tells
+    // the model not to call any tools at all.
+    if (config.tools !== undefined && config.tools.length === 0) {
+      args.push('--enabled-tools', 'Read');
+    }
 
     if (config.systemPrompt) {
       args.push('--append-system-prompt', config.systemPrompt);

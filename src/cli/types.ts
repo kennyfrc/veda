@@ -36,6 +36,7 @@ export interface SimpleConfig {
   persona?: string;
   reasoning?: ReasoningLevel;
   sandbox?: SandboxMode;
+  noTools?: boolean;
   context: ContextConfig;
   output: OutputConfig;
   notify: boolean;
@@ -103,6 +104,7 @@ export interface ResumeConfig {
   persona?: string;
   reasoning?: ReasoningLevel;
   sandbox?: SandboxMode;
+  noTools?: boolean;
   output: OutputConfig;
   notify: boolean;
   notifySound?: string;
@@ -249,6 +251,9 @@ export interface RawFlags {
   help: boolean;
   version: boolean;
   dryRun: boolean;
+  
+  // Tool control
+  noTools: boolean;
 }
 
 export interface ParsedPositionals {
