@@ -356,11 +356,11 @@ a driver-navigator workflow inspired by pair programming best practices.
   veda -S impl-my-task sel add "src/auth/" "src/api/users.ts"
 
   # 2. Plan with Navigator (commit to a position, get alternatives + kill criteria)
-  veda -S impl-my-task -b droid -m claude-sonnet-4-5-20250929 -p navigator-plan \\
+  veda -S impl-my-task -m sol -p navigator-plan \\
     'Goal: add JWT auth. Approach: jwt.sign in login, verify middleware. Non-goal: OAuth.'
 
   # 3. Discuss follow-ups (same session)
-  veda -S impl-my-task -b droid -m claude-sonnet-4-5-20250929 -p navigator-chat \\
+  veda -S impl-my-task -m sol -p navigator-chat \\
     'What about edge case X?'
 
   # 4. Implement (you do this, not the Navigator)
@@ -368,7 +368,7 @@ a driver-navigator workflow inspired by pair programming best practices.
   # 5. Review with Reviewer
   git diff > /tmp/changes.diff
   veda -S review-my-task sel add /tmp/changes.diff src/auth/
-  veda -S review-my-task -b droid -m claude-sonnet-4-5-20250929 -p reviewer \\
+  veda -S review-my-task -m sol -p reviewer \\
     'Implementation complete. Please review.'
 
 == Commands ==
@@ -448,10 +448,10 @@ a driver-navigator workflow inspired by pair programming best practices.
 
   # Plan a task
   veda -S plan-auth sel add "src/*.ts"
-  veda -S plan-auth -b droid -m glm-5.2 -p navigator-plan "Design a caching layer"
+  veda -S plan-auth -m sol -p navigator-plan "Design a caching layer"
 
   # Quick discussion
-  veda -S plan-auth -b droid -m glm-5.2 -p navigator-chat "Quick question about X"
+  veda -S plan-auth -m sol -p navigator-chat "Quick question about X"
 
   # Model aliases (auto-selects backend)
   veda -m opus "Explain this code"
