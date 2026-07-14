@@ -24,7 +24,7 @@ describe('MODEL_ALIASES', () => {
 
   test('contains jdc models with reasoning', () => {
     expect(MODEL_ALIASES['glm']).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
-    expect(MODEL_ALIASES['sol']).toEqual({ backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'medium' });
+    expect(MODEL_ALIASES['sol']).toEqual({ backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'high' });
   });
 });
 
@@ -62,7 +62,7 @@ describe('resolveModelAlias', () => {
 
   test('resolves jdc aliases with reasoning', () => {
     expect(resolveModelAlias('glm')).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
-    expect(resolveModelAlias('sol')).toEqual({ backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'medium' });
+    expect(resolveModelAlias('sol')).toEqual({ backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'high' });
   });
 
   test('handles case-insensitive lookup', () => {
@@ -70,7 +70,7 @@ describe('resolveModelAlias', () => {
     expect(resolveModelAlias('Sonnet')).toEqual({ backend: 'claude-code', model: 'sonnet' });
     expect(resolveModelAlias('GPT')).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
     expect(resolveModelAlias('GLM')).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
-    expect(resolveModelAlias('SOL')).toEqual({ backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'medium' });
+    expect(resolveModelAlias('SOL')).toEqual({ backend: 'jdc', model: 'jdc/openai-codex/gpt-5.6-sol', reasoning: 'high' });
   });
 
   test('handles whitespace', () => {

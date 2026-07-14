@@ -324,7 +324,7 @@ describe('resolveBackendModel', () => {
       expect(result.backend).toBe('jdc');
       expect(result.model).toBe('jdc/openai-codex/gpt-5.6-sol');
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'sol' });
-      expect(result.aliasReasoning).toBe('medium');
+      expect(result.aliasReasoning).toBe('high');
     });
   });
 
