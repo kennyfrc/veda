@@ -324,7 +324,7 @@ describe('resolveBackendModel', () => {
       expect(result.backend).toBe('codex');
       expect(result.model).toBe('gpt-5.6-sol');
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'sol' });
-      expect(result.aliasReasoning).toBe('high');
+      expect(result.aliasReasoning).toBe('max');
     });
   });
 

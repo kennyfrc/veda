@@ -27,7 +27,7 @@ describe('MODEL_ALIASES', () => {
   });
 
   test('contains codex models with reasoning', () => {
-    expect(MODEL_ALIASES['sol']).toEqual({ backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'high' });
+    expect(MODEL_ALIASES['sol']).toEqual({ backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'max' });
   });
 });
 
@@ -68,7 +68,7 @@ describe('resolveModelAlias', () => {
   });
 
   test('resolves codex aliases with reasoning', () => {
-    expect(resolveModelAlias('sol')).toEqual({ backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'high' });
+    expect(resolveModelAlias('sol')).toEqual({ backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'max' });
   });
 
   test('handles case-insensitive lookup', () => {
@@ -76,7 +76,7 @@ describe('resolveModelAlias', () => {
     expect(resolveModelAlias('Sonnet')).toEqual({ backend: 'claude-code', model: 'sonnet' });
     expect(resolveModelAlias('GPT')).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
     expect(resolveModelAlias('GLM')).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
-    expect(resolveModelAlias('SOL')).toEqual({ backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'high' });
+    expect(resolveModelAlias('SOL')).toEqual({ backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'max' });
   });
 
   test('handles whitespace', () => {
