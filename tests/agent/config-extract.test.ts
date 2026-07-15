@@ -51,7 +51,7 @@ describe('BackendModelResolver helpers', () => {
       const sol = tryResolveAliasTarget('sol');
       expect(sol?.backend).toBe('codex');
       expect(sol?.model).toBe('gpt-5.6-sol');
-      expect(sol?.reasoning).toBe('high');
+      expect(sol?.reasoning).toBe('max');
     });
 
     test('is case insensitive', () => {
