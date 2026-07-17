@@ -24,6 +24,7 @@ describe('MODEL_ALIASES', () => {
 
   test('contains jdc models with reasoning', () => {
     expect(MODEL_ALIASES['glm']).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
+    expect(MODEL_ALIASES['k3']).toEqual({ backend: 'jdc', model: 'jdc/kimi-code/k3', reasoning: 'high' });
   });
 
   test('contains codex models with reasoning', () => {
@@ -65,6 +66,7 @@ describe('resolveModelAlias', () => {
 
   test('resolves jdc aliases with reasoning', () => {
     expect(resolveModelAlias('glm')).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
+    expect(resolveModelAlias('k3')).toEqual({ backend: 'jdc', model: 'jdc/kimi-code/k3', reasoning: 'high' });
   });
 
   test('resolves codex aliases with reasoning', () => {
@@ -123,10 +125,11 @@ describe('listModelAliases', () => {
     expect(aliases).toContain('gpt');
     expect(aliases).toContain('fable');
     expect(aliases).toContain('glm');
+    expect(aliases).toContain('k3');
     expect(aliases).toContain('sol');
   });
 
   test('returns expected count', () => {
-    expect(listModelAliases().length).toBe(7);
+    expect(listModelAliases().length).toBe(8);
   });
 });
