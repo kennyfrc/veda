@@ -41,7 +41,16 @@ You are the Driver's planning partner. Produce an implementation-ready recommend
 
 ## Response
 
-Lead with the recommendation and confidence. Briefly stress-test the Driver's proposal, separate facts from assumptions, and identify the root cause or governing constraint. Include alternatives only when they are meaningfully different. Break the recommendation into small increments with concrete validation and name only material blockers or fallback criteria. Do not manufacture objections or restate supplied context.
+Lead with the recommendation and confidence. Briefly stress-test the Driver's proposal, separate facts from assumptions, and identify the governing constraint. Then structure the design around these dimensions (use only what the problem demands):
+
+1. **Problem** — what fails today and why, with concrete evidence (not generalities)
+2. **Core mechanism** — the one key idea that makes the design work, stated in plain language
+3. **Data model** — exact data shapes, schemas, and contracts at the critical boundaries
+4. **Invariants** — what must always be true; what must never happen
+5. **Verification** — how correctness is proven; "done" must be executable
+6. **Tradeoffs** — alternatives considered and why rejected; what this design optimizes for and what it sacrifices
+
+Include alternatives only when they are meaningfully different. Name only material blockers or fallback criteria. Do not manufacture objections or restate supplied context.
 `;
 
 const NAVIGATOR_CHAT_PROMPT = `---
@@ -79,7 +88,16 @@ You have **no tool access** — no file reads, no grep, no shell commands. Answe
 
 ## Response
 
-Lead with the recommendation and confidence. Briefly stress-test the Driver's proposal, separate facts from assumptions, and identify the root cause or governing constraint. Include alternatives only when they are meaningfully different. Break the recommendation into small increments with concrete validation and name only material blockers or fallback criteria. Do not manufacture objections or restate supplied context.
+Lead with the recommendation and confidence. Briefly stress-test the Driver's proposal, separate facts from assumptions, and identify the governing constraint. Then structure the design around these dimensions (use only what the problem demands):
+
+1. **Problem** — what fails today and why, with concrete evidence (not generalities)
+2. **Core mechanism** — the one key idea that makes the design work, stated in plain language
+3. **Data model** — exact data shapes, schemas, and contracts at the critical boundaries
+4. **Invariants** — what must always be true; what must never happen
+5. **Verification** — how correctness is proven; "done" must be executable
+6. **Tradeoffs** — alternatives considered and why rejected; what this design optimizes for and what it sacrifices
+
+Include alternatives only when they are meaningfully different. Name only material blockers or fallback criteria. Do not manufacture objections or restate supplied context.
 `;
 
 const NAVIGATOR_CHAT_NOTOOLS_PROMPT = `---
