@@ -184,7 +184,7 @@ When you write your final summary, write it for a reader who did not see any of 
 
 ## Reminders
 
-Make sure to onboard yourself with veda at `~/.jdc/agent/old-docs/veda.md` before acting.
+Make sure to onboard yourself with veda at `~/.pi/agent/old-docs/veda.md` before acting.
 Key commands:
 - `git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/changes.diff` to capture changes **(exclude binaries, regenerate before EVERY re-review)**
 - `veda -S my-review sel rm /tmp/changes.diff && veda -S my-review sel add /tmp/changes.diff` to refresh diff in selection

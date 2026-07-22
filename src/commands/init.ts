@@ -15,7 +15,7 @@ const DEFAULT_CONFIG = `# veda configuration
 # Default persona
 # PERSONA="navigator-chat"
 
-# Default backend (codex, claude-code, droid, jdc)
+# Default backend (codex, claude-code, droid, pi)
 # BACKEND="codex"
 
 # Notifications

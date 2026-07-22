@@ -17,9 +17,9 @@ export const MODEL_ALIASES: Record<string, ModelAliasTarget> = {
   // Droid models (via droid exec)
   'fable': { backend: 'droid', model: 'claude-fable-5' },
 
-  // jdc models (via jdc CLI)
-  'glm': { backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' },
-  'k3': { backend: 'jdc', model: 'jdc/kimi-code/k3', reasoning: 'high' },
+  // pi models (via pi CLI)
+  'glm': { backend: 'pi', model: 'pi/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' },
+  'k3': { backend: 'pi', model: 'pi/kimi-code/k3', reasoning: 'high' },
   'sol': { backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'max' },
 };
 

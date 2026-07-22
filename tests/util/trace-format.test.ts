@@ -121,7 +121,7 @@ describe('trace-format', () => {
       expect(formatToolStart('Grep')).toBe('Grep');
     });
 
-    it('formats bash commands with truncation (jdc uses bash, droid uses shell)', () => {
+    it('formats bash commands with truncation (pi uses bash, droid uses shell)', () => {
       const result = formatToolStart('bash', { command: 'rg -n "test" src/' });
       expect(result).toContain('bash:');
       expect(result).toContain('rg');
@@ -264,10 +264,10 @@ describe('trace-format', () => {
     });
 
     it('strips redundant backend prefix from model display', () => {
-      const result = formatChatHeader(undefined, 'jdc', 'jdc/wafer/glm-5.1');
+      const result = formatChatHeader(undefined, 'pi', 'pi/wafer/glm-5.1');
       const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
-      expect(stripped).toContain('▸ jdc/wafer/glm-5.1');
-      expect(stripped).not.toContain('jdc/jdc/');
+      expect(stripped).toContain('▸ pi/wafer/glm-5.1');
+      expect(stripped).not.toContain('pi/pi/');
     });
 
     it('respects line width', () => {

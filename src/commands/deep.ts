@@ -636,8 +636,8 @@ async function handleEvent(
           for (const ranking of judge.rankings) {
             // Extract short label from candidateId
             // Format: solver-{index}-{backend}-{model}-{category}/{module}
-            // Backends: claude-code, codex, droid, jdc (may contain hyphens)
-            const idMatch = ranking.candidateId.match(/^solver-(\d+)-(claude-code|codex|droid|jdc)-/);
+            // Backends: claude-code, codex, droid, pi (may contain hyphens)
+            const idMatch = ranking.candidateId.match(/^solver-(\d+)-(claude-code|codex|droid|pi)-/);
             const shortLabel = idMatch ? `#${parseInt(idMatch[1]) + 1} ${idMatch[2]}` : ranking.candidateId;
             console.error(c.dim(`    ${ranking.rank}. ${shortLabel} (${ranking.confidence} confidence)`));
           }

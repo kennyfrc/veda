@@ -23,11 +23,11 @@ describe('Backend Registry', () => {
     expect(backend.command).toBe('droid');
   });
 
-  test('has jdc backend registered', () => {
-    expect(hasBackend('jdc')).toBe(true);
-    const backend = getBackend('jdc');
-    expect(backend.name).toBe('jdc');
-    expect(backend.command).toBe('jdc');
+  test('has pi backend registered', () => {
+    expect(hasBackend('pi')).toBe(true);
+    const backend = getBackend('pi');
+    expect(backend.name).toBe('pi');
+    expect(backend.command).toBe('pi');
   });
 
   test('lists all backends', () => {
@@ -35,15 +35,15 @@ describe('Backend Registry', () => {
     expect(backends).toContain('codex');
     expect(backends).toContain('claude-code');
     expect(backends).toContain('droid');
-    expect(backends).toContain('jdc');
+    expect(backends).toContain('pi');
   });
 
-  test('jdc default model', () => {
-    expect(getBackendDefaultModel('jdc')).toBe('jdc/makora/zai-org/GLM-5.2-NVFP4');
+  test('pi default model', () => {
+    expect(getBackendDefaultModel('pi')).toBe('pi/makora/zai-org/GLM-5.2-NVFP4');
   });
 
-  test('jdc default reasoning', () => {
-    expect(getBackendDefaultReasoning('jdc')).toBe('medium');
+  test('pi default reasoning', () => {
+    expect(getBackendDefaultReasoning('pi')).toBe('medium');
   });
 
   test('droid default model', () => {

@@ -2,21 +2,21 @@ import type { Backend, Message, RunOptions, ResumeOptions, UsageStats } from './
 import type { SandboxMode, ReasoningLevel } from '../agent/config';
 import { spawnCliWithRetry, commandExists, parseNdjsonStream } from './util/spawn';
 
-export function parseJdcModel(model: string): { provider: string; model: string } {
-  if (!model.startsWith('jdc/')) {
-    throw new Error(`Model string must start with jdc/: ${model}`);
+export function parsePiModel(model: string): { provider: string; model: string } {
+  if (!model.startsWith('pi/')) {
+    throw new Error(`Model string must start with pi/: ${model}`);
   }
-  const rest = model.slice('jdc/'.length);
+  const rest = model.slice('pi/'.length);
   const firstSlash = rest.indexOf('/');
   if (firstSlash === -1) {
-    throw new Error(`Model string must start with jdc/ and contain provider/model: ${model}`);
+    throw new Error(`Model string must start with pi/ and contain provider/model: ${model}`);
   }
   const provider = rest.slice(0, firstSlash);
   const modelName = rest.slice(firstSlash + 1);
   return { provider, model: modelName };
 }
 
-export function toJdcThinking(reasoning: ReasoningLevel): string {
+export function toPiThinking(reasoning: ReasoningLevel): string {
   switch (reasoning) {
     case 'minimal':
       return 'minimal';
@@ -30,9 +30,9 @@ export function toJdcThinking(reasoning: ReasoningLevel): string {
   }
 }
 
-export function toJdcTools(sandbox: SandboxMode, requestedTools?: string[]): string {
-  // Base tools always include bash for jdc (user preference)
-  // Note: apply_patch and exec_command are GPT-specific, not included for jdc models
+export function toPiTools(sandbox: SandboxMode, requestedTools?: string[]): string {
+  // Base tools always include bash for pi (user preference)
+  // Note: apply_patch and exec_command are GPT-specific, not included for pi models
   const baseTools = ['read', 'bash', 'grep', 'glob', 'list_threads', 'read_thread', 'todo_write', 'compact'];
   const sandboxTools = sandbox === 'read-only'
     ? baseTools
@@ -40,7 +40,7 @@ export function toJdcTools(sandbox: SandboxMode, requestedTools?: string[]): str
 
   if (requestedTools !== undefined) {
     if (requestedTools.length === 0) {
-      // Explicitly no tools — return empty string so jdc receives --tools ""
+      // Explicitly no tools — return empty string so pi receives --tools ""
       // (requires the resolveToolSelection patch to honor [] instead of falling
       // back to defaults)
       return '';
@@ -62,15 +62,15 @@ export function toJdcTools(sandbox: SandboxMode, requestedTools?: string[]): str
   }
 }
 
-export class JdcBackend implements Backend {
-  readonly name = 'jdc';
-  readonly command = 'jdc';
+export class PiBackend implements Backend {
+  readonly name = 'pi';
+  readonly command = 'pi';
   readonly systemPromptFile = undefined;
 
   async *run(options: RunOptions): AsyncIterable<Message> {
     const { prompt, context, config, cwd } = options;
 
-    const { provider, model } = parseJdcModel(config.model);
+    const { provider, model } = parsePiModel(config.model);
 
     const args: string[] = [
       '--mode', 'json',
@@ -78,15 +78,15 @@ export class JdcBackend implements Backend {
       '-p',
       '--provider', provider,
       '--model', model,
-      '--thinking', toJdcThinking(config.reasoning),
+      '--thinking', toPiThinking(config.reasoning),
     ];
 
-    // Use --no-tools when an empty tool list is requested (requires jdc patch).
+    // Use --no-tools when an empty tool list is requested (requires pi patch).
     // Falls back to --tools with the computed list otherwise.
     if (config.tools !== undefined && config.tools.length === 0) {
       args.push('--no-tools');
     } else {
-      args.push('--tools', toJdcTools(config.sandbox, config.tools));
+      args.push('--tools', toPiTools(config.sandbox, config.tools));
     }
 
     if (config.systemPrompt) {
@@ -110,7 +110,7 @@ export class JdcBackend implements Backend {
   }
 
   async *resume(_options: ResumeOptions): AsyncIterable<Message> {
-    throw new Error('Resume not supported for jdc backend');
+    throw new Error('Resume not supported for pi backend');
   }
 
   async isAvailable(): Promise<boolean> {
@@ -147,7 +147,7 @@ export class JdcBackend implements Backend {
 
     switch (type) {
       case 'agent_start': {
-        // Synthesize a sessionId since jdc JSON mode lacks session_meta
+        // Synthesize a sessionId since pi JSON mode lacks session_meta
         return {
           type: 'init',
           sessionId: crypto.randomUUID(),
@@ -233,6 +233,6 @@ export class JdcBackend implements Backend {
   }
 }
 
-export function createJdcBackend(): JdcBackend {
-  return new JdcBackend();
+export function createPiBackend(): PiBackend {
+  return new PiBackend();
 }

@@ -307,12 +307,12 @@ describe('resolveBackendModel', () => {
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'gpt' });
     });
 
-    test('resolves glm alias to jdc backend with reasoning', () => {
+    test('resolves glm alias to pi backend with reasoning', () => {
       const result = resolveBackendModel({
         explicitModel: 'glm',
       });
-      expect(result.backend).toBe('jdc');
-      expect(result.model).toBe('jdc/makora/zai-org/GLM-5.2-NVFP4');
+      expect(result.backend).toBe('pi');
+      expect(result.model).toBe('pi/makora/zai-org/GLM-5.2-NVFP4');
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm' });
       expect(result.aliasReasoning).toBe('high');
     });
@@ -502,8 +502,8 @@ describe('resolveBackendModel', () => {
       const result = resolveBackendModel({
         explicitModel: '  glm  ',
       });
-      expect(result.backend).toBe('jdc');
-      expect(result.model).toBe('jdc/makora/zai-org/GLM-5.2-NVFP4');
+      expect(result.backend).toBe('pi');
+      expect(result.model).toBe('pi/makora/zai-org/GLM-5.2-NVFP4');
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm' });
     });
 
@@ -548,11 +548,11 @@ describe('resolveBackendModel', () => {
       // differs from alias backend, the model is treated as literal
       const result = resolveBackendModel({
         explicitBackend: 'codex',
-        explicitModel: 'glm', // Alias for jdc
+        explicitModel: 'glm', // Alias for pi
       });
 
       expect(result.backend).toBe('codex');
-      expect(result.model).toBe('glm'); // NOT resolved to jdc model
+      expect(result.model).toBe('glm'); // NOT resolved to pi model
       expect(result.source).toEqual({ kind: 'explicit' });
     });
 

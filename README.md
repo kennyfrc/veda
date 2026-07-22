@@ -52,13 +52,13 @@ veda sel clear                    # Clear all
 veda -b codex "..."        # OpenAI Codex (default)
 veda -b claude-code "..."  # Anthropic Claude Code
 veda -b droid "..."        # Factory Droid (droid exec)
-veda -b jdc "..."          # jdc CLI (any provider/model from ~/.jdc/agent/models.json)
+veda -b pi "..."          # pi CLI (any provider/model from ~/.pi/agent/models.json)
 ```
 
 **Note on reasoning configuration:**
 - **Codex:** Uses native `model_reasoning_effort` flag. The `--reasoning` flag works as expected.
 - **Claude Code:** Maps `--reasoning` levels to the `MAX_THINKING_TOKENS` environment variable automatically.
-- **jdc CLI:** Maps `--reasoning` to jdc's `--thinking` flag and `--sandbox` to jdc's `--tools` flag. Supports any provider/model defined in `~/.jdc/agent/models.json`.
+- **pi CLI:** Maps `--reasoning` to pi's `--thinking` flag and `--sandbox` to pi's `--tools` flag. Supports any provider/model defined in `~/.pi/agent/models.json`.
 - **Droid:** Maps `--reasoning` to `-r` flag and `--sandbox` to `--auto` flag. Supports any model available to `droid exec`.
 
 ### Use Model Aliases
@@ -75,10 +75,10 @@ veda -m haiku "..."     # Uses claude-code with haiku
 veda -m gpt "..."       # Uses codex with gpt-5.2
 
 
-# jdc models (→ jdc backend, auto-inferred from jdc/ prefix)
-veda -m jdc/wafer/glm-5.1 "..."                        # wafer provider
-veda -m jdc/fireworks/accounts/fireworks/routers/kimi-k2p6 "..."  # fireworks provider
-veda -m jdc/neuralwatt/moonshotai/Kimi-K2.6 "..."      # neuralwatt provider
+# pi models (→ pi backend, auto-inferred from pi/ prefix)
+veda -m pi/wafer/glm-5.1 "..."                        # wafer provider
+veda -m pi/fireworks/accounts/fireworks/routers/kimi-k2p6 "..."  # fireworks provider
+veda -m pi/neuralwatt/moonshotai/Kimi-K2.6 "..."      # neuralwatt provider
 ```
 
 When you specify both `-b` and `-m`, the model is passed literally (no alias resolution).
@@ -310,8 +310,8 @@ veda deep [options] <prompt>
 Options:
   -S, --session <id>     Session ID (or VEDA_SESSION env)
   -p, --persona <name>   navigator-plan|navigator-chat|reviewer
-  -b, --backend <name>   codex|claude-code|droid|jdc
-  -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|glm-5.2|makora|jdc/<provider>/<model-id>)
+  -b, --backend <name>   codex|claude-code|droid|pi
+  -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|glm-5.2|makora|pi/<provider>/<model-id>)
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
   -k <n>                 Solver count for deep mode (default: 3, max: 8)
   --categories <list>    Reasoning categories (comma-separated)
@@ -336,7 +336,7 @@ Deep Mode Stage Overrides:
 ```
 src/
 ├── core/          # Deep primitives (llm, ensemble, judge, verify, modules)
-├── backend/       # codex.ts, claude.ts, droid.ts, jdc.ts
+├── backend/       # codex.ts, claude.ts, droid.ts, pi.ts
 ├── pipelines/     # deep-think.ts (orchestration)
 ├── context/       # Selection and slice management
 ├── conversation/  # Thread persistence
@@ -350,7 +350,7 @@ src/
 `~/.config/veda/config`:
 ```bash
 # Default backend
-BACKEND="jdc"
+BACKEND="pi"
 PERSONA="navigator-chat"
 
 # Per-backend model and reasoning settings
@@ -376,8 +376,8 @@ DROID_REASONING="medium"
 #   high → high
 #   xhigh → high
 
-JDC_MODEL="jdc/wafer/glm-5.1"
-# jdc CLI: Maps --reasoning to --thinking flag, --sandbox to --tools flag
+PI_MODEL="pi/wafer/glm-5.1"
+# pi CLI: Maps --reasoning to --thinking flag, --sandbox to --tools flag
 #   minimal → LOW
 #   low → LOW
 #   medium → MEDIUM
@@ -392,13 +392,13 @@ JDC_MODEL="jdc/wafer/glm-5.1"
 
 # Deep mode stage defaults (overridden by -b/-m CLI flags)
 DEEP_DISTRIBUTE_SOLVERS="true"
-DEEP_SOLVER_BACKENDS="jdc"
-DEEP_JUDGE_BACKEND="jdc"
-DEEP_JUDGE_MODEL="jdc/wafer/glm-5.1"
-DEEP_VERIFIER_BACKEND="jdc"
-DEEP_VERIFIER_MODEL="jdc/wafer/glm-5.1"
-DEEP_REVISION_BACKEND="jdc"
-DEEP_REVISION_MODEL="jdc/wafer/glm-5.1"
+DEEP_SOLVER_BACKENDS="pi"
+DEEP_JUDGE_BACKEND="pi"
+DEEP_JUDGE_MODEL="pi/wafer/glm-5.1"
+DEEP_VERIFIER_BACKEND="pi"
+DEEP_VERIFIER_MODEL="pi/wafer/glm-5.1"
+DEEP_REVISION_BACKEND="pi"
+DEEP_REVISION_MODEL="pi/wafer/glm-5.1"
 ```
 
 ## Development

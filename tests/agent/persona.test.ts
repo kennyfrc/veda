@@ -151,7 +151,7 @@ describe('persona', () => {
 
     test('persona reasoning takes precedence over model alias reasoning', async () => {
       const config = await resolveAgentConfig(
-        { aliasReasoning: 'high', backend: 'jdc', baseDir: TEST_BASE },
+        { aliasReasoning: 'high', backend: 'pi', baseDir: TEST_BASE },
         defaults
       );
 
@@ -160,7 +160,7 @@ describe('persona', () => {
 
     test('explicit reasoning takes precedence over persona and alias reasoning', async () => {
       const config = await resolveAgentConfig(
-        { reasoning: 'low', aliasReasoning: 'high', backend: 'jdc', baseDir: TEST_BASE },
+        { reasoning: 'low', aliasReasoning: 'high', backend: 'pi', baseDir: TEST_BASE },
         defaults
       );
 
@@ -169,11 +169,11 @@ describe('persona', () => {
 
     test('loads persona tool policy into agent config', async () => {
       const plan = await resolveAgentConfig(
-        { persona: 'navigator-plan', backend: 'jdc', baseDir: TEST_BASE },
+        { persona: 'navigator-plan', backend: 'pi', baseDir: TEST_BASE },
         defaults
       );
       const reviewer = await resolveAgentConfig(
-        { persona: 'reviewer', backend: 'jdc', baseDir: TEST_BASE },
+        { persona: 'reviewer', backend: 'pi', baseDir: TEST_BASE },
         defaults
       );
 

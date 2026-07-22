@@ -33,7 +33,7 @@ const MODEL_PREFIX_TO_BACKEND: Record<string, string> = {
   'o1-': 'codex',
   'o3-': 'codex',
   'claude-': 'claude-code',
-  'jdc/': 'jdc',
+  'pi/': 'pi',
 };
 
 function inferBackendFromPrefix(model: string): string | undefined {

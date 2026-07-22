@@ -22,9 +22,9 @@ describe('MODEL_ALIASES', () => {
     expect(MODEL_ALIASES['fable']).toEqual({ backend: 'droid', model: 'claude-fable-5' });
   });
 
-  test('contains jdc models with reasoning', () => {
-    expect(MODEL_ALIASES['glm']).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
-    expect(MODEL_ALIASES['k3']).toEqual({ backend: 'jdc', model: 'jdc/kimi-code/k3', reasoning: 'high' });
+  test('contains pi models with reasoning', () => {
+    expect(MODEL_ALIASES['glm']).toEqual({ backend: 'pi', model: 'pi/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
+    expect(MODEL_ALIASES['k3']).toEqual({ backend: 'pi', model: 'pi/kimi-code/k3', reasoning: 'high' });
   });
 
   test('contains codex models with reasoning', () => {
@@ -64,9 +64,9 @@ describe('resolveModelAlias', () => {
     expect(resolveModelAlias('fable')).toEqual({ backend: 'droid', model: 'claude-fable-5' });
   });
 
-  test('resolves jdc aliases with reasoning', () => {
-    expect(resolveModelAlias('glm')).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
-    expect(resolveModelAlias('k3')).toEqual({ backend: 'jdc', model: 'jdc/kimi-code/k3', reasoning: 'high' });
+  test('resolves pi aliases with reasoning', () => {
+    expect(resolveModelAlias('glm')).toEqual({ backend: 'pi', model: 'pi/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
+    expect(resolveModelAlias('k3')).toEqual({ backend: 'pi', model: 'pi/kimi-code/k3', reasoning: 'high' });
   });
 
   test('resolves codex aliases with reasoning', () => {
@@ -77,7 +77,7 @@ describe('resolveModelAlias', () => {
     expect(resolveModelAlias('OPUS')).toEqual({ backend: 'claude-code', model: 'opus' });
     expect(resolveModelAlias('Sonnet')).toEqual({ backend: 'claude-code', model: 'sonnet' });
     expect(resolveModelAlias('GPT')).toEqual({ backend: 'codex', model: 'gpt-5.3-codex' });
-    expect(resolveModelAlias('GLM')).toEqual({ backend: 'jdc', model: 'jdc/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
+    expect(resolveModelAlias('GLM')).toEqual({ backend: 'pi', model: 'pi/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
     expect(resolveModelAlias('SOL')).toEqual({ backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'max' });
   });
 

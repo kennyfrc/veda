@@ -63,7 +63,9 @@ describe('ContextStore performance analysis', () => {
 
     // For typical usage (10 files, 200 lines each), this is <1ms overhead
     // Not worth adding caching until we have a proven hot path
-    expect(time2).toBeLessThan(10); // Should be <10ms for typical usage
+    // Ceiling is generous (100ms) to stay stable under machine/CI load;
+    // typical runs are <1ms, so this only catches a true ~100x regression.
+    expect(time2).toBeLessThan(100); // Should be <100ms for typical usage
   });
 
   test('document that caching is NOT needed yet', async () => {

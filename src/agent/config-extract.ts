@@ -16,7 +16,7 @@ const MODEL_PREFIX_TO_BACKEND: Record<string, string> = {
   'o1-': 'codex',
   'o3-': 'codex',
   'claude-': 'claude-code',
-  'jdc/': 'jdc',
+  'pi/': 'pi',
 };
 
 /**
@@ -248,7 +248,7 @@ export function resolveBackendModelExtracted(
   } else if (explicitBackend) {
     source = { kind: 'explicit' };
   } else if (explicitModel && inferBackendFromModel(explicitModel)) {
-    // Backend inferred from model prefix (e.g. jdc/wafer/glm-5.1 → jdc)
+    // Backend inferred from model prefix (e.g. pi/wafer/glm-5.1 → pi)
     source = { kind: 'prefix' };
   } else if (explicitModel || explicitBackend) {
     source = { kind: 'explicit' };

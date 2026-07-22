@@ -33,16 +33,16 @@ export {
 export { CodexBackend, createCodexBackend } from './codex';
 export { ClaudeBackend, createClaudeBackend } from './claude';
 export { DroidBackend, createDroidBackend } from './droid';
-export { JdcBackend, createJdcBackend } from './jdc';
+export { PiBackend, createPiBackend } from './pi';
 
 import { registerBackend } from './registry';
 import { createCodexBackend } from './codex';
 import { createClaudeBackend } from './claude';
 import { createDroidBackend } from './droid';
-import { createJdcBackend } from './jdc';
+import { createPiBackend } from './pi';
 
 // Register backends with canonical names
 registerBackend('codex', createCodexBackend);
 registerBackend('claude-code', createClaudeBackend);
 registerBackend('droid', createDroidBackend);
-registerBackend('jdc', createJdcBackend);
+registerBackend('pi', createPiBackend);

@@ -44,8 +44,8 @@ describe('BackendModelResolver helpers', () => {
       expect(gpt?.model).toBe('gpt-5.3-codex');
 
       const glm = tryResolveAliasTarget('glm');
-      expect(glm?.backend).toBe('jdc');
-      expect(glm?.model).toBe('jdc/makora/zai-org/GLM-5.2-NVFP4');
+      expect(glm?.backend).toBe('pi');
+      expect(glm?.model).toBe('pi/makora/zai-org/GLM-5.2-NVFP4');
       expect(glm?.reasoning).toBe('high');
 
       const sol = tryResolveAliasTarget('sol');
@@ -93,12 +93,12 @@ describe('inferBackendFromModel', () => {
     expect(result.backend).toBe('codex');
   });
 
-  test('infers jdc from jdc/ prefix', () => {
+  test('infers pi from pi/ prefix', () => {
     const result = resolveBackendModel({
-      explicitModel: 'jdc/crof/glm-5.2',
+      explicitModel: 'pi/crof/glm-5.2',
       fallbackBackend: 'codex',
     });
-    expect(result.backend).toBe('jdc');
+    expect(result.backend).toBe('pi');
   });
 
   test('infers claude-code from claude- prefix', () => {
@@ -127,34 +127,34 @@ describe('inferBackendFromModel', () => {
     expect(result.source.kind).toBe('alias');
   });
 
-  test('infers jdc from jdc/ prefix (wafer model)', () => {
+  test('infers pi from pi/ prefix (wafer model)', () => {
     const result = resolveBackendModel({
-      explicitModel: 'jdc/wafer/glm-5.1',
+      explicitModel: 'pi/wafer/glm-5.1',
       fallbackBackend: 'codex',
     });
-    expect(result.backend).toBe('jdc');
-    expect(result.model).toBe('jdc/wafer/glm-5.1');
+    expect(result.backend).toBe('pi');
+    expect(result.model).toBe('pi/wafer/glm-5.1');
     expect(result.source.kind).toBe('prefix');
   });
 
-  test('infers jdc from jdc/ prefix (long fireworks model path)', () => {
+  test('infers pi from pi/ prefix (long fireworks model path)', () => {
     const result = resolveBackendModel({
-      explicitModel: 'jdc/fireworks/accounts/fireworks/routers/kimi-k2p6',
+      explicitModel: 'pi/fireworks/accounts/fireworks/routers/kimi-k2p6',
       fallbackBackend: 'codex',
     });
-    expect(result.backend).toBe('jdc');
-    expect(result.model).toBe('jdc/fireworks/accounts/fireworks/routers/kimi-k2p6');
+    expect(result.backend).toBe('pi');
+    expect(result.model).toBe('pi/fireworks/accounts/fireworks/routers/kimi-k2p6');
     expect(result.source.kind).toBe('prefix');
   });
 
-  test('explicit backend overrides jdc/ prefix inference', () => {
+  test('explicit backend overrides pi/ prefix inference', () => {
     const result = resolveBackendModel({
       explicitBackend: 'codex',
-      explicitModel: 'jdc/wafer/glm-5.1',
+      explicitModel: 'pi/wafer/glm-5.1',
       fallbackBackend: 'codex',
     });
     expect(result.backend).toBe('codex');
-    expect(result.model).toBe('jdc/wafer/glm-5.1');
+    expect(result.model).toBe('pi/wafer/glm-5.1');
   });
 
   test('throws error for unknown model', () => {

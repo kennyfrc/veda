@@ -4,7 +4,7 @@ const BACKEND_DISPLAY_NAMES: Record<string, string> = {
   'claude-code': 'Claude',
   'codex': 'Codex',
   'droid': 'Droid',
-  'jdc': 'Jetdraft Coder',
+  'pi': 'Pi',
 };
 
 const SYSTEM_SOUND_DIR = '/System/Library/Sounds';
