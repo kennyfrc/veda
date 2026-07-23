@@ -32,6 +32,24 @@ veda -m opus "Explain this code"          # Auto-selects claude-code backend
 veda deep "Best architecture for real-time sync?"
 ```
 
+## Install Agent Skills
+
+Veda bundles three [Agent Skills](https://agentskills.io/specification) (`veda-plan`,
+`veda-plan-and-implement`, `veda-review`) that teach coding agents how to collaborate
+with the Navigator / Reviewer models. One command installs them into the directories
+read by **Pi**, **OpenAI Codex CLI**, and **Claude Code**:
+
+```bash
+veda skills install     # writes ~/.agents/skills/ + symlinks ~/.claude/skills/
+veda skills list        # show install status and symlink health
+veda skills uninstall   # remove them
+```
+
+`veda init` runs `skills install` as part of first-time setup. The skills travel inside
+the compiled `veda` binary as embedded assets, so install needs nothing on disk except
+the binary. See [`.agents/skills/README.md`](.agents/skills/README.md) for the full
+discovery layout.
+
 ## How-To Guides
 
 ### Manage File Selection
@@ -304,6 +322,7 @@ Sessions isolate state between concurrent agents:
 ```
 veda [options] <prompt>
 veda sel <add|rm|ls|clear|tokens> [args]
+veda skills <install|uninstall|list>
 veda resume [prompt]
 veda deep [options] <prompt>
 
