@@ -397,6 +397,13 @@ export function classifyCommand(positionals: string[], flags: RawFlags): ParsedP
         args: positionals.slice(2),
       };
     
+    case 'skills':
+      return {
+        command: 'skills',
+        subcommand: positionals[1],
+        args: positionals.slice(2),
+      };
+    
     case 'resume': {
       // Only accept single positional after 'resume'; 2+ will be rejected by validation
       const resumeArgs = positionals.slice(1);

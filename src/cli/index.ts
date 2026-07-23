@@ -23,6 +23,7 @@ import type {
   ContextConfig,
   OutputConfig,
   SelSubcommand,
+  SkillsSubcommand,
 } from './types';
 import { CliValidationError } from './types';
 import { tokenizeArgv, classifyCommand } from './parse';
@@ -76,6 +77,17 @@ export async function parseAndValidate(argv: string[]): Promise<VedaInput> {
       args: parsed.args,
       session: flags.session!,
     };
+  }
+  if (parsed.command === 'skills') {
+    const sub = parsed.subcommand as SkillsSubcommand | undefined;
+    if (!sub || !['install', 'uninstall', 'list'].includes(sub)) {
+      throw new CliValidationError(
+        `Unknown skills subcommand: ${sub ?? '(none)'}`,
+        'UNKNOWN_COMMAND',
+        'Available: install, uninstall, list'
+      );
+    }
+    return { command: 'skills', subcommand: sub as SkillsSubcommand };
   }
   if (parsed.command === 'stats') {
     return constructStatsInput(flags);

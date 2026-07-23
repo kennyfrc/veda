@@ -1,4 +1,5 @@
 export { handleSel } from './sel';
+export { handleSkills } from './skills';
 export { handlePersonas } from './personas';
 export { handleRun } from './run';
 export { handleResume } from './resume';

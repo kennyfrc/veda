@@ -80,6 +80,7 @@ export function validateApplicability(
   const isSel = parsed.command === 'sel';
   const isInit = parsed.command === 'init';
   const isPersonas = parsed.command === 'personas';
+  const isSkills = parsed.command === 'skills';
   
   // Check deep-only flags in non-deep modes
   if (!isDeepMode) {
@@ -110,8 +111,8 @@ export function validateApplicability(
     }
   }
   
-  // Flags not applicable to sel/init/personas
-  if (isSel || isInit || isPersonas) {
+  // Flags not applicable to sel/init/personas/skills
+  if (isSel || isInit || isPersonas || isSkills) {
     const inapplicable = [
       'backend', 'model', 'persona', 'reasoning', 'sandbox',
       'files', 'output', 'deep', 'k', ...DEEP_ONLY_FLAGS

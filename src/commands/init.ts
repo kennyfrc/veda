@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { getVedaHome, getPersonasDir, getConfigPath } from '../util/paths';
+import { handleSkills } from './skills';
 import type { CliOptions } from '../cli';
 
 const DEFAULT_CONFIG = `# veda configuration
@@ -175,6 +176,12 @@ export async function handleInit(_options: CliOptions): Promise<void> {
       console.log(`Created persona: ${persona.name}`);
     }
   }
+  
+  // Install agent skills (veda-plan, veda-plan-and-implement, veda-review)
+  // into ~/.agents/skills/ + ~/.claude/skills/ so pi, Codex CLI, and Claude
+  // Code discover them. Same logic as `veda skills install`.
+  console.log('');
+  await handleSkills('install', []);
   
   console.log(`\nveda initialized at ${vedaHome}`);
 }

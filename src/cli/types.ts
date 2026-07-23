@@ -14,6 +14,7 @@ export type VedaInput =
   | { command: 'prompt'; mode: 'deep'; config: DeepConfig }
   | { command: 'resume'; config: ResumeConfig }
   | { command: 'sel'; subcommand: SelSubcommand; args: string[]; session: string }
+  | { command: 'skills'; subcommand: SkillsSubcommand }
   | { command: 'stats'; config: StatsConfig }
   | { command: 'init' }
   | { command: 'guide' }
@@ -23,6 +24,7 @@ export type VedaInput =
   | { command: 'dry-run'; resolved: DryRunOutput }
 
 export type SelSubcommand = 'add' | 'rm' | 'ls' | 'clear' | 'tokens';
+export type SkillsSubcommand = 'install' | 'uninstall' | 'list';
 
 // =============================================================================
 // Simple Mode Config

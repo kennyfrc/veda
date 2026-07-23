@@ -6,6 +6,8 @@ export {
   getSelectionPath,
   getThreadPath,
   getLegacyThreadPath,
+  getAgentSkillsDir,
+  getClaudeSkillsDir,
   getPersonasDir,
   getPersonaDir,
   getConfigPath,

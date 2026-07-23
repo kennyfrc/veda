@@ -322,6 +322,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
   } else if (command === 'personas') {
     subcommand = positional[1];
     commandArgs = positional.slice(2);
+  } else if (command === 'skills') {
+    subcommand = positional[1];
+    commandArgs = positional.slice(2);
   } else if (command === 'resume') {
     commandArgs = positional.slice(1);
     // Only accept single positional after 'resume'; 2+ will be rejected by validation
@@ -384,6 +387,7 @@ a driver-navigator workflow inspired by pair programming best practices.
   veda personas                    List personas (with descriptions)
   veda personas <name>             Show a persona's system prompt
   veda sel <cmd> [args]            Manage file selection (add, rm, ls, clear, tokens)
+  veda skills <cmd>             Install agent skills (install, uninstall, list)
   veda resume [prompt]             Resume a conversation
   veda deep <prompt>               Deep thinking mode (multi-solver + judge + verify)
   veda stats [options]             View judge statistics
@@ -434,6 +438,14 @@ a driver-navigator workflow inspired by pair programming best practices.
   sel ls                    List selected files with token counts
   sel clear                 Clear selection
   sel tokens                Show total token count
+
+== Skills ==
+
+  skills install             Install bundled skills into ~/.agents/skills/ +
+                             ~/.claude/skills/ (discovered by pi, Codex CLI,
+                             Claude Code). Also run by 'veda init'.
+  skills uninstall           Remove the installed skills
+  skills list                Show install status and symlink health
 
 == Stats ==
 
