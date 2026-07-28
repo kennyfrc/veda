@@ -178,6 +178,16 @@ Order is deterministic: explicit `--solver-backends` is normalized (trim/lowerca
 
 **Note:** `-m` cannot be used with `--distribute-solvers` across multiple backends (use `--solver-model` instead).
 
+**Listed mode — compare specific models on the same prompt:**
+```bash
+# One solver per model; every solver gets the identical prompt (no module rotation)
+veda deep --solver-models sol,k3,fable "Design a rate limiter"
+
+# Zip a reasoning module onto each slot, positionally
+veda deep --solver-models sol,k3 --modules analytical/causal_analysis,systematic/systems_thinking "..."
+```
+Each entry resolves through the alias/prefix machinery, so backend, model, and per-alias reasoning are pinned per slot (`--solver-reasoning` overrides all slot hints). Roster size is the list length (`-k` may only confirm it). Repeat entries to duplicate a model (`sol,sol,k3`). Conflicts with `-m`, `--solver-model`, `--solver-backend(s)`, `--distribute-solvers`, `--categories`, `--uniform`, and `--low-count-modules`. Config equivalent: `DEEP_SOLVER_MODELS=sol,k3,fable`.
+
 ### Use Personas
 
 ```bash

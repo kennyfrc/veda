@@ -31,6 +31,7 @@ const FLAGS_WITH_VALUES = new Set([
   '--solver-reasoning', '--judge-reasoning',
   '--verifier-reasoning', '--revision-reasoning',
   '--solver-backends',
+  '--solver-models',
   '--limit',  // For stats command
   '--era',    // For stats command era selection
 ]);
@@ -288,6 +289,18 @@ function parseFlagWithValue(flags: RawFlags, flag: string, value: string): void 
     case '--solver-backends':
       flags.solverBackends = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
       break;
+    case '--solver-models': {
+      const entries = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      if (entries.length === 0) {
+        throw new CliValidationError(
+          'Flag --solver-models requires at least one model entry',
+          'FLAG_REQUIRES_VALUE',
+          'Provide a comma-separated list of model aliases or model IDs, e.g. sol,k3,fable'
+        );
+      }
+      flags.solverModels = entries;
+      break;
+    }
     case '--solver-reasoning':
       flags.solverReasoning = value;
       break;

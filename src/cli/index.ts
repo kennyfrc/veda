@@ -190,12 +190,25 @@ function constructDeepInput(
   if (flags.dryRun) {
     const solverBackends = stages.solver.mode === 'distributed'
       ? stages.solver.backends
-      : [stages.solver.backend];
+      : stages.solver.mode === 'listed'
+        ? stages.solver.slots.map(s => s.backend)
+        : [stages.solver.backend];
     const solverModels: Record<string, string> = {};
+    let solverSlots: Array<{ index: number; backend: string; model: string; reasoning?: string; prompt: 'uniform' | 'module' }> | undefined;
     if (stages.solver.mode === 'distributed') {
       for (const [k, v] of stages.solver.modelPerBackend) {
         solverModels[k] = v;
       }
+    } else if (stages.solver.mode === 'listed') {
+      // Listed mode: per-slot models can repeat backends, so a backend→model map
+      // cannot represent the roster. Emit the slot list instead.
+      solverSlots = stages.solver.slots.map((s, i) => ({
+        index: i + 1,
+        backend: s.backend,
+        model: s.model,
+        reasoning: s.reasoning,
+        prompt: flags.modules && flags.modules.length > 0 ? 'module' as const : 'uniform' as const,
+      }));
     } else {
       solverModels[stages.solver.backend] = stages.solver.model;
     }
@@ -212,6 +225,7 @@ function constructDeepInput(
             mode: stages.solver.mode,
             backends: solverBackends,
             models: solverModels,
+            slots: solverSlots,
           },
           judge: {
             backend: stages.judge.backend,
@@ -237,7 +251,7 @@ function constructDeepInput(
   const config: DeepConfig = {
     session: flags.session!,
     prompt: parsed.prompt!,
-    k: flags.k ?? 6,
+    k: flags.k ?? (stages.solver.mode === 'listed' ? stages.solver.slots.length : 6),
     categories: flags.categories,
     modules: flags.modules,
     uniform: flags.uniform,
@@ -331,6 +345,7 @@ function extractFlagsForDryRun(flags: RawFlags): Record<string, unknown> {
   if (flags.trace) result.trace = flags.trace;
   if (flags.distributeSolvers) result.distributeSolvers = true;
   if (flags.solverBackends) result.solverBackends = flags.solverBackends;
+  if (flags.solverModels) result.solverModels = flags.solverModels;
   if (flags.uniform) result.uniform = true;
   if (flags.lowCountModules) result.lowCountModules = true;
   

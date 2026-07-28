@@ -162,6 +162,11 @@ export async function handleDeep(
   const globalConfig = await loadGlobalConfig();
   const deepConfig = globalConfig.deep ?? {};
 
+  // Listed mode (--solver-models): explicit per-slot solver roster, resolved upstream.
+  const listedSlots = options.solverSlots && options.solverSlots.length > 0
+    ? options.solverSlots
+    : undefined;
+
   // Build context from selection (unless --no-sel)
   let context: string | undefined;
   if (!options.noSel) {
@@ -195,6 +200,7 @@ export async function handleDeep(
           categories: options.categories,
           modules: options.modules,
           lowCountModules: options.lowCountModules,
+          solverModels: listedSlots?.map(s => `${s.backend}:${s.model}:${s.reasoning ?? ''}`),
         },
       });
 
@@ -261,17 +267,25 @@ export async function handleDeep(
   const effectiveSolverBackends = options.solverBackends ?? (cliHasBaseOverride ? undefined : deepConfig.solverBackends);
 
   // Handle solver backend selection (potentially distributed)
-  const solverBackendsResult = await selectSolverBackends({
-    k: options.k ?? 6,
-    distributeSolvers: effectiveDistributeSolvers,
-    solverBackend: options.solverBackend,
-    solverBackends: effectiveSolverBackends,
-    solverModel: options.solverModel,
-    baseBackend: base.backend,
-  });
+  // Listed mode bypasses backend selection entirely: slots pin backend+model per solver.
+  const solverBackendsResult = listedSlots
+    ? { backends: listedSlots.map(s => s.backend), mode: 'fixed' as const }
+    : await selectSolverBackends({
+        k: options.k ?? 6,
+        distributeSolvers: effectiveDistributeSolvers,
+        solverBackend: options.solverBackend,
+        solverBackends: effectiveSolverBackends,
+        solverModel: options.solverModel,
+        baseBackend: base.backend,
+      });
+
+  // Log the resolved listed roster
+  if (listedSlots) {
+    console.error(c.cyan('[deep]') + ` Solver roster (listed mode): ${listedSlots.map((s, i) => `${i + 1}. ${s.backend}/${s.model} (${s.reasoning ?? 'default'})`).join(' · ')}`);
+  }
 
   // Log distribution mode (only when multiple backends)
-  if (solverBackendsResult.mode === 'distributed') {
+  if (!listedSlots && solverBackendsResult.mode === 'distributed') {
     const uniqueBackends = new Set(solverBackendsResult.backends);
     if (uniqueBackends.size > 1) {
       console.error(c.cyan('[deep]') + ` Distributed solver backends (round-robin): ${solverBackendsResult.backends.join(', ')}`);
@@ -280,8 +294,11 @@ export async function handleDeep(
 
   // Resolve single backend for notifications (use first if randomized)
   const solverBackendForNotification = solverBackendsResult.backends[0] ?? base.backend;
-  // For distributed mode, resolve the model for the first backend instead of using base.model
-  const solverModelForNotification = options.solverModel ?? (
+  // For distributed mode, resolve the model for the first backend instead of using base.model;
+  // for listed mode the first slot pins the model directly
+  const solverModelForNotification = listedSlots
+    ? listedSlots[0].model
+    : options.solverModel ?? (
     solverBackendsResult.mode === 'distributed' 
       ? resolveBackendModel({
           explicitBackend: solverBackendForNotification,
@@ -359,6 +376,12 @@ export async function handleDeep(
   // Create formatter state for progressive disclosure output
   const formatterState = createFormatterState();
 
+  // For listed mode without an explicit reasoning flag, per-slot reasoning varies —
+  // a single phase-header suffix would misreport it, so omit it.
+  const displaySolverReasoning = listedSlots && !options.solverReasoning && !cliHasBaseReasoning
+    ? undefined
+    : effectiveSolverReasoning;
+
   // Compute run identity hash for checkpointing
   const runIdentityHash = computeRunIdentityHash({
     prompt,
@@ -369,6 +392,7 @@ export async function handleDeep(
       categories: options.categories,
       modules: options.modules,
       lowCountModules: options.lowCountModules,
+      solverModels: listedSlots?.map(s => `${s.backend}:${s.model}:${s.reasoning ?? ''}`),
     },
   });
 
@@ -386,8 +410,9 @@ export async function handleDeep(
     lowCountModules: options.lowCountModules,
     cwd: process.cwd(),
     // Per-stage overrides (CLI > config > defaults)
-    solverBackends: solverBackendsResult.backends,
+    solverBackends: listedSlots ? undefined : solverBackendsResult.backends,
     solverModel: options.solverModel,
+    solverSlots: listedSlots?.map(s => ({ backend: s.backend, model: s.model, reasoning: s.reasoning })),
     solverReasoning: effectiveSolverReasoning,
     judgeReasoning: effectiveJudgeReasoning,
     verifyReasoning: effectiveVerifierReasoning,
@@ -428,7 +453,7 @@ export async function handleDeep(
       usageAtCheckpoint: existingCheckpoint.usageAtCheckpoint,
     } : undefined,
   })) {
-    await handleEvent(event, options, prompt, globalConfig.notify, globalConfig.notifySound, solverBackendForNotification, solverModelForNotification, effectiveSolverReasoning, judge.backend, judge.model, verifier.backend, verifier.model, revision.backend, revision.model, formatterState);
+    await handleEvent(event, options, prompt, globalConfig.notify, globalConfig.notifySound, solverBackendForNotification, solverModelForNotification, displaySolverReasoning, judge.backend, judge.model, verifier.backend, verifier.model, revision.backend, revision.model, formatterState);
 
     // Capture final result for trace
     if (event.type === 'complete' && event.result) {
@@ -720,9 +745,10 @@ async function handleEvent(
       // Member ID line (solver-N:backend:model:category/module_id)
       if (event.selectedMember) {
         const m = event.selectedMember;
+        // Uniform-prompt (listed mode) candidates carry no module descriptor.
         const moduleSpec = event.selectedModule 
           ? `${event.selectedModule.category}/${event.selectedModule.id}`
-          : 'unknown';
+          : 'uniform/none';
         console.error(c.dim(`    [solver-${m.index + 1}:${m.backend}:${m.model}:${moduleSpec}]`));
       }
       
@@ -974,7 +1000,7 @@ async function writeTrace(path: string, result: DeepThinkResult): Promise<void> 
 
   // Build YAML-friendly trace document
   const doc = {
-    trace_version: 2,
+    trace_version: trace.trace_version ?? 2,
     run: {
       timestamp: new Date().toISOString(),
       confidence: result.confidence,
@@ -988,7 +1014,8 @@ async function writeTrace(path: string, result: DeepThinkResult): Promise<void> 
       candidates: trace.solve.candidates.map(c => {
         const candidate: Record<string, unknown> = {
           id: c.id,
-          module: c.module,
+          ...(c.module && { module: c.module }),  // absent for uniform candidates
+          ...(c.promptVariant && { prompt_variant: c.promptVariant }),
           response: c.response,
         };
         if (c.usage) candidate.usage = c.usage;

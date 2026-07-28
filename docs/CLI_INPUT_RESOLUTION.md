@@ -61,6 +61,7 @@ Which flags apply to which commands?
 | `--verifier-model` | ❌ | ✅ | ❌ | ❌ | Per-stage override |
 | `--distribute-solvers` | ❌ | ✅ | ❌ | ❌ | Round-robin backends |
 | `--solver-backends` | ❌ | ✅ | ❌ | ❌ | Backends for distribution |
+| `--solver-models` | ❌ | ✅ | ❌ | ❌ | Listed mode: one solver per model, uniform prompt (zip with `--modules`) |
 
 ### Questions for you:
 

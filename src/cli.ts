@@ -36,6 +36,9 @@ export interface CliOptions {
 
   distributeSolvers?: boolean;
   solverBackends?: string[];
+  /** Listed mode: fully-resolved per-slot solver identities (from --solver-models / DEEP_SOLVER_MODELS).
+   *  Populated by the adapter after stage resolution; legacy parseArgs cannot produce it. */
+  solverSlots?: Array<{ backend: string; model: string; reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' }>;
   uniform?: boolean;  // Disable Thompson Sampling, use uniform random selection
   lowCountModules?: boolean;  // Bias selection toward low-appearance modules (single-judge only)
   
@@ -83,6 +86,8 @@ const FLAGS_WITH_VALUES = new Set([
   '--verifier-reasoning', '--revision-reasoning',
   // Randomization options for deep mode
   '--solver-backends',
+  // Listed mode: one solver per model entry (resolved by parseAndValidate only)
+  '--solver-models',
 ]);
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -180,6 +185,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
         case '--solver-backends':
           options.solverBackends = value.split(',').map(s => s.trim());
           break;
+        case '--solver-models':
+          throw new Error(
+            '--solver-models is not supported by the legacy parser; use parseAndValidate (src/cli/index.ts)'
+          );
         case '--solver-reasoning':
           options.solverReasoning = value as CliOptions['solverReasoning'];
           break;
@@ -424,6 +433,9 @@ a driver-navigator workflow inspired by pair programming best practices.
   --resume                  Resume from checkpoint
   --distribute-solvers       Distribute solvers across backends (round-robin)
   --solver-backends <list>  Backends for distribution
+  --solver-models <list>    One solver per model (aliases/IDs), same prompt for each
+                            e.g. sol,k3,fable. Add --modules <list> (same length) to
+                            zip a module onto each slot. k = list length.
 
   Per-stage overrides:
   --solver-backend/--model   --judge-backend/--model

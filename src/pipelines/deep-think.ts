@@ -25,6 +25,7 @@ import {
 } from '../core';
 import {
   buildDeepSolverSystemPrompt,
+  SOLVER_SYSTEM_PROMPT,
   JUDGE_SYSTEM_PROMPT,
   VERIFIER_SYSTEM_PROMPT,
 } from './prompts';
@@ -70,6 +71,24 @@ function formatMemberId(parts: MemberIdParts): string {
   return `${type}-${index}-${backend}-${model}-${module}`;
 }
 
+/**
+ * A listed-mode solver slot: backend/model/reasoning fully pinned per solver.
+ * Produced by CLI stage resolution from --solver-models / DEEP_SOLVER_MODELS.
+ */
+export interface SolverSlotSpec {
+  backend: string;
+  model: string;
+  reasoning?: Reasoning;
+}
+
+/**
+ * What the solver was told, decoupled from module registry lookups.
+ * 'module' = a reasoning module was injected; 'uniform' = plain SOLVER_SYSTEM_PROMPT.
+ */
+export type PromptVariantTrace =
+  | { kind: 'module'; module: { id: string; category: string; name: string } }
+  | { kind: 'uniform' };
+
 export interface DeepThinkOptions {
   backend?: string;
   model?: string;
@@ -89,6 +108,12 @@ export interface DeepThinkOptions {
   lowCountModules?: boolean;
   cwd?: string;
   solverBackends?: string[];  // Array of backends for parallel solvers (supports randomization)
+  /**
+   * Listed mode: one solver per entry with pinned backend/model/reasoning.
+   * Takes precedence over solverBackends/solverModel. Without `modules` (zip),
+   * every solver receives the identical uniform system prompt.
+   */
+  solverSlots?: SolverSlotSpec[];
   solverModel?: string;
   /** Judge mode: 'pairwise' (default) uses head-to-head comparison, 'multi' uses round-robin ranking, 'single' uses one judge */
   judgeMode?: 'single' | 'multi' | 'pairwise';
@@ -133,6 +158,10 @@ export interface SolverOptions {
   categories?: string[];
   /** Backend(s) for solvers (supports randomization) */
   backends: string[];
+  /** Listed-mode slots; per-slot backend/model/reasoning override `backends` round-robin. */
+  slots?: SolverSlotSpec[];
+  /** Uniform prompt mode: all solvers receive SOLVER_SYSTEM_PROMPT (no module injection). */
+  uniformPrompt?: boolean;
   /** Model override for solvers (may be undefined if not set) */
   model?: string;
   /** Resolved model per backend */
@@ -214,7 +243,7 @@ export interface DeepThinkResult {
 }
 
 export interface DeepThinkTrace {
-  trace_version: 2;  // Bumped from 1 to 2 for new ID format
+  trace_version?: 2 | 3;  // 3 adds candidates[].promptVariant (module made optional there)
   prompt: string;
   context?: string;
   options: {
@@ -225,6 +254,8 @@ export interface DeepThinkTrace {
     forceVerify?: boolean;
     categories?: string[];
     modules?: string[];
+    /** Listed mode: "backend/model" per slot, in roster order. */
+    solverModels?: string[];
     solver?: { backend: string; model?: string };
     solverBackends?: string[];  // Randomized backends used
     judge?: { backend: string; model?: string };
@@ -235,7 +266,10 @@ export interface DeepThinkTrace {
     candidates: Array<{
       id: string;
       legacyId?: string;  // Old format for backward compatibility: solver-${i}-${category}
-      module: { id: string; category: string; name: string };
+      /** Module descriptor: v2 traces and v3 module candidates. Absent for uniform. */
+      module?: { id: string; category: string; name: string };
+      /** v3+: what the solver was told. Absent in v2 (implies module mode). */
+      promptVariant?: PromptVariantTrace;
       response: string;
       usage?: UsageStats;
     }>;
@@ -347,7 +381,7 @@ export interface DeepThinkEvent {
 
 export interface RunSolverEnsembleResult {
   candidates: string[];
-  modules: ReasoningModule[];
+  modules: (ReasoningModule | undefined)[];
   outputs: Array<{
     id: string;
     module: { id: string; category: string; name: string };
@@ -398,6 +432,7 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     forceVerify?: boolean;
     categories?: string[];
     modules?: string[];
+    solverModels?: string[];
     solver: { backend: string; model?: string };
     solverBackends: string[];
     judge: { backend: string; model?: string };
@@ -422,9 +457,17 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   const cliHasBaseOverride = cliHasBaseBackend || cliHasBaseModel;
 
   // Step 2: Resolve solver configs
+  // Listed mode (--solver-models): per-slot backend/model/reasoning pinned upstream.
+  const listedSlots = options.solverSlots && options.solverSlots.length > 0
+    ? options.solverSlots
+    : undefined;
+
   // If solverModel is specified without solverBackends, infer backend from model
   let solverBackends: string[];
-  if (options.solverBackends) {
+  if (listedSlots) {
+    // Slot-ordered backends; member construction reads slots directly.
+    solverBackends = listedSlots.map(s => s.backend);
+  } else if (options.solverBackends) {
     solverBackends = options.solverBackends;
   } else if (options.solverModel) {
     // Infer backend from solver model
@@ -439,8 +482,9 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   }
 
   // Validate: -m/--model conflicts with multi-backend distribution
+  // (listed mode exempt: slots pin their own backend+model; the CLI rejects -m anyway)
   const uniqueSolverBackends = new Set(solverBackends);
-  if (options.model && uniqueSolverBackends.size > 1) {
+  if (!listedSlots && options.model && uniqueSolverBackends.size > 1) {
     throw new Error(
       `Cannot use -m/--model with --distribute-solvers across multiple backends. ` +
       `Either remove --distribute-solvers, remove -m, or use --solver-model with backend-specific models.`
@@ -449,6 +493,15 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
 
   const backendModels = new Map<string, string>();
 
+  if (listedSlots) {
+    // First slot per backend, for trace/notification display. Member construction
+    // reads slot.model directly, so same-backend duplicates with distinct models work.
+    for (const slot of listedSlots) {
+      if (!backendModels.has(slot.backend)) {
+        backendModels.set(slot.backend, slot.model);
+      }
+    }
+  } else {
   for (const backend of uniqueSolverBackends) {
     // If -m is specified, use that model for all solvers.
     // Otherwise, let each backend use its own default model.
@@ -464,30 +517,34 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     }
     backendModels.set(backend, resolved.model);
   }
+  }
 
   // Requested judge mode (default to 'pairwise' for better cross-backend comparison)
   const requestedJudgeMode: JudgeMode = options.judgeMode ?? 'pairwise';
 
   // Low-count module bias should only apply when the *effective* judge mode is single.
   // (Single-judge stats are the data source for appearances/wins.)
-  const solverK = options.k ?? 3;
+  // Listed mode derives k from the roster; nothing else may set roster size.
+  const solverK = listedSlots?.length ?? options.k ?? 3;
   const plannedCandidateInfos: CandidateInfo[] = Array.from({ length: solverK }, (_, i) => ({
     id: `planned-${i}`,
-    solverBackend: solverBackends[i % solverBackends.length],
+    solverBackend: listedSlots?.[i]?.backend ?? solverBackends[i % solverBackends.length],
     content: '',
   }));
   const effectiveJudgeModeForModuleSelection = getEffectiveJudgeMode(requestedJudgeMode, plannedCandidateInfos);
 
   const enableLowCountModules =
     !!options.lowCountModules &&
+    !listedSlots &&
     effectiveJudgeModeForModuleSelection === 'single' &&
     !options.uniform &&
     (!options.modules || options.modules.length === 0);
 
   // Load win rates for weighted module selection (Thompson Sampling)
-  // Skip if --uniform flag is set or using explicit modules (those bypass weighted selection)
+  // Skip if --uniform flag is set, using explicit modules, or in listed mode
+  // (those bypass weighted selection / perform no sampling at all)
   let winRates: Map<string, { wins: number; appearances: number }> | undefined;
-  if (!options.uniform && (!options.modules || options.modules.length === 0)) {
+  if (!listedSlots && !options.uniform && (!options.modules || options.modules.length === 0)) {
     const statsStore = new StatsStore();
     winRates = await statsStore.getModuleWinRates();
   }
@@ -497,6 +554,8 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     modules: options.modules,
     categories: options.categories,
     backends: solverBackends,
+    slots: listedSlots,
+    uniformPrompt: !!listedSlots && !(options.modules && options.modules.length > 0),
     model: options.solverModel,
     backendModels,
     reasoning: options.solverReasoning ?? 'high',
@@ -664,8 +723,9 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
     k: solverConfig.k,
     verify: verifyEnabled,
     forceVerify,
-    categories: solverConfig.categories,
+    categories: listedSlots ? undefined : solverConfig.categories,
     modules: solverConfig.modules,
+    solverModels: listedSlots?.map(s => `${s.backend}/${s.model}`),
     solver: {
       backend: solverBackends[0],
       model: backendModels.get(solverBackends[0]),
@@ -689,57 +749,103 @@ async function expandDeepThinkOptions(options: DeepThinkOptions): Promise<{
   return { solver: solverConfig, judge: judgeConfig, verifier: verifierConfig, revision: revisionConfig, verifyEnabled, forceVerify, traceOptions };
 }
 
-export async function runSolverEnsemble(
-  prompt: string,
-  options: SolverOptions,
-  onEvent?: (event: EnsembleEvent) => void
-): Promise<RunSolverEnsembleResult> {
-  const modules = selectModules({
-    k: options.k,
-    categories: options.modules ? undefined : options.categories,
-    modules: options.modules,
-    winRates: options.winRates,
-    lowCountModules: options.lowCountModules,
-    allowDuplicateCategoriesInSpecifiers: !!options.modules,
+/**
+ * Plan the per-solver prompt variants.
+ * Uniform-prompt listed mode: no module injection (all undefined).
+ * Otherwise selectModules (sampling, category filter, or explicit zip list).
+ * Exported for tests (pure planning seam; no backend I/O).
+ */
+export function planSolverModules(solver: SolverOptions): (ReasoningModule | undefined)[] {
+  const k = solver.slots?.length ?? solver.k;
+  if (solver.uniformPrompt) {
+    return new Array(k).fill(undefined);
+  }
+  return selectModules({
+    k,
+    categories: solver.slots ? undefined : solver.categories,
+    modules: solver.modules,
+    winRates: solver.winRates,
+    lowCountModules: solver.lowCountModules,
+    allowDuplicateCategoriesInSpecifiers: !!solver.modules,
   });
+}
 
-  const members: EnsembleMember[] = modules.map((module, i) => {
-    const backend = options.backends[i % options.backends.length];
-    const model = options.backendModels.get(backend) ?? options.model;
+/**
+ * Project planned modules (and listed-mode slots) into ensemble members and
+ * display metadata. Per-slot backend/model/reasoning come from `solver.slots`
+ * when present; prompt is uniform whenever the slot has no module.
+ * Exported for tests (pure projection seam; no backend I/O).
+ */
+export function buildSolverMembers(
+  prompt: string,
+  solver: SolverOptions,
+  modules: (ReasoningModule | undefined)[],
+): { members: EnsembleMember[]; metas: MemberMeta[] } {
+  const members: EnsembleMember[] = [];
+  const metas: MemberMeta[] = [];
+
+  for (let i = 0; i < modules.length; i++) {
+    const module = modules[i];
+    const slot = solver.slots?.[i];
+    const backend = slot?.backend ?? solver.backends[i % solver.backends.length];
+    const model = slot?.model ?? solver.backendModels.get(backend) ?? solver.model;
+    const reasoning = slot?.reasoning ?? solver.reasoning;
+    const moduleSpec = module ? `${module.category}/${module.id}` : 'uniform/none';
     const memberId = formatMemberId({
       type: 'solver',
       backend,
       model: model ?? 'unknown',
       index: i,
-      module: `${module.category}/${module.id}`,
+      module: moduleSpec,
     });
-    return {
+
+    members.push({
       id: memberId,
       request: {
         backend,
         model,
         prompt,
-        context: options.context,
-        systemPrompt: buildDeepSolverSystemPrompt({ module }),
-        reasoning: options.reasoning,
-        sandbox: options.sandbox,
-        cwd: options.cwd,
+        context: solver.context,
+        systemPrompt: module ? buildDeepSolverSystemPrompt({ module }) : SOLVER_SYSTEM_PROMPT,
+        reasoning,
+        sandbox: solver.sandbox,
+        cwd: solver.cwd,
       },
-    };
-  });
+    });
+    metas.push({
+      type: 'solver',
+      backend,
+      model: model ?? 'unknown',
+      index: i,
+      module: moduleSpec,
+      id: memberId,
+    });
+  }
+
+  return { members, metas };
+}
+
+export async function runSolverEnsemble(
+  prompt: string,
+  options: SolverOptions,
+  onEvent?: (event: EnsembleEvent) => void
+): Promise<RunSolverEnsembleResult> {
+  const modules = planSolverModules(options);
+  const { members } = buildSolverMembers(prompt, options, modules);
 
   const ensembleResult = await runEnsemble(members, onEvent);
 
-  const outputs = ensembleResult.outputs.map((output, i) => ({
-    id: output.id,
-    module: {
-      id: modules[i].id,
-      category: modules[i].category,
-      name: modules[i].name,
-    },
-    response: output.text,
-    usage: output.usage,
-  }));
+  const outputs = ensembleResult.outputs.map((output, i) => {
+    const module = modules[i];
+    return {
+      id: output.id,
+      module: module
+        ? { id: module.id, category: module.category, name: module.name }
+        : { id: 'none', category: 'uniform', name: 'Uniform prompt' },
+      response: output.text,
+      usage: output.usage,
+    };
+  });
 
   const errors = ensembleResult.outputs.flatMap(o => o.backendErrors ?? []);
   const exceptionErrors = ensembleResult.outputs
@@ -903,7 +1009,7 @@ export async function* runDeepThink(
       trace = isResuming && options.resumeCheckpoint?.trace
         ? JSON.parse(JSON.stringify(options.resumeCheckpoint.trace))
         : {
-            trace_version: 2,
+            trace_version: 3,
             prompt,
             context: solver.context,
             options: traceOptions,
@@ -914,7 +1020,7 @@ export async function* runDeepThink(
       let successfulCandidates: string[] = [];
       let successfulToOutputsMap = new Map<number, number>();
       let solverMetaMap = new Map<string, MemberMeta>();
-      let modules: ReasoningModule[] = [];
+      let modules: (ReasoningModule | undefined)[] = [];
 
       // Step 3: Run solver ensemble (or restore from checkpoint)
       // Skip solve if we've completed it (stage >= 1)
@@ -942,14 +1048,18 @@ export async function* runDeepThink(
           }
         }
         
-        // Reconstruct modules from trace, looking up prompts from registry
+        // Reconstruct modules from trace (v3 promptVariant, falling back to v2 module field).
+        // Uniform candidates get no registry lookup at all.
         modules = trace.solve.candidates.map(c => {
+          if (c.promptVariant?.kind === 'uniform') return undefined;
+          const descriptor = c.promptVariant?.kind === 'module' ? c.promptVariant.module : c.module;
+          if (!descriptor) return undefined;
           // Look up full module from registry to get the prompt
-          const registryModule = getModuleById(c.module.id);
+          const registryModule = getModuleById(descriptor.id);
           return {
-            id: c.module.id,
-            category: c.module.category as ReasoningModule['category'],
-            name: c.module.name,
+            id: descriptor.id,
+            category: descriptor.category as ReasoningModule['category'],
+            name: descriptor.name,
             prompt: registryModule?.prompt ?? '', // Fallback to empty if module not found
           };
         });
@@ -962,7 +1072,7 @@ export async function* runDeepThink(
             backend: 'unknown', // Not stored in trace
             model: 'unknown',
             index: i,
-            module: `${candidate.module.category}/${candidate.module.id}`,
+            module: candidate.module ? `${candidate.module.category}/${candidate.module.id}` : 'uniform/none',
             id: candidate.id,
           });
         }
@@ -973,60 +1083,12 @@ export async function* runDeepThink(
         // Run solve stage normally
         queue.push({ type: 'stage_start', stage: 'solve' });
 
-        modules = selectModules({
-          k: solver.k,
-          categories: solver.categories,
-          modules: solver.modules,
-          winRates: solver.winRates,
-          lowCountModules: solver.lowCountModules,
-          allowDuplicateCategoriesInSpecifiers: !!solver.modules,
-        });
+        modules = planSolverModules(solver);
+        const { members, metas } = buildSolverMembers(prompt, solver, modules);
 
-        const members: EnsembleMember[] = modules.map((module, i) => {
-          const backend = solver.backends[i % solver.backends.length];
-          const model = solver.backendModels.get(backend) ?? solver.model;
-          const memberId = formatMemberId({
-            type: 'solver',
-            backend,
-            model: model ?? 'unknown',
-            index: i,
-            module: `${module.category}/${module.id}`,
-          });
-          return {
-            id: memberId,
-            request: {
-              backend,
-              model,
-              prompt,
-              context: solver.context,
-              systemPrompt: buildDeepSolverSystemPrompt({ module }),
-              reasoning: solver.reasoning,
-              sandbox: solver.sandbox,
-              cwd: solver.cwd,
-            },
-          };
-        });
-
-        // Create mapping from memberId to MemberMeta for events
-        for (let i = 0; i < modules.length; i++) {
-          const backend = solver.backends[i % solver.backends.length];
-          const model = solver.backendModels.get(backend) ?? solver.model;
-          const moduleSpec = `${modules[i].category}/${modules[i].id}`;
-          const memberId = formatMemberId({
-            type: 'solver',
-            backend,
-            model: model ?? 'unknown',
-            index: i,
-            module: moduleSpec,
-          });
-          solverMetaMap.set(memberId, {
-            type: 'solver',
-            backend,
-            model: model ?? 'unknown',
-            index: i,
-            module: moduleSpec,
-            id: memberId,
-          });
+        // Mapping from memberId to MemberMeta for events
+        for (const meta of metas) {
+          solverMetaMap.set(meta.id, meta);
         }
 
         const ensembleResult = await runEnsemble(members, (event: EnsembleEvent) => {
@@ -1095,15 +1157,16 @@ export async function* runDeepThink(
           const output = ensembleResult.outputs[i];
           const module = modules[i];
           // Include legacy ID for backward compatibility
-          const legacyId = `solver-${i}-${module.category}`;
+          const legacyId = `solver-${i}-${module ? module.category : 'uniform'}`;
           trace.solve.candidates.push({
             id: output.id,
             legacyId,
-            module: {
-              id: module.id,
-              category: module.category,
-              name: module.name,
-            },
+            module: module
+              ? { id: module.id, category: module.category, name: module.name }
+              : undefined,
+            promptVariant: module
+              ? { kind: 'module', module: { id: module.id, category: module.category, name: module.name } }
+              : { kind: 'uniform' },
             response: output.text,
             usage: output.usage,
           });
@@ -1440,8 +1503,8 @@ export async function* runDeepThink(
               candidateId: info.id,
               solverBackend: info.solverBackend,
               solverModel: meta?.model ?? 'unknown',
-              category: moduleInfo?.category ?? 'unknown',
-              moduleId: moduleInfo?.id ?? 'unknown',
+              category: moduleInfo ? moduleInfo.category : 'uniform',
+              moduleId: moduleInfo ? moduleInfo.id : 'none',
             });
           }
           
@@ -1482,13 +1545,16 @@ export async function* runDeepThink(
         }
 
         // Record single-judge stats for win rate tracking
-        if (effectiveMode === 'single' && trace.solve.candidates.length > 0) {
+        // Module win rates drive Thompson sampling in module mode, so uniform-prompt
+        // (listed mode) runs must never enter this store: they carry no module signal.
+        if (effectiveMode === 'single' && !solver.uniformPrompt && trace.solve.candidates.length > 0) {
           const timestamp = new Date().toISOString();
           const promptHash = Bun.hash(prompt).toString(16).padStart(16, '0').slice(0, 16);
           const selectedOutputsIdx = successfulToOutputsMap.get(judgeResult.selectedIndex) ?? 0;
           const winnerCandidate = trace.solve.candidates[selectedOutputsIdx];
+          const winnerModule = winnerCandidate?.module;
           
-          if (winnerCandidate) {
+          if (winnerCandidate && winnerModule) {
             const singleJudgeEntry: StatEntryV3 = {
               version: 3,
               timestamp,
@@ -1500,12 +1566,13 @@ export async function* runDeepThink(
                 model: judge.model,
               },
               winner: {
-                category: winnerCandidate.module.category,
-                moduleId: winnerCandidate.module.id,
+                category: winnerModule.category,
+                moduleId: winnerModule.id,
               },
+              // All candidates in module mode carry a module descriptor by construction.
               participants: trace.solve.candidates.map(c => ({
-                category: c.module.category,
-                moduleId: c.module.id,
+                category: c.module!.category,
+                moduleId: c.module!.id,
               })),
               confidence: {
                 level: judgeResult.confidence >= 0.7 ? 'high'

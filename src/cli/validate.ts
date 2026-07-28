@@ -29,6 +29,7 @@ const DEEP_ONLY_FLAGS = [
   'revisionReasoning',
   'distributeSolvers',
   'solverBackends',
+  'solverModels',
 ] as const;
 
 /** Human-readable flag names for error messages */
@@ -53,6 +54,7 @@ const FLAG_DISPLAY_NAMES: Record<string, string> = {
   revisionReasoning: '--revision-reasoning',
   distributeSolvers: '--distribute-solvers',
   solverBackends: '--solver-backends',
+  solverModels: '--solver-models',
   persona: '--persona',
   reasoning: '--reasoning',
   sandbox: '--sandbox',
@@ -209,6 +211,79 @@ export function detectConflicts(flags: RawFlags): void {
     );
   }
   
+  // === --solver-models (listed mode) conflict guards (checked before the other
+  // solver-shape rules: listed mode pins backend+model per slot) ===
+  if (flags.solverModels && flags.solverModels.length > 0) {
+    const models = flags.solverModels;
+
+    const pinnedConflicts: Array<[string | string[] | boolean | undefined, string]> = [
+      [flags.model, '-m/--model'],
+      [flags.solverModel, '--solver-model'],
+      [flags.solverBackend, '--solver-backend'],
+      [flags.solverBackends?.length ? flags.solverBackends : undefined, '--solver-backends'],
+      [flags.distributeSolvers, '--distribute-solvers'],
+    ];
+    for (const [value, name] of pinnedConflicts) {
+      if (value) {
+        throw new CliValidationError(
+          `Cannot use --solver-models with ${name}`,
+          'MUTUALLY_EXCLUSIVE_FLAGS',
+          '--solver-models pins backend and model per solver slot; remove the other flag'
+        );
+      }
+    }
+
+    // --categories cannot be paired deterministically with an explicit model list
+    if (flags.categories && flags.categories.length > 0) {
+      throw new CliValidationError(
+        'Cannot use --solver-models with --categories',
+        'MUTUALLY_EXCLUSIVE_FLAGS',
+        'Use --modules with the same length to zip modules positionally with the model list'
+      );
+    }
+
+    // --modules zips positionally: lengths must match
+    if (flags.modules && flags.modules.length > 0 && flags.modules.length !== models.length) {
+      throw new CliValidationError(
+        `--modules count (${flags.modules.length}) must match --solver-models count (${models.length})`,
+        'MUTUALLY_EXCLUSIVE_FLAGS',
+        'Modules are paired positionally with the model list (entry 1 with model 1, etc.)'
+      );
+    }
+
+    // Module-sampling knobs are meaningless in listed mode (no sampling happens)
+    if (flags.uniform) {
+      throw new CliValidationError(
+        'Cannot use --solver-models with --uniform',
+        'MUTUALLY_EXCLUSIVE_FLAGS',
+        'Listed mode performs no module sampling'
+      );
+    }
+    if (flags.lowCountModules) {
+      throw new CliValidationError(
+        'Cannot use --solver-models with --low-count-modules',
+        'MUTUALLY_EXCLUSIVE_FLAGS',
+        'Listed mode performs no module sampling'
+      );
+    }
+
+    // Roster size derives from the list; -k may only confirm it
+    if (flags.k !== undefined && flags.k !== models.length) {
+      throw new CliValidationError(
+        `-k ${flags.k} conflicts with --solver-models (${models.length} models listed)`,
+        'INVALID_K_VALUE',
+        'Remove -k (roster size = list length) or repeat entries to duplicate models'
+      );
+    }
+
+    if (models.length > 12) {
+      throw new CliValidationError(
+        `--solver-models supports at most 12 entries, got ${models.length}`,
+        'INVALID_K_VALUE'
+      );
+    }
+  }
+
   // --solver-backends requires --distribute-solvers
   if (flags.solverBackends && flags.solverBackends.length > 0 && !flags.distributeSolvers) {
     throw new CliValidationError(

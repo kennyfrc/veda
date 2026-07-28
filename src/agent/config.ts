@@ -31,6 +31,8 @@ export interface AgentConfig {
 export interface DeepModeConfig {
   distributeSolvers?: boolean;
   solverBackends?: string[];
+  /** Listed mode: one solver per entry (alias or model ID); uniform prompt unless --modules zipped. */
+  solverModels?: string[];
   solverReasoning?: ReasoningLevel;
   judgeBackend?: string;
   judgeModel?: string;
@@ -82,6 +84,9 @@ export function parseConfigFile(content: string): GlobalConfig {
             break;
           case 'DEEP_SOLVER_BACKENDS':
             deep.solverBackends = value.split(',').map(s => s.trim()).filter(s => s);
+            break;
+          case 'DEEP_SOLVER_MODELS':
+            deep.solverModels = value.split(',').map(s => s.trim()).filter(s => s);
             break;
           case 'DEEP_SOLVER_REASONING':
             if (isValidReasoning(value)) deep.solverReasoning = value;

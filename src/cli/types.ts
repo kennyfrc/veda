@@ -82,12 +82,25 @@ export interface StageConfigs {
 }
 
 /**
+ * A fully-resolved solver slot in listed mode.
+ * Each entry of --solver-models / DEEP_SOLVER_MODELS expands to one slot.
+ */
+export interface ListedSlot {
+  backend: string;
+  model: string;
+  reasoning?: ReasoningLevel;
+}
+
+/**
  * Solver config as discriminated union.
  * Prevents --solver-backend + --distribute-solvers at type level.
+ * 'listed' mode: one solver per model-list entry, uniform prompt unless
+ * --modules is zipped positionally.
  */
 export type SolverConfig =
   | { mode: 'fixed'; backend: string; model: string; reasoning?: ReasoningLevel }
   | { mode: 'distributed'; backends: string[]; modelPerBackend: Map<string, string>; reasoning?: ReasoningLevel }
+  | { mode: 'listed'; slots: ListedSlot[]; reasoning?: ReasoningLevel }
 
 export interface StageConfig {
   backend: string;
@@ -167,7 +180,13 @@ export interface DryRunOutput {
   session: string;
   backend: ResolvedBackendModel;
   stages?: {
-    solver: { mode: string; backends: string[]; models: Record<string, string> };
+    solver: {
+      mode: string;
+      backends: string[];
+      models: Record<string, string>;
+      /** Listed mode: one slot per --solver-models entry (uniform prompt unless --modules zipped) */
+      slots?: Array<{ index: number; backend: string; model: string; reasoning?: string; prompt: 'uniform' | 'module' }>;
+    };
     judge: ResolvedBackendModel;
     verifier: ResolvedBackendModel;
     revision: ResolvedBackendModel;
@@ -236,6 +255,9 @@ export interface RawFlags {
   // Deep mode distribution
   distributeSolvers?: boolean;  // undefined = not set by CLI (use config)
   solverBackends?: string[];
+  
+  // Deep mode listed solver models (per-slot backend/model/reasoning)
+  solverModels?: string[];
   
   // Deep mode module selection
   uniform?: boolean;  // Disable Thompson Sampling, use uniform random selection

@@ -65,6 +65,14 @@ export function deepConfigToCliOptions(config: DeepConfig): CliOptions {
   if (config.stages.solver.mode === 'fixed') {
     options.solverBackend = config.stages.solver.backend;
     options.solverModel = config.stages.solver.model;
+  } else if (config.stages.solver.mode === 'listed') {
+    // Listed mode: per-slot backend/model/reasoning fully pinned at resolve time.
+    // DeepThink receives the slot list; single backend/model options stay unset.
+    options.solverSlots = config.stages.solver.slots.map(s => ({
+      backend: s.backend,
+      model: s.model,
+      reasoning: s.reasoning,
+    }));
   } else {
     options.distributeSolvers = true;
     options.solverBackends = config.stages.solver.backends;

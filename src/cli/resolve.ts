@@ -15,6 +15,7 @@ import type {
   ResolutionSource,
   StageConfig,
   SolverConfig,
+  ListedSlot,
   VerifyConfig,
   StageConfigs,
   ReasoningLevel,
@@ -189,6 +190,82 @@ function resolveSolverConfig(
   aliasReasoning?: ReasoningLevel
 ): SolverConfig {
   const deepConfig = globalConfig?.deep;
+
+  // === Listed mode (--solver-models / DEEP_SOLVER_MODELS) ===
+  // One solver per model entry; backend/model/reasoning fully pinned per slot.
+  // Other solver-shape flags are rejected by detectConflicts; explicit CLI/base
+  // solver-shape intent additionally suppresses config-provided models here.
+  const cliRequestsOtherSolverShape =
+    flags.distributeSolvers !== undefined ||
+    !!flags.solverBackends ||
+    !!flags.solverBackend ||
+    !!flags.solverModel ||
+    !!flags.model;
+  const listedModelEntries = flags.solverModels
+    ?? (cliRequestsOtherSolverShape ? undefined : deepConfig?.solverModels);
+
+  if (listedModelEntries && listedModelEntries.length > 0) {
+    if (listedModelEntries.length > 12) {
+      throw new CliValidationError(
+        `--solver-models supports at most 12 entries, got ${listedModelEntries.length}`,
+        'INVALID_K_VALUE'
+      );
+    }
+
+    // Roster size derives from the list; -k may only confirm it.
+    // (CLI-flag mismatch is caught by detectConflicts; this also covers config lists.)
+    if (flags.k !== undefined && flags.k !== listedModelEntries.length) {
+      throw new CliValidationError(
+        `-k ${flags.k} conflicts with --solver-models (${listedModelEntries.length} models listed)`,
+        'INVALID_K_VALUE',
+        'Remove -k (roster size = list length) or repeat entries to duplicate models'
+      );
+    }
+
+    // Per-slot reasoning precedence:
+    // --solver-reasoning > -r > entry alias hint > DEEP_SOLVER_REASONING > stage default
+    const cliReasoning: ReasoningLevel | undefined =
+      flags.solverReasoning && isValidReasoning(flags.solverReasoning)
+        ? flags.solverReasoning
+        : flags.reasoning && isValidReasoning(flags.reasoning)
+          ? flags.reasoning as ReasoningLevel
+          : undefined;
+    // Config/default layer only (CLI layers handled above; no base alias here):
+    const configOrDefault = resolveStageReasoning(flags, 'solver', globalConfig);
+
+    const slots: ListedSlot[] = listedModelEntries.map((entry) => {
+      const alias = resolveModelAlias(entry);
+      let backend: string;
+      let model: string;
+      let entryAliasReasoning: ReasoningLevel | undefined;
+
+      if (alias) {
+        backend = alias.backend;
+        model = alias.model;
+        // Note: alias reasoning strings pass through as-is (pre-existing unchecked
+        // behavior, e.g. 'max' on sol) — per-slot, not base-wide, in listed mode.
+        entryAliasReasoning = alias.reasoning as ReasoningLevel | undefined;
+      } else {
+        // Prefix inference or unknown — resolveBackendModel throws UNKNOWN_MODEL.
+        const resolved = resolveBackendModel({
+          explicitModel: entry,
+          globalConfig,
+          stage: 'solver',
+        });
+        backend = resolved.backend;
+        model = resolved.model;
+        entryAliasReasoning = resolved.aliasReasoning;
+      }
+
+      return {
+        backend,
+        model,
+        reasoning: cliReasoning ?? entryAliasReasoning ?? configOrDefault,
+      };
+    });
+
+    return { mode: 'listed', slots, reasoning: cliReasoning };
+  }
   
   // Check if solver model is an alias (drives backend choice)
   const solverModelAlias = flags.solverModel ? resolveModelAlias(flags.solverModel) : undefined;
