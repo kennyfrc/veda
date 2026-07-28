@@ -24,7 +24,7 @@ describe('MODEL_ALIASES', () => {
 
   test('contains pi models with reasoning', () => {
     expect(MODEL_ALIASES['glm']).toEqual({ backend: 'pi', model: 'pi/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
-    expect(MODEL_ALIASES['k3']).toEqual({ backend: 'pi', model: 'pi/kimi-code/k3', reasoning: 'high' });
+    expect(MODEL_ALIASES['k3']).toEqual({ backend: 'pi', model: 'pi/neuralwatt/kimi-k3', reasoning: 'high' });
   });
 
   test('contains codex models with reasoning', () => {
@@ -66,7 +66,7 @@ describe('resolveModelAlias', () => {
 
   test('resolves pi aliases with reasoning', () => {
     expect(resolveModelAlias('glm')).toEqual({ backend: 'pi', model: 'pi/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' });
-    expect(resolveModelAlias('k3')).toEqual({ backend: 'pi', model: 'pi/kimi-code/k3', reasoning: 'high' });
+    expect(resolveModelAlias('k3')).toEqual({ backend: 'pi', model: 'pi/neuralwatt/kimi-k3', reasoning: 'high' });
   });
 
   test('resolves codex aliases with reasoning', () => {

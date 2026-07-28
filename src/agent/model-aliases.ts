@@ -19,7 +19,7 @@ export const MODEL_ALIASES: Record<string, ModelAliasTarget> = {
 
   // pi models (via pi CLI)
   'glm': { backend: 'pi', model: 'pi/makora/zai-org/GLM-5.2-NVFP4', reasoning: 'high' },
-  'k3': { backend: 'pi', model: 'pi/kimi-code/k3', reasoning: 'high' },
+  'k3': { backend: 'pi', model: 'pi/neuralwatt/kimi-k3', reasoning: 'high' },
   'sol': { backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'max' },
 };
 
