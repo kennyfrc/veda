@@ -27,9 +27,8 @@ Veda's deep mode runs parallel solvers, each using a different strategy. A judge
 ## Quick Start
 
 ```bash
-# Install
-bun install && bun run build
-cp dist/veda ~/.local/bin/
+# Install (requires bun: https://bun.sh)
+npm install -g veda-ts
 
 # Basic usage
 veda "What is the CAP theorem?"
@@ -40,10 +39,23 @@ veda -m opus "Explain this code"          # Auto-selects claude-code backend
 veda deep "Best architecture for real-time sync?"
 ```
 
+<details>
+<summary>Build from source</summary>
+
+```bash
+git clone https://github.com/kennyfrc/veda.git
+cd veda/veda-ts
+bun install && bun run build
+cp dist/veda ~/.local/bin/
+```
+
+</details>
+
 ## Install Agent Skills
 
-Veda bundles three [Agent Skills](https://agentskills.io/specification) (`veda-plan`,
-`veda-plan-and-implement`, `veda-review`) that teach coding agents how to collaborate
+Veda bundles five [Agent Skills](https://agentskills.io/specification) (`veda-plan`,
+`veda-plan-and-implement`, `veda-deep-plan`, `veda-design-implement-review`,
+`veda-review`) that teach coding agents how to collaborate
 with the Navigator / Reviewer models. One command installs them into the directories
 read by **Pi**, **OpenAI Codex CLI**, and **Claude Code**:
 
