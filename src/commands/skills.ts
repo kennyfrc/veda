@@ -22,6 +22,7 @@ import { mkdir, writeFile, rm, readdir, readlink, symlink, lstat } from 'fs/prom
 import { existsSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { getAgentSkillsDir, getClaudeSkillsDir, getHomeDir } from '../util/paths';
+import { pickDefaultModel } from '../agent/detect';
 
 // =============================================================================
 // Skill registry
@@ -260,9 +261,14 @@ export async function handleSkills(
 ): Promise<void> {
 	switch (subcommand) {
 		case 'install': {
+			// If no model was passed, detect it so skills render with a real
+			// default instead of leaving literal {{model}} placeholders.
+			// (veda init passes the model explicitly; `veda skills install`
+			// run standalone would otherwise install unrendered skills.)
+			const resolvedModel = model ?? pickDefaultModel()?.model;
 			let installed = 0, updated = 0, unchanged = 0;
 			for (const name of SKILL_NAMES) {
-				const r = await installSkill(name, model);
+				const r = await installSkill(name, resolvedModel);
 				if (r.status === 'installed') installed++;
 				else if (r.status === 'updated') updated++;
 				else unchanged++;

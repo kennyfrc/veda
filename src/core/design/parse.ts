@@ -25,11 +25,21 @@ import type {
 /** Match the outermost <program ...>...</program> block (last one wins). */
 const PROGRAM_RE = /<program\b([^>]*)>([\s\S]*?)<\/program>/gi;
 
+/** Decode the minimal XML entity set we care about. */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
 /** Extract a single attribute value: name="value" or name='value'. */
 function attr(tag: string, name: string): string | undefined {
   const re = new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, 'i');
   const m = tag.match(re);
-  return m ? (m[2] ?? m[3] ?? '') : undefined;
+  return m ? decodeEntities(m[2] ?? m[3] ?? '') : undefined;
 }
 
 /** Find all matches of a child element, handling both paired and self-closing forms. */
@@ -60,9 +70,9 @@ function selfClosing(xml: string, tag: string): { attrs: string }[] {
   return out;
 }
 
-/** Trim a block's body and collapse internal blank lines. */
+/** Trim a block's body, collapse internal blank lines, and decode entities. */
 function clean(body: string): string {
-  return body.replace(/\r\n/g, '\n').split('\n').map(l => l.trim()).filter(Boolean).join('\n').trim();
+  return decodeEntities(body.replace(/\r\n/g, '\n').split('\n').map(l => l.trim()).filter(Boolean).join('\n').trim());
 }
 
 function parseLayout(xml: string): DesignFile[] {
@@ -102,10 +112,13 @@ function parseSignatures(xml: string): DesignSignature[] {
       name: attr(p.attrs, 'name') ?? '',
       type: attr(p.attrs, 'type') ?? '',
     })).filter(p => p.name);
-    const ret = s.body.match(/<returns\b([^>]*)>([\s\S]*?)<\/returns>/i);
-    const returns = ret
-      ? { type: attr(ret[1], 'type') ?? '', description: clean(ret[2]) || undefined }
-      : undefined;
+    const retPaired = s.body.match(/<returns\b([^>]*)>([\s\S]*?)<\/returns>/i);
+    const retSelfClose = s.body.match(/<returns\b([^>]*?)\/>/i);
+    const returns = retPaired
+      ? { type: attr(retPaired[1], 'type') ?? '', description: clean(retPaired[2]) || undefined }
+      : retSelfClose
+        ? { type: attr(retSelfClose[1], 'type') ?? '' }
+        : undefined;
     return {
       name: attr(s.attrs, 'name') ?? '',
       file: attr(s.attrs, 'file') ?? '',
