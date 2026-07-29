@@ -45,19 +45,20 @@ veda init                          # first-time setup: installs agent skills for
 #
 #    After `veda init`, your agent (pi / codex / claude) auto-discovers the
 #    bundled skills. The two you'll reach for most:
-#      veda-plan                — align on a plan with the Navigator (no execution)
-#      veda-plan-and-implement  — align, then carry out the plan
+#      /veda:plan                — align on a plan with the Navigator (no execution)
+#      /veda:plan-and-implement  — align, then carry out the plan
 #
-#    Pretend: a multi-tenant API needs a rate limiter. Tell your agent which
-#    skill to use; it drives veda under the hood.
+#    Pretend: a multi-tenant API needs a rate limiter — fairness, burst
+#    tolerance, Redis vs in-memory tradeoffs. Type the slash command; your
+#    agent shares your code and drives veda under the hood:
 #
-#      You: "use veda-plan to design a per-tenant rate limiter — fairness,
-#            burst tolerance, Redis vs in-memory tradeoffs"
+#      /veda:plan design a per-tenant rate limiter (fairness, burst tolerance, Redis vs in-memory)
 #        → veda -S plan-rate-limiter sel add src/
 #        → veda -S plan-rate-limiter -p navigator-plan '...'
 #
-#    Once the plan holds up, implement it:
-#      You: "use veda-plan-and-implement on the rate-limiter plan"
+#    Iterate with /veda:plan until the plan holds up, then ship it:
+#
+#      /veda:plan-and-implement the rate-limiter plan
 #        → veda -S impl-rate-limiter -p navigator-plan '...'
 ```
 
