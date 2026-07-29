@@ -8,7 +8,7 @@ A CLI oracle your coding agent consults for planning and review.
 
 Frontier models are expensive. Fable 5 runs at $10/$50 per million tokens. Sol runs at $5/$30. K3 runs at $3/$15. These are the models you want for planning, debugging, and review. They are too expensive to drive every token of every coding session.
 
-Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.40/$4.40) as your main driver in the harness of your choice (Claude Code, Codex, Pi, or any agent that can shell out to a CLI). Then ask it to use veda to consult the expensive models only when it matters. One call to plan. One to design. One to review.
+Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.40/$4.40) as your main driver in the harness of your choice (Claude Code, Codex, Pi, or any agent that can shell out to a CLI). Then ask it to use veda to consult the expensive models only when it matters.
 
 The driver writes the code. Veda brings in frontier intelligence only where it earns its cost.
 
