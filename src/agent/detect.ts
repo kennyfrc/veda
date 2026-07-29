@@ -49,8 +49,8 @@ const BACKEND_DEFAULT_MODEL: Record<string, DefaultModel> = {
   'pi':          { model: 'pi/fireworks/accounts/fireworks/models/kimi-k3', backend: 'pi' },
 };
 
-/** Detection priority: claude → codex → droid → pi. */
-const DETECTION_ORDER = ['claude-code', 'codex', 'droid', 'pi'];
+/** Detection priority: codex → claude → pi → droid. */
+const DETECTION_ORDER = ['codex', 'claude-code', 'pi', 'droid'];
 
 /**
  * Check whether a binary is on PATH. Uses a shell `command -v` so it
