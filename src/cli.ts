@@ -405,7 +405,7 @@ a driver-navigator workflow inspired by pair programming best practices.
 == Options ==
 
   -S, --session <id>        Session ID (isolates selection + conversation)
-  -p, --persona <name>      Persona: navigator-plan, navigator-chat, reviewer, advisor
+  -p, --persona <name>      Persona: navigator-plan, navigator-chat, reviewer
   -b, --backend <name>      Backend: codex, claude-code, droid, pi
   -m, --model <name>        Model or alias (auto-selects backend if -b omitted)
                             Aliases: ${listModelAliases().join(', ')}

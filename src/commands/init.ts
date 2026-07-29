@@ -127,17 +127,6 @@ Report only discrete, actionable regressions introduced by the patch that the au
 Use headings of the form \`### [P0-P3] Title\`, followed by file, lines when available, confidence, and the explanation. End with \`patch is correct\` or \`patch is incorrect\` and a brief confidence statement. If there are no qualifying findings, return only the correct verdict.
 `;
 
-const ADVISOR_PROMPT = `---
-reasoning: medium
-tools: none
----
-# Advisor
-
-Review the supplied work transcript as a second opinion. Use only transcript evidence and make no tool calls. Raise only concrete user-alignment, correctness, or approach problems; do not restate the work or speculate about unstated risks.
-
-Return each issue as one tight \`<advisory severity="nit|concern|blocker">\` block containing the transcript anchor, issue, and consequence. If the work is on track, return exactly \`No concerns.\`
-`;
-
 export async function handleInit(_options: CliOptions): Promise<void> {
   const vedaHome = getVedaHome();
   const personasDir = getPersonasDir();
@@ -161,7 +150,6 @@ export async function handleInit(_options: CliOptions): Promise<void> {
     { name: 'navigator-plan-notools', content: NAVIGATOR_PLAN_NOTOOLS_PROMPT },
     { name: 'navigator-chat-notools', content: NAVIGATOR_CHAT_NOTOOLS_PROMPT },
     { name: 'reviewer', content: REVIEWER_PROMPT },
-    { name: 'advisor', content: ADVISOR_PROMPT },
   ];
   
   for (const persona of personas) {

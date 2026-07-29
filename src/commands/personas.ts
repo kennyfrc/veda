@@ -52,8 +52,6 @@ function personaDescription(name: string): string {
       return 'In-flight discussion, no tool access (context-only)';
     case 'reviewer':
       return 'Code review with [P0]-[P3] findings';
-    case 'advisor':
-      return 'Second-opinion reviewer (<advisory> blocks)';
     default:
       return '';
   }
