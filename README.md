@@ -53,13 +53,10 @@ veda init                          # first-time setup: installs agent skills for
 #    agent shares your code and drives veda under the hood:
 #
 #      /veda:plan design a per-tenant rate limiter (fairness, burst tolerance, Redis vs in-memory)
-#        → veda -S plan-rate-limiter sel add src/
-#        → veda -S plan-rate-limiter -p navigator-plan '...'
 #
 #    Iterate with /veda:plan until the plan holds up, then ship it:
 #
 #      /veda:plan-and-implement the rate-limiter plan
-#        → veda -S impl-rate-limiter -p navigator-plan '...'
 ```
 
 After `veda init`, your driver agent (pi, codex, or claude) auto-discovers the bundled skills (`veda-plan`, `veda-plan-and-implement`, `veda-deep-plan`, `veda-design-implement-review`, `veda-review`) and can invoke veda on its own. Run `veda skills list` to verify they installed.
