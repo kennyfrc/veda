@@ -1,20 +1,28 @@
 # veda-ts
 
-TypeScript CLI for AI-assisted development with multi-backend support and deep reasoning.
+Pair your driving AI agent with a CLI-based navigator agent from codex, claude, or pi.
 
 ## Motivation
 
-I wanted a subagent that does heavy thinking. Something that can take as long as it needs to—you use it sparingly. Good examples are architectural planning or debugging hard problems.
+### Frontier intelligence is not too cheap to meter
 
-Stuff like GPT High was not enough for me. I needed something closer to GPT Pro, Gemini Deepthink, Grok Heavy, or Kimi K2 Heavy—where you do multiple rollouts and converge on the right answer.
+Frontier models are expensive. Fable 5 runs at $10/$50 per million tokens. Sol runs at $5/$30. K3 runs at $3/$15. These are the models you want for planning, debugging, and review. They are too expensive to drive every token of every coding session.
 
-So I built my own, inspired by a few papers:
+Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.40/$4.40) as your main driver in the harness of your choice — Claude Code, Codex, Pi, or any agent that can shell out to a CLI. Then ask it to use veda to consult the expensive models only when it matters: one call to plan, one call to design, one call to review.
+
+The driver writes the code. Veda brings in frontier intelligence only where it earns its cost.
+
+Veda is that consultation channel. It wraps codex, claude-code, droid, and pi behind personas (navigator-plan, navigator-plan-design, reviewer). Your driver can ask a frontier model to plan or review without handing over the steering wheel.
+
+### Heavy thinking, based on a few academic papers
+
+Sometimes a single model call is not enough. For the hardest problems — architectural design, subtle bugs, decisions with no obvious answer — you want several independent attempts that converge on the right answer.
+
+Veda's deep mode runs parallel solvers, each using a different strategy. A judge picks the best answer. A verifier kicks in when confidence is low. This is a homegrown Deepthink, inspired by:
 
 - [Self-Consistency](https://arxiv.org/abs/2203.11171) — sample diverse reasoning paths, aggregate the best
 - [Universal Self-Consistency](https://arxiv.org/abs/2311.17311) — use an LLM as judge to select among candidates
 - [Chain-of-Verification](https://arxiv.org/abs/2309.11495) — fact-check outputs before finalizing
-
-Solvers run in parallel, each using a different problem-solving strategy. A judge picks the best answer, and a verifier kicks in when confidence is low. That's basically it—a homegrown Deepthink I can invoke from the terminal.
 
 ## Quick Start
 
