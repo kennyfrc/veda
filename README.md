@@ -8,7 +8,7 @@ A CLI oracle your coding agent consults for planning and review.
 
 Frontier models are expensive. Fable 5 runs at $10/$50 per million tokens. Sol runs at $5/$30. K3 runs at $3/$15. These are the models you want for planning, debugging, and review. They are too expensive to drive every token of every coding session.
 
-Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.40/$4.40) as your main driver in the harness of your choice (Claude Code, Codex, Pi, or any agent that can shell out to a CLI). Then ask it to use veda to consult the expensive models only when it matters: one call to plan, one call to design, one call to review.
+Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.40/$4.40) as your main driver in the harness of your choice (Claude Code, Codex, Pi, or any agent that can shell out to a CLI). Then ask it to use veda to consult the expensive models only when it matters. One call to plan. One to design. One to review.
 
 The driver writes the code. Veda brings in frontier intelligence only where it earns its cost.
 
@@ -16,7 +16,7 @@ Veda is that consultation channel. It wraps codex, claude-code, droid, and pi be
 
 ### Heavy thinking, based on a few academic papers
 
-Sometimes a single model call is not enough. For the hardest problems (architectural design, subtle bugs, decisions with no obvious answer), you want several independent attempts that converge on the right answer.
+Some problems are too hard for one call. Architectural design, subtle bugs, decisions with no clear answer. You want several independent attempts that converge on the right answer.
 
 Veda's deep mode runs parallel solvers, each using a different strategy. A judge picks the best answer. A verifier kicks in when confidence is low. This is a homegrown Deepthink, inspired by:
 
