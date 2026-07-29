@@ -1,6 +1,6 @@
 # veda-ts
 
-Pair your driving AI agent with a CLI-based navigator agent from codex, claude, or pi.
+A CLI oracle your coding agent consults for planning and review.
 
 ## Motivation
 
