@@ -60,6 +60,25 @@ export async function handleRun(
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
   
+  // Program-design auto-attach: when the reviewer persona runs and a
+  // design.json exists for this session, append it as context so the
+  // reviewer can check the implementation against the design's signatures
+  // and invariants. (The veda-design-implement skill relies on this.)
+  const reviewerPersonaName = options.persona ?? defaults.persona;
+  if (reviewerPersonaName === 'reviewer') {
+    const { getSessionDir } = await import('../util/paths');
+    const { existsSync, readFileSync } = await import('fs');
+    const designPath = `${getSessionDir(options.session)}/design.json`;
+    if (existsSync(designPath)) {
+      const designContext = `<program_design>
+${readFileSync(designPath, 'utf-8')}
+</program_design>
+
+Check the implementation against this design's signatures, call stacks, and invariants.`;
+      context = context ? `${context}\n\n${designContext}` : designContext;
+    }
+  }
+  
   // Show progress unless --json mode
   const showProgress = !options.json;
   
@@ -141,6 +160,59 @@ export async function handleRun(
     console.error(`${c.dim('[response]')} ${c.cyan(responsePath)}`);
   }
 
+  // Program-design protocol: when the navigator-design persona responds,
+  // parse and validate any <program> block, then write artifacts to the
+  // session dir for the caller (pi, a human, another agent) to implement.
+  // Veda stays read-only — this only writes to the session dir, never the repo.
+  const personaName = options.persona ?? defaults.persona;
+  let designResult: { ok: boolean; path?: string; errors?: string[] } | undefined;
+  if (personaName === 'navigator-plan-design') {
+    const { parseProgramDesign, validateDesign, writeDesign } =
+      await import('../core/design');
+    const parseResult = parseProgramDesign(response.text);
+    if (parseResult.ok) {
+      const validation = validateDesign(parseResult.design);
+      if (validation.ok) {
+        const paths = await writeDesign(parseResult.design, validation, options.session);
+        designResult = { ok: true, path: paths.xml, errors: [] };
+        if (!options.json) {
+          console.error(`${c.dim('[design]')} ${c.cyan(paths.xml)}`);
+          console.error(`${c.dim('[design]')} ${c.cyan(paths.json)}`);
+        }
+      } else {
+        // Validation failure: print errors, write nothing, exit nonzero.
+        const errorMessages = validation.errors.map(e => `[${e.kind}] ${e.message}`);
+        if (options.json) {
+          console.log(JSON.stringify({
+            text: response.text,
+            sessionId: response.sessionId,
+            usage: response.usage,
+            design: { ok: false, errors: errorMessages },
+          }, null, 2));
+        } else {
+          console.error(`${c.red('[design]')} validation failed:`);
+          for (const msg of errorMessages) {
+            console.error(`  ${c.red(msg)}`);
+          }
+        }
+        process.exit(1);
+      }
+    } else {
+      // No <program> block is a hard failure for this persona.
+      if (options.json) {
+        console.log(JSON.stringify({
+          text: response.text,
+          sessionId: response.sessionId,
+          usage: response.usage,
+          design: { ok: false, errors: ['no <program> block found in response'] },
+        }, null, 2));
+      } else {
+        console.error(`${c.red('[design]')} no <program> block found in response`);
+      }
+      process.exit(1);
+    }
+  }
+
   if (options.output) {
     await Bun.write(options.output, response.text);
     console.error(`Response saved to ${options.output}`);
@@ -152,6 +224,7 @@ export async function handleRun(
       text: response.text,
       sessionId: response.sessionId,
       usage: response.usage,
+      ...(designResult ? { design: designResult } : {}),
     }, null, 2));
   } else {
     console.log(response.text);
