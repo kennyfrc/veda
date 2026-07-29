@@ -94,10 +94,13 @@ describe('persona', () => {
       expect(personas).toEqual([...personas].sort());
     });
 
-    test('returns empty array for non-existent directory', async () => {
+    test('returns embedded personas even for non-existent config directory', async () => {
+      // Embedded personas are always available (batteries-included); a
+      // non-existent config dir just means no user overrides on top.
       const personas = await listPersonas('/nonexistent/path');
-      
-      expect(personas).toEqual([]);
+      expect(personas.length).toBeGreaterThan(0);
+      expect(personas).toContain('navigator-plan');
+      expect(personas).toContain('reviewer');
     });
   });
 

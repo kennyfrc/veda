@@ -36,7 +36,7 @@ describe('veda skills install/uninstall/list', () => {
 		await rm(tempHome, { recursive: true, force: true });
 	});
 
-	test('installSkill writes canonical file + claude symlink for all three skills', async () => {
+	test('installSkill writes canonical file + claude symlink for all bundled skills', async () => {
 		for (const name of SKILL_NAMES) {
 			const r = await installSkill(name);
 			expect(r.status).toBe('installed');
@@ -113,7 +113,7 @@ describe('veda skills install/uninstall/list', () => {
 	test('listSkills reports installed + symlink health after install', async () => {
 		for (const name of SKILL_NAMES) await installSkill(name);
 		const statuses = await listSkills();
-		expect(statuses).toHaveLength(3);
+		expect(statuses).toHaveLength(SKILL_NAMES.length);
 		for (const s of statuses) {
 			expect(s.installed).toBe(true);
 			expect(s.symlinkOk).toBe(true);

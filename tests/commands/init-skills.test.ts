@@ -4,7 +4,7 @@ import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { handleInit } from '../../src/commands/init';
-import { listSkills } from '../../src/commands/skills';
+import { listSkills, SKILL_NAMES } from '../../src/commands/skills';
 
 describe('veda init installs skills', () => {
 	let tempHome: string;
@@ -26,7 +26,7 @@ describe('veda init installs skills', () => {
 		await rm(tempHome, { recursive: true, force: true });
 	});
 
-	test('init creates personas AND installs all three skills', async () => {
+	test('init creates personas AND installs all bundled skills', async () => {
 		// silence init's console output
 		const origLog = console.log;
 		console.log = () => {};
@@ -41,7 +41,7 @@ describe('veda init installs skills', () => {
 
 		// skills installed to ~/.agents/skills + ~/.claude/skills symlink
 		const statuses = await listSkills();
-		expect(statuses).toHaveLength(3);
+		expect(statuses).toHaveLength(SKILL_NAMES.length);
 		for (const s of statuses) {
 			expect(s.installed).toBe(true);
 			expect(s.symlinkOk).toBe(true);

@@ -1,16 +1,54 @@
 {
   "name": "veda-ts",
   "version": "0.71.0",
-  "description": "AI CLI wrapper with multi-backend support and deep reasoning",
+  "description": "Pair your driving AI agent with a CLI-based navigator agent from codex, claude, or pi.",
   "type": "module",
+  "license": "MIT",
+  "author": "kennyfrc",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kennyfrc/veda.git",
+    "directory": "veda-ts"
+  },
+  "homepage": "https://github.com/kennyfrc/veda/tree/master/veda-ts",
+  "bugs": {
+    "url": "https://github.com/kennyfrc/veda/issues"
+  },
+  "keywords": [
+    "ai",
+    "cli",
+    "agent",
+    "pair-programming",
+    "navigator",
+    "deep-thinking",
+    "codex",
+    "claude",
+    "llm",
+    "code-review"
+  ],
+  "bin": {
+    "veda": "bin/veda.js"
+  },
   "main": "src/index.ts",
+  "files": [
+    "bin/",
+    "src/",
+    "personas/",
+    ".agents/skills/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "bun": ">=1.1.0"
+  },
   "scripts": {
     "dev": "bun run src/index.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "build": "bun build --compile --outfile dist/veda src/index.ts && ln -sf $(pwd)/dist/veda /usr/local/bin/veda",
-    "build:prod": "bun build --compile --minify --outfile dist/veda src/index.ts && ln -sf $(pwd)/dist/veda /usr/local/bin/veda",
-    "typecheck": "tsc --noEmit"
+    "build": "bun build --compile --outfile dist/veda src/index.ts",
+    "build:prod": "bun build --compile --minify --outfile dist/veda src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run typecheck && bun test"
   },
   "dependencies": {
     "yaml": "^2.8.2"
