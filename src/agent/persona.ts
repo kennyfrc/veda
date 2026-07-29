@@ -5,6 +5,43 @@ import type { ReasoningLevel, AgentConfig, SandboxMode, GlobalConfig } from './c
 import { resolveModel, resolveReasoning } from './config';
 import { SANDBOX_NOTICE } from './sandbox';
 
+// Embedded (batteries-included) personas. These ship in the binary and are
+// the default source — no `veda init` required. Users can override any of
+// them by placing an AGENTS.md at ~/.config/veda/personas/<name>/AGENTS.md,
+// or add brand-new personas there.
+// (Mirrors the skills.ts embedding pattern: `import ... with { type: 'file' }`
+// resolves to a path that Bun embeds into the compiled binary.)
+import navigatorPlanAgent from '../../personas/navigator-plan/AGENTS.md' with { type: 'file' };
+import navigatorChatAgent from '../../personas/navigator-chat/AGENTS.md' with { type: 'file' };
+import navigatorPlanNotoolsAgent from '../../personas/navigator-plan-notools/AGENTS.md' with { type: 'file' };
+import navigatorChatNotoolsAgent from '../../personas/navigator-chat-notools/AGENTS.md' with { type: 'file' };
+import reviewerAgent from '../../personas/reviewer/AGENTS.md' with { type: 'file' };
+import navigatorPlanDesignAgent from '../../personas/navigator-plan-design/AGENTS.md' with { type: 'file' };
+
+const EMBEDDED_PERSONA_PATHS: Record<string, string> = {
+  'navigator-plan': navigatorPlanAgent,
+  'navigator-chat': navigatorChatAgent,
+  'navigator-plan-notools': navigatorPlanNotoolsAgent,
+  'navigator-chat-notools': navigatorChatNotoolsAgent,
+  'reviewer': reviewerAgent,
+  'navigator-plan-design': navigatorPlanDesignAgent,
+};
+
+/** Names of all batteries-included personas. */
+export const EMBEDDED_PERSONA_NAMES = Object.keys(EMBEDDED_PERSONA_PATHS);
+
+/** Read an embedded persona's AGENTS.md content, or undefined if not embedded. */
+async function readEmbeddedPersona(name: string): Promise<string | undefined> {
+  const path = EMBEDDED_PERSONA_PATHS[name];
+  if (!path) return undefined;
+  return await Bun.file(path).text();
+}
+
+/** Public alias for init.ts to materialize embedded personas to the config dir. */
+export async function readPersonaForInit(name: string): Promise<string | undefined> {
+  return readEmbeddedPersona(name);
+}
+
 export interface PersonaMetadata {
   reasoning?: ReasoningLevel;
   /** Tool allowlist. An empty array means no tools. */
@@ -83,55 +120,75 @@ export async function loadPersona(name: string, optionsOrBaseDir?: LoadPersonaOp
     ? { baseDir: optionsOrBaseDir }
     : optionsOrBaseDir ?? {};
 
-  const personaDir = getPersonaDir(name, options.baseDir);
-  const agentsPath = join(personaDir, 'AGENTS.md');
-
-  const file = Bun.file(agentsPath);
-  if (!await file.exists()) {
-    throw new Error(`Persona not found: ${name} (expected ${agentsPath})`);
+  // Prefer a user override in the config dir, if present. This lets users
+  // tweak a bundled persona without forking the repo.
+  const configDirPath = join(getPersonaDir(name, options.baseDir), 'AGENTS.md');
+  const configFile = Bun.file(configDirPath);
+  if (await configFile.exists()) {
+    const systemPrompt = await configFile.text();
+    const frontmatterMetadata = parsePersonaMetadata(systemPrompt);
+    const defaultReasoning = options.metadata?.reasoning
+      ?? frontmatterMetadata.reasoning
+      ?? 'medium';
+    return {
+      name,
+      systemPrompt,
+      path: configDirPath,
+      defaultReasoning,
+      tools: options.metadata?.tools ?? frontmatterMetadata.tools,
+      metadata: frontmatterMetadata,
+    };
   }
 
-  const systemPrompt = await file.text();
+  // Otherwise use the embedded (batteries-included) persona.
+  const embedded = await readEmbeddedPersona(name);
+  if (embedded !== undefined) {
+    const frontmatterMetadata = parsePersonaMetadata(embedded);
+    const defaultReasoning = options.metadata?.reasoning
+      ?? frontmatterMetadata.reasoning
+      ?? 'medium';
+    return {
+      name,
+      systemPrompt: embedded,
+      path: EMBEDDED_PERSONA_PATHS[name],
+      defaultReasoning,
+      tools: options.metadata?.tools ?? frontmatterMetadata.tools,
+      metadata: frontmatterMetadata,
+    };
+  }
 
-  // Resolve reasoning level with precedence: param > frontmatter > default
-  const frontmatterMetadata = parsePersonaMetadata(systemPrompt);
-  const defaultReasoning = options.metadata?.reasoning
-    ?? frontmatterMetadata.reasoning
-    ?? 'medium';
-
-  return {
-    name,
-    systemPrompt,
-    path: agentsPath,
-    defaultReasoning,
-    tools: options.metadata?.tools ?? frontmatterMetadata.tools,
-    metadata: frontmatterMetadata,
-  };
+  // Not bundled and not in config.
+  throw new Error(`Persona not found: ${name} (expected ${configDirPath}, or a bundled persona of that name)`);
 }
 
 export async function listPersonas(baseDir?: string): Promise<string[]> {
+  // Merge embedded (batteries-included) personas with any user-defined ones
+  // in the config dir. Config-dir entries can override embedded names.
+  const configNames: string[] = [];
   const personasDir = getPersonasDir(baseDir);
-  
+
   try {
     const entries = await readdir(personasDir, { withFileTypes: true });
-    const personas: string[] = [];
-    
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const agentsPath = join(personasDir, entry.name, 'AGENTS.md');
         if (await Bun.file(agentsPath).exists()) {
-          personas.push(entry.name);
+          configNames.push(entry.name);
         }
       }
     }
-    
-    return personas.sort();
   } catch {
-    return [];
+    // config dir may not exist yet — that's fine, embedded personas still work
   }
+
+  // Union, config-dir names taking precedence (they're overrides), sorted.
+  const merged = Array.from(new Set([...EMBEDDED_PERSONA_NAMES, ...configNames]));
+  return merged.sort();
 }
 
 export async function personaExists(name: string, baseDir?: string): Promise<boolean> {
+  // Exists if it's embedded OR present in the config dir.
+  if (EMBEDDED_PERSONA_PATHS[name] !== undefined) return true;
   const agentsPath = join(getPersonaDir(name, baseDir), 'AGENTS.md');
   return await Bun.file(agentsPath).exists();
 }
