@@ -26,18 +26,31 @@ Veda's deep mode runs parallel solvers, each using a different strategy. A judge
 
 ## Quick Start
 
+## Prerequisites
+
+- **[Bun](https://bun.sh)** runtime (`curl -fsSL https://bun.sh/install | bash`)
+- **A backend CLI**, installed and authenticated:
+  - [codex](https://github.com/openai/codex), [claude-code](https://docs.anthropic.com/en/docs/claude-code/overview), [pi](https://github.com/jetdraft-pi), or [droid](https://github.com/droid-ai/droid)
+
+## Quick Start
+
 ```bash
-# Install (requires bun: https://bun.sh)
+# 1. Install
 npm install -g veda-ts
 
-# Basic usage
-veda "What is the CAP theorem?"
-veda -p navigator-plan "Design a caching layer"
-veda -m opus "Explain this code"          # Auto-selects claude-code backend
+# 2. Run in your project
+cd your-project
+veda init                          # first-time setup: installs agent skills for pi/codex/claude
 
-# Deep thinking (parallel solvers + verification)
+# 3. Share your code, then plan with a frontier model
+veda sel add src/                  # give the navigator your code
+veda -p navigator-plan "Add rate limiting to the API"
+
+# Deep thinking for the hardest problems (parallel solvers + judge + verify)
 veda deep "Best architecture for real-time sync?"
 ```
+
+After `veda init`, your driver agent (pi, codex, or claude) auto-discovers the bundled skills (`veda-plan`, `veda-plan-and-implement`, `veda-deep-plan`, `veda-design-implement-review`, `veda-review`) and can invoke veda on its own. Run `veda skills list` to verify they installed.
 
 <details>
 <summary>Build from source</summary>
