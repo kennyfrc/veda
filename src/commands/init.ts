@@ -95,5 +95,31 @@ export async function handleInit(_options: CliOptions): Promise<void> {
   console.log('');
   await handleSkills('install', [], defaultModel?.model);
   
-  console.log(`\nveda initialized at ${vedaHome}`);
+  // Print next-steps guidance to stdout so it travels with piped output.
+  console.log('');
+  console.log('─'.repeat(60));
+  console.log('Next steps');
+  console.log('─'.repeat(60));
+  if (defaultModel) {
+    console.log(`Default model: ${defaultModel.model} (via ${defaultModel.backend})`);
+    console.log(`Saved to config: ${configPath}`);
+    console.log('You can omit -m in commands below; it uses the default.\n');
+  }
+  console.log('Share your code, then plan with a frontier model:');
+  console.log('  veda sel add src/');
+  console.log('  veda -p navigator-plan "Add rate limiting to the API"');
+  console.log('');
+  console.log('Deep thinking for the hardest problems (parallel solvers + judge + verify):');
+  console.log('  veda deep "Best architecture for real-time sync?"');
+  console.log('');
+  console.log('Review your work (reviewer checks diffs + invariants):');
+  console.log('  git diff > /tmp/changes.diff');
+  console.log('  veda sel add /tmp/changes.diff');
+  console.log('  veda -p reviewer "Review my changes"');
+  console.log('');
+  console.log('Skills installed for pi, Codex CLI, and Claude Code:');
+  console.log('  veda-plan, veda-plan-and-implement, veda-deep-plan,');
+  console.log('  veda-design-implement-review, veda-review');
+  console.log('');
+  console.log(`veda initialized at ${vedaHome}`);
 }
