@@ -20,3 +20,6 @@ coverage/
 
 # Design docs / working artifacts (local only, not for origin)
 devdocs/
+
+# Stale docs (superseded by README.md and devdocs/)
+docs/
