@@ -191,10 +191,11 @@ Each entry resolves through the alias/prefix machinery, so backend, model, and p
 ### Use Personas
 
 ```bash
-veda -p navigator-plan "..."   # Planning (high reasoning)
-veda -p navigator-chat "..."   # Discussion (medium reasoning)
-veda -p reviewer "..."         # Code review (high reasoning)
-veda personas                  # List available
+veda -p navigator-plan "..."        # Planning (high reasoning)
+veda -p navigator-plan-design "..." # Plan + program-design protocol (high)
+veda -p navigator-chat "..."        # Discussion (medium reasoning)
+veda -p reviewer "..."              # Code review (high reasoning)
+veda personas                      # List available
 ```
 
 ## Architecture
@@ -338,7 +339,7 @@ veda deep [options] <prompt>
 
 Options:
   -S, --session <id>     Session ID (or VEDA_SESSION env)
-  -p, --persona <name>   navigator-plan|navigator-chat|reviewer
+  -p, --persona <name>   navigator-plan-design|navigator-plan|navigator-chat|reviewer
   -b, --backend <name>   codex|claude-code|droid|pi
   -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|glm-5.2|makora|pi/<provider>/<model-id>)
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
