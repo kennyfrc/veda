@@ -13,14 +13,15 @@ plus a Markdown body of instructions.
 | --- | --- | --- |
 | `veda-plan` | `/veda:plan` | Align on a plan with Navigator **before** implementing. No execution. |
 | `veda-plan-and-implement` | `/veda:plan-and-implement` | Align on a plan, then **execute** it. Navigator has read-only tools. |
-| `veda-design-implement` | `/veda:design-implement` | Full plan + program design + implement + review cycle. Fused plan+design in one call. |
+| `veda-deep-plan` | `/veda:deep-plan` | Plan the **hardest** problems with Deep Thinking (parallel solvers + judge + verifier). No execution. |
+| `veda-design-implement-review` | `/veda:design-implement-review` | Full plan + program design + implement + review cycle. Fused plan+design in one call. |
 | `veda-review` | `/veda:review` | Mandatory **final** review-fix loop with the Reviewer model. Not for mid-implementation. |
 
 ## Installing the skills
 
 ### From a Veda install (recommended)
 
-`veda` bundles the four skills and can materialize them into the cross-agent discovery
+`veda` bundles the five skills and can materialize them into the cross-agent discovery
 directories. Once `veda` is installed on your machine:
 
 ```bash
@@ -55,7 +56,8 @@ The canonical skill source lives in `.agents/skills/`:
 .agents/skills/
 ├── veda-plan/SKILL.md
 ├── veda-plan-and-implement/SKILL.md
-├── veda-design-implement/SKILL.md
+├── veda-deep-plan/SKILL.md
+├── veda-design-implement-review/SKILL.md
 └── veda-review/SKILL.md
 ```
 
@@ -88,7 +90,7 @@ cat ~/.jdc/agent/old-docs/veda.md
 
 - Skill `name` values use lowercase + hyphens only (spec rule). The `/veda:plan` style labels
   in docs are descriptive; the actual discoverable names are `veda-plan`,
-  `veda-plan-and-implement`, `veda-design-implement-review`, and `veda-review`.
+  `veda-plan-and-implement`, `veda-deep-plan`, `veda-design-implement-review`, and `veda-review`.
 - Keep `SKILL.md` under 500 lines; move long reference material into a `references/` subdir.
 - The `~/.agents/skills/` location is a *de-facto cross-agent convention* (not mandated by
   the agentskills.io spec, which only defines the `SKILL.md` format) — Pi and Codex both
