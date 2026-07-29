@@ -41,12 +41,24 @@ npm install -g veda-ts
 cd your-project
 veda init                          # first-time setup: installs agent skills for pi/codex/claude
 
-# 3. Share your code, then plan with a frontier model
-veda sel add src/                  # give the navigator your code
-veda -p navigator-plan "Add rate limiting to the API"
-
-# Deep thinking for the hardest problems (parallel solvers + judge + verify)
-veda deep "Best architecture for real-time sync?"
+# 3. Hand a hard problem to your driver agent through a skill
+#
+#    After `veda init`, your agent (pi / codex / claude) auto-discovers the
+#    bundled skills. The two you'll reach for most:
+#      veda-plan                — align on a plan with the Navigator (no execution)
+#      veda-plan-and-implement  — align, then carry out the plan
+#
+#    Pretend: a multi-tenant API needs a rate limiter. Tell your agent which
+#    skill to use; it drives veda under the hood.
+#
+#      You: "use veda-plan to design a per-tenant rate limiter — fairness,
+#            burst tolerance, Redis vs in-memory tradeoffs"
+#        → veda -S plan-rate-limiter sel add src/
+#        → veda -S plan-rate-limiter -p navigator-plan '...'
+#
+#    Once the plan holds up, implement it:
+#      You: "use veda-plan-and-implement on the rate-limiter plan"
+#        → veda -S impl-rate-limiter -p navigator-plan '...'
 ```
 
 After `veda init`, your driver agent (pi, codex, or claude) auto-discovers the bundled skills (`veda-plan`, `veda-plan-and-implement`, `veda-deep-plan`, `veda-design-implement-review`, `veda-review`) and can invoke veda on its own. Run `veda skills list` to verify they installed.
