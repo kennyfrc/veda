@@ -1,5 +1,5 @@
 ---
-name: veda-design-implement
+name: veda-design-implement-review
 description: Plan, design, implement, and review with Veda. Uses navigator-plan-design (a fused persona that produces the plan AND the structured XML program design in one call), then you implement against the design, then the reviewer checks the implementation against the design's signatures and invariants. Use when you want a full plan-design-implement-review cycle with a machine-checkable design handoff.
 argument-hint: "[veda-flags]"
 ---

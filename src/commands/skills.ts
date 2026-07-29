@@ -27,7 +27,7 @@ import { getAgentSkillsDir, getClaudeSkillsDir, getHomeDir } from '../util/paths
 // Skill registry
 // =============================================================================
 
-export const SKILL_NAMES = ['veda-plan', 'veda-plan-and-implement', 'veda-design-implement', 'veda-review'] as const;
+export const SKILL_NAMES = ['veda-plan', 'veda-plan-and-implement', 'veda-design-implement-review', 'veda-review'] as const;
 export type SkillName = (typeof SKILL_NAMES)[number];
 
 // Embedded asset imports. Under `bun build --compile` these are baked into the
@@ -35,13 +35,13 @@ export type SkillName = (typeof SKILL_NAMES)[number];
 // way Bun.file(...).text() yields the content at runtime.
 import vedaPlanSkill from '../../.agents/skills/veda-plan/SKILL.md' with { type: 'file' };
 import vedaPlanImplSkill from '../../.agents/skills/veda-plan-and-implement/SKILL.md' with { type: 'file' };
-import vedaDesignImplSkill from '../../.agents/skills/veda-design-implement/SKILL.md' with { type: 'file' };
+import vedaDesignImplSkill from '../../.agents/skills/veda-design-implement-review/SKILL.md' with { type: 'file' };
 import vedaReviewSkill from '../../.agents/skills/veda-review/SKILL.md' with { type: 'file' };
 
 const EMBEDDED_SKILL_PATHS: Record<SkillName, string> = {
 	'veda-plan': vedaPlanSkill,
 	'veda-plan-and-implement': vedaPlanImplSkill,
-	'veda-design-implement': vedaDesignImplSkill,
+	'veda-design-implement-review': vedaDesignImplSkill,
 	'veda-review': vedaReviewSkill,
 };
 

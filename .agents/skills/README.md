@@ -88,7 +88,7 @@ cat ~/.jdc/agent/old-docs/veda.md
 
 - Skill `name` values use lowercase + hyphens only (spec rule). The `/veda:plan` style labels
   in docs are descriptive; the actual discoverable names are `veda-plan`,
-  `veda-plan-and-implement`, `veda-design-implement`, and `veda-review`.
+  `veda-plan-and-implement`, `veda-design-implement-review`, and `veda-review`.
 - Keep `SKILL.md` under 500 lines; move long reference material into a `references/` subdir.
 - The `~/.agents/skills/` location is a *de-facto cross-agent convention* (not mandated by
   the agentskills.io spec, which only defines the `SKILL.md` format) — Pi and Codex both
