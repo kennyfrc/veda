@@ -28,7 +28,6 @@ Veda's deep mode runs parallel solvers, each using a different strategy. A judge
 
 ## Prerequisites
 
-- **[Bun](https://bun.sh)** runtime (`curl -fsSL https://bun.sh/install | bash`)
 - **A backend CLI**, installed and authenticated:
   - [codex](https://github.com/openai/codex), [claude-code](https://docs.anthropic.com/en/docs/claude-code/overview), [pi](https://github.com/jetdraft-pi), or [droid](https://github.com/droid-ai/droid)
 

@@ -27,5 +27,5 @@ docs/
 # Legacy prompt templates (superseded by .agents/skills/)
 prompts/
 
-# One-off scripts (migration utilities, not part of the build)
-scripts/
+# Cross-compiled platform binaries (build artifacts, ~60MB each)
+platform/*/bin/
