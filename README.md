@@ -4,7 +4,7 @@ A CLI oracle your coding agent consults for planning and review.
 
 ## Motivation
 
-### Frontier intelligence is not too cheap to meter
+### Frontier intelligence is ridiculously priced
 
 Frontier models are expensive. Fable 5 runs at $10/$50 per million tokens. Sol runs at $5/$30. K3 runs at $3/$15. These are the models you want for planning, debugging, and review. They are too expensive to drive every token of every coding session.
 
