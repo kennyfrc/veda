@@ -16,3 +16,6 @@ bun.lockb
 
 # Test coverage
 coverage/
+
+# Design docs / working artifacts (local only, not for origin)
+devdocs/
