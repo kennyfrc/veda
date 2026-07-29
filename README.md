@@ -8,7 +8,7 @@ Pair your driving AI agent with a CLI-based navigator agent from codex, claude, 
 
 Frontier models are expensive. Fable 5 runs at $10/$50 per million tokens. Sol runs at $5/$30. K3 runs at $3/$15. These are the models you want for planning, debugging, and review. They are too expensive to drive every token of every coding session.
 
-Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.40/$4.40) as your main driver in the harness of your choice — Claude Code, Codex, Pi, or any agent that can shell out to a CLI. Then ask it to use veda to consult the expensive models only when it matters: one call to plan, one call to design, one call to review.
+Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.40/$4.40) as your main driver in the harness of your choice (Claude Code, Codex, Pi, or any agent that can shell out to a CLI). Then ask it to use veda to consult the expensive models only when it matters: one call to plan, one call to design, one call to review.
 
 The driver writes the code. Veda brings in frontier intelligence only where it earns its cost.
 
@@ -16,13 +16,13 @@ Veda is that consultation channel. It wraps codex, claude-code, droid, and pi be
 
 ### Heavy thinking, based on a few academic papers
 
-Sometimes a single model call is not enough. For the hardest problems — architectural design, subtle bugs, decisions with no obvious answer — you want several independent attempts that converge on the right answer.
+Sometimes a single model call is not enough. For the hardest problems (architectural design, subtle bugs, decisions with no obvious answer), you want several independent attempts that converge on the right answer.
 
 Veda's deep mode runs parallel solvers, each using a different strategy. A judge picks the best answer. A verifier kicks in when confidence is low. This is a homegrown Deepthink, inspired by:
 
-- [Self-Consistency](https://arxiv.org/abs/2203.11171) — sample diverse reasoning paths, aggregate the best
-- [Universal Self-Consistency](https://arxiv.org/abs/2311.17311) — use an LLM as judge to select among candidates
-- [Chain-of-Verification](https://arxiv.org/abs/2309.11495) — fact-check outputs before finalizing
+- [Self-Consistency](https://arxiv.org/abs/2203.11171): sample diverse reasoning paths, aggregate the best
+- [Universal Self-Consistency](https://arxiv.org/abs/2311.17311): use an LLM as judge to select among candidates
+- [Chain-of-Verification](https://arxiv.org/abs/2309.11495): fact-check outputs before finalizing
 
 ## Quick Start
 
@@ -150,8 +150,8 @@ veda deep -m opus "..."
 
 Precedence order (highest to lowest):
 1. Per-stage CLI flags (`--judge-model`, `--verifier-backend`, etc.)
-2. Base CLI flags (`-b`, `-m`) — applies to all stages
-3. Config file stage defaults (`DEEP_JUDGE_MODEL`, etc.) — only when no `-b`/`-m`
+2. Base CLI flags (`-b`, `-m`): applies to all stages
+3. Config file stage defaults (`DEEP_JUDGE_MODEL`, etc.): only when no `-b`/`-m`
 4. Global defaults
 
 **Reasoning Precedence:**
@@ -171,8 +171,8 @@ veda deep --solver-reasoning medium --judge-reasoning high "..."
 
 Precedence order (highest to lowest):
 1. Per-stage CLI flags (`--solver-reasoning`, `--judge-reasoning`, etc.)
-2. Base CLI flag (`-r`) — applies to all stages
-3. Config file stage defaults (`DEEP_SOLVER_REASONING`, etc.) — only when no `-r`
+2. Base CLI flag (`-r`): applies to all stages
+3. Config file stage defaults (`DEEP_SOLVER_REASONING`, etc.): only when no `-r`
 4. Stage defaults (solver: medium, judge: medium, verifier: high, revision: high)
 
 **Distribute solvers across multiple backends:**
@@ -186,7 +186,7 @@ Order is deterministic: explicit `--solver-backends` is normalized (trim/lowerca
 
 **Note:** `-m` cannot be used with `--distribute-solvers` across multiple backends (use `--solver-model` instead).
 
-**Listed mode — compare specific models on the same prompt:**
+**Listed mode: compare specific models on the same prompt:**
 ```bash
 # One solver per model; every solver gets the identical prompt (no module rotation)
 veda deep --solver-models sol,k3,fable "Design a rate limiter"
@@ -210,9 +210,9 @@ veda personas                      # List available
 
 ### Core Primitives
 
-The library uses data-oriented primitives—plain data structs with standalone functions:
+The library uses data-oriented primitives (plain data structs with standalone functions):
 
-**LLM Call** — Single model invocation
+**LLM Call**: Single model invocation
 ```typescript
 interface LlmRequest {
   backend: string;
@@ -229,7 +229,7 @@ const response = await runLlm(request);
 console.log(response.text, response.usage);
 ```
 
-**Ensemble** — Parallel LLM calls
+**Ensemble**: Parallel LLM calls
 ```typescript
 const result = await runEnsemble([
   { id: 'solver-1', request: { backend: 'codex', prompt, systemPrompt: '...' } },
@@ -238,7 +238,7 @@ const result = await runEnsemble([
 console.log(result.successful); // Array of response texts
 ```
 
-**Judge** — Select best candidate
+**Judge**: Select best candidate
 ```typescript
 const result = await runJudge({
   backend: 'codex',
@@ -249,7 +249,7 @@ const result = await runJudge({
 console.log(result.selected, result.decision.confidence);
 ```
 
-**Verification** — Chain-of-Verification for fact-checking
+**Verification**: Chain-of-Verification for fact-checking
 ```typescript
 const result = await runVerification({
   backend: 'codex',
