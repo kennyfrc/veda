@@ -1,6 +1,6 @@
 {
   "name": "veda-ts",
-  "version": "0.72.0",
+  "version": "0.72.1",
   "description": "Pair your driving AI agent with a CLI-based navigator agent from codex, claude, or pi.",
   "type": "module",
   "license": "MIT",

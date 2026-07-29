@@ -12,7 +12,7 @@ Run the full cycle: **plan+design → implement → review**. Three stages:
 2. **Implement** — you (the Driver) implement against the design using your native tools. The design's signatures, call stacks, and invariants are the contract.
 3. **Review** with `reviewer` — the reviewer auto-attaches the session's `design.json` and checks the implementation against the design's signatures and invariants.
 
-**Model:** Examples use `-m k3` as the default. Replace `-m k3` with your preferred model or alias. If a `-m`/`-b` (or other veda flags) was passed when this skill was invoked, use those instead of `-m k3` in every `veda` command below. If `-m fable` was passed, use that.
+**Model:** `{{model}}` is auto-detected by `veda init` from your installed harnesses. If a `-m`/`-b` (or other veda flags) was passed when this skill was invoked, use those instead of `-m {{model}}` in every `veda` command below.
 
 **Reuse the same `-S` session name** across all stages so the design artifacts land in the same session directory the reviewer reads.
 
@@ -24,7 +24,7 @@ Use single quotes (`'...'`) for prompts containing backticks:
 # BAD:
 veda -p navigator-plan-design "The function uses `console.log`"
 # GOOD:
-veda -S design-auth-refactor -m k3 -p navigator-plan-design 'The function uses `console.log` to output.'
+veda -S design-auth-refactor -m {{model}} -p navigator-plan-design 'The function uses `console.log` to output.'
 ```
 
 ## Session Naming (Critical for Multi-Agent)
@@ -32,8 +32,8 @@ veda -S design-auth-refactor -m k3 -p navigator-plan-design 'The function uses `
 Format: `design-TASKNAME`.
 
 ```bash
-veda -S design-auth-refactor -m k3 ...    # Full design cycle on auth refactor
-veda -S design-cache-eviction -m k3 ...   # Full design cycle on cache work
+veda -S design-auth-refactor -m {{model}} ...    # Full design cycle on auth refactor
+veda -S design-cache-eviction -m {{model}} ...   # Full design cycle on cache work
 ```
 
 ---
@@ -57,7 +57,7 @@ veda -S design-auth-refactor sel ls   # check token count
 One call. The model produces the plan (prose) and the program design (XML) in the same response.
 
 ```bash
-veda -S design-auth-refactor -m k3 -p navigator-plan-design 'Goal: [what done looks like]. My understanding: [situation + evidence]. Proposed approach: [details]. Non-goals: [scope limits]. Key question: [your real uncertainty]. Produce the plan and the program design. What do you think?'
+veda -S design-auth-refactor -m {{model}} -p navigator-plan-design 'Goal: [what done looks like]. My understanding: [situation + evidence]. Proposed approach: [details]. Non-goals: [scope limits]. Key question: [your real uncertainty]. Produce the plan and the program design. What do you think?'
 ```
 
 **What happens automatically:** when `navigator-plan-design` responds, veda's post-processor:
@@ -75,7 +75,7 @@ cat ~/.config/veda/sessions/design-auth-refactor/design.report
 
 **Review the design yourself before implementing.** Read `design.json`, check the signatures and invariants make sense. If you disagree, resume and ask for a revision:
 ```bash
-veda -S design-auth-refactor -m k3 resume 'The design is missing invariants for session handling. Revise.'
+veda -S design-auth-refactor -m {{model}} resume 'The design is missing invariants for session handling. Revise.'
 ```
 
 ---
@@ -91,7 +91,7 @@ Carry out the design using your native tools. The design's signatures, call stac
 
 ```bash
 # Checkpoint with Navigator mid-implementation if stuck
-veda -S design-auth-refactor -m k3 -p navigator-chat 'Quick question: the design says evict takes (cache, now) but the existing API passes (cache, ttlMs). Should I adapt the caller or change the signature?'
+veda -S design-auth-refactor -m {{model}} -p navigator-chat 'Quick question: the design says evict takes (cache, now) but the existing API passes (cache, ttlMs). Should I adapt the caller or change the signature?'
 ```
 
 - Two similar failures = mandatory Navigator consult before a third attempt
@@ -106,13 +106,13 @@ veda -S design-auth-refactor -m k3 -p navigator-chat 'Quick question: the design
 The reviewer auto-attaches the session's `design.json` and checks the implementation against the design's signatures, call stacks, and invariants.
 
 ```bash
-veda -S design-auth-refactor -m k3 -p reviewer 'Review the implementation against the program design. Check: (1) every signature in design.json is implemented with the correct contract, params, and return type; (2) every invariant holds; (3) the call stacks match the design; (4) no scope creep beyond the layout.'
+veda -S design-auth-refactor -m {{model}} -p reviewer 'Review the implementation against the program design. Check: (1) every signature in design.json is implemented with the correct contract, params, and return type; (2) every invariant holds; (3) the call stacks match the design; (4) no scope creep beyond the layout.'
 ```
 
 **Review-fix loop:** if the reviewer finds [P0]/[P1] issues, fix them and re-review:
 ```bash
 # Fix the issues, then resume the review
-veda -S design-auth-refactor -m k3 resume 'Fixed the [P0] issue: evict now checks maxSize after trimming. Re-review.'
+veda -S design-auth-refactor -m {{model}} resume 'Fixed the [P0] issue: evict now checks maxSize after trimming. Re-review.'
 ```
 
 Only fix [P0]/[P1] high-confidence issues. Skip P2/P3. Loop Review → Fix → Review until the reviewer is satisfied.
@@ -124,7 +124,7 @@ Only fix [P0]/[P1] high-confidence issues. Skip P2/P3. Loop Review → Fix → R
 Each `veda -p navigator-plan-design` / `reviewer` prompt is a high-reasoning model round-trip — 5–10+ minutes. **Run in the background** whenever your harness supports it:
 
 ```bash
-veda -S design-auth-refactor -m k3 -p navigator-plan-design -o /tmp/veda-plan-out.md 'Goal: … What do you think?'
+veda -S design-auth-refactor -m {{model}} -p navigator-plan-design -o /tmp/veda-plan-out.md 'Goal: … What do you think?'
 ```
 
 While the model thinks, keep working: read files, write probes, stage edits. When you need the answer, wait on the job and read the `-o` file.
@@ -145,8 +145,8 @@ When you write your final summary, write it for a reader who did not see any of 
 
 Key commands:
 - `veda -S design-TASKNAME sel add` to build context (quote globs: `"src/*.c"`)
-- `veda -S design-TASKNAME -m k3 -p navigator-plan-design` for Stage 1 (plan + design, one call)
+- `veda -S design-TASKNAME -m {{model}} -p navigator-plan-design` for Stage 1 (plan + design, one call)
 - `~/.config/veda/sessions/design-TASKNAME/design.json` is the machine-checkable design handoff
-- `veda -S design-TASKNAME -m k3 -p navigator-chat` for mid-implementation questions
-- `veda -S design-TASKNAME -m k3 -p reviewer` for Stage 3 (review — auto-attaches design.json)
-- `veda -S design-TASKNAME -m k3 resume` to continue any stage's conversation
+- `veda -S design-TASKNAME -m {{model}} -p navigator-chat` for mid-implementation questions
+- `veda -S design-TASKNAME -m {{model}} -p reviewer` for Stage 3 (review — auto-attaches design.json)
+- `veda -S design-TASKNAME -m {{model}} resume` to continue any stage's conversation

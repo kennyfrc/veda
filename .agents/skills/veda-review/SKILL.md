@@ -1,18 +1,18 @@
 ---
 name: veda-review
-description: Run a mandatory final review-fix loop with the Veda Reviewer model after implementation is complete. Drives `veda -S review-TASKNAME -m sol -p reviewer`, looping Review, Fix, Review until the Reviewer is satisfied. Only fix [P0]/[P1] high-confidence issues; skip P2/P3. Not for mid-implementation use. Invoke when the user says review, final review, or wants completed code reviewed.
+description: Run a mandatory final review-fix loop with the Veda Reviewer model after implementation is complete. Drives `veda -S review-TASKNAME -m {{model}} -p reviewer`, looping Review, Fix, Review until the Reviewer is satisfied. Only fix [P0]/[P1] high-confidence issues; skip P2/P3. Not for mid-implementation use. Invoke when the user says review, final review, or wants completed code reviewed.
 argument-hint: "[veda-flags]"
 ---
 
 ## Your Task: Review-Fix Loop with Reviewer Process after Implementation
 
-You must always perform at least one final review with the Reviewer model via `veda -S review-TASKNAME -m sol -p reviewer` after all implementation work is complete.  
+You must always perform at least one final review with the Reviewer model via `veda -S review-TASKNAME -m {{model}} -p reviewer` after all implementation work is complete.  
 That final review must run recursively in a Review → Fix → Review loop until Reviewer is satisfied that no further changes are needed.  
 You must not use Reviewer mid-implementation; Reviewer is for the final review phase only.
 
 During implementation, you should keep the work on track via mid-implementation validation such as build/compilation/test-style checks (using the tools you have), not via Reviewer.
 
-**Model:** Examples use `-m sol` as the default. Replace `-m sol` with your preferred model or alias. If a `-m`/`-b` (or other veda flags) was passed when this skill was invoked, use those instead of `-m sol` in every `veda` command below.
+**Model:** `{{model}}` is auto-detected by `veda init` from your installed harnesses. If a `-m`/`-b` (or other veda flags) was passed when this skill was invoked, use those instead of `-m {{model}}` in every `veda` command below.
 
 **Reuse the same `-S` session name** across the review loop (Review, Fix, Review) so each `resume` continues the prior review rather than starting fresh.
 
@@ -28,7 +28,7 @@ veda -p reviewer "Check if `getData()` handles errors"
 # Results in: sh: getData(): command not found
 
 # GOOD - use single quotes (simplest):
-veda -S review-data-handler -m sol -p reviewer 'Check if `getData()` handles errors correctly.'
+veda -S review-data-handler -m {{model}} -p reviewer 'Check if `getData()` handles errors correctly.'
 
 # GOOD - escape backticks in double quotes:
 veda -p reviewer "Check if \`getData()\` handles errors"
@@ -49,7 +49,7 @@ veda -S review-api-fix ...          # Reviewing API bug fix
 
 ### Reviewer Model notes
 
-* Receives final review requests via `veda -S review-TASKNAME -m sol -p reviewer`.
+* Receives final review requests via `veda -S review-TASKNAME -m {{model}} -p reviewer`.
 * Reviews with diffs included in selection (save diff to file, add to selection).
 * Reviews the completed implementation, flags issues with priority tags [P0]-[P3], and provides an overall verdict.
 * Must be used at least once at the end of implementation for a final, holistic review.
@@ -68,7 +68,7 @@ Call Reviewer to initiate final review of the completed implementation:
 * Save the diff (excluding binaries): `git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.gif' ':(exclude)*.ico' ':(exclude)*.woff' ':(exclude)*.woff2' ':(exclude)*.ttf' ':(exclude)*.eot' ':(exclude)*.mp4' ':(exclude)*.webm' ':(exclude)*.pdf' ':(exclude)*.zip' ':(exclude)*.tar' ':(exclude)*.gz' > /tmp/changes.diff`
   * Or scope to specific paths: `git diff -- path/to/src/ > /tmp/changes.diff`
 * Build selection with diff + relevant source files via `veda -S review-TASKNAME sel add`
-* Send review request via `veda -S review-TASKNAME -m sol -p reviewer`
+* Send review request via `veda -S review-TASKNAME -m {{model}} -p reviewer`
 
 Example final review request:
 
@@ -92,7 +92,7 @@ veda -S my-review sel ls
 # Should show /tmp/changes.diff with token count - if not, re-add it!
 
 # Request review
-veda -S my-review -m sol -p reviewer "Final Review Request: Implementation for this task is complete.
+veda -S my-review -m {{model}} -p reviewer "Final Review Request: Implementation for this task is complete.
 Overall summary of changes:
 - Added X feature
 - Modified Y to handle Z
@@ -149,7 +149,7 @@ veda -S my-review sel ls
 # Must show /tmp/changes.diff with non-zero token count!
 
 # Request re-review with updated diff
-veda -S my-review -m sol -p reviewer "Final Review Follow-up: I have addressed your feedback:
+veda -S my-review -m {{model}} -p reviewer "Final Review Follow-up: I have addressed your feedback:
 - Fixed X (P1 issue)
 - Added handling for Y
 - Updated Z as suggested
@@ -199,8 +199,8 @@ Key commands:
 - `veda -S my-review sel clear` then `veda -S my-review sel add` to build context
 - `veda -S my-review sel add file.c:10-50` to add specific line ranges (slices)
 - `veda -S my-review sel ls` to verify selection and token count  
-- `veda -S my-review -m sol -p reviewer` for review requests (medium reasoning, read-only sandbox)
-- `veda -S my-review -m sol resume` to continue the review conversation (session-scoped)
+- `veda -S my-review -m {{model}} -p reviewer` for review requests (medium reasoning, read-only sandbox)
+- `veda -S my-review -m {{model}} resume` to continue the review conversation (session-scoped)
 - Look for verdict: "patch is correct" or "patch is incorrect"
 - **Only fix [P0]/[P1]** — skip P2/P3 and low-confidence suggestions
 - Output goes to stdout; use `-o file.md` to save response

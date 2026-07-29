@@ -1,14 +1,14 @@
 ---
 name: veda-plan
-description: Plan work by collaborating with the Veda Navigator model before implementing. Use for planning a refactor, debugging approach, research, analysis, writing, or any course of action. Drives `veda -S plan-TASKNAME -m sol -p navigator-plan` to align on a plan; does not execute. Invoke when the user says plan, discuss, align, or wants to iterate on a plan before coding.
+description: Plan work by collaborating with the Veda Navigator model before implementing. Use for planning a refactor, debugging approach, research, analysis, writing, or any course of action. Drives `veda -S plan-TASKNAME -m {{model}} -p navigator-plan` to align on a plan; does not execute. Invoke when the user says plan, discuss, align, or wants to iterate on a plan before coding.
 argument-hint: "[veda-flags]"
 ---
 
 ## Your Task
 
-Collaborate, discuss, and align with the Navigator model on a plan using `veda -S plan-TASKNAME -m sol -p navigator-plan`. This applies to any kind of work: solving a problem, debugging, research, writing, analysis, or planning a course of action. Navigator has no tool access; everything it knows comes from the files you share via `veda sel add` and what you write in your prompts.
+Collaborate, discuss, and align with the Navigator model on a plan using `veda -S plan-TASKNAME -m {{model}} -p navigator-plan`. This applies to any kind of work: solving a problem, debugging, research, writing, analysis, or planning a course of action. Navigator has no tool access; everything it knows comes from the files you share via `veda sel add` and what you write in your prompts.
 
-**Model:** Examples use `-m sol` as the default. Replace `-m sol` with your preferred model or alias. If a `-m`/`-b` (or other veda flags) was passed when this skill was invoked, use those instead of `-m sol` in every `veda` command below.
+**Model:** `{{model}}` is auto-detected by `veda init` from your installed harnesses. If a `-m`/`-b` (or other veda flags) was passed when this skill was invoked, use those instead of `-m {{model}}` in every `veda` command below.
 
 **Reuse the same `-S` session name** across `navigator-plan` and follow-up `resume`/`navigator-chat` so the conversation continues rather than restarting.
 
@@ -26,7 +26,7 @@ veda -p navigator-plan "The function uses `console.log`"
 # Results in: sh: console.log: command not found
 
 # GOOD - use single quotes (simplest):
-veda -S plan-auth-refactor -m sol -p navigator-plan 'The function uses `console.log` to output.'
+veda -S plan-auth-refactor -m {{model}} -p navigator-plan 'The function uses `console.log` to output.'
 
 # GOOD - escape backticks in double quotes:
 veda -p navigator-plan "The function uses \`console.log\`"
@@ -39,9 +39,9 @@ veda -p navigator-plan "The function uses \`console.log\`"
 **Use a descriptive, contextual session ID** with `-S` to isolate your selection from other concurrent agents. Format: `plan-TASKNAME` where TASKNAME briefly describes the work.
 
 ```bash
-veda -S plan-auth-refactor -m sol ...    # Planning a refactor
-veda -S plan-pricing-research -m sol ... # Researching pricing options
-veda -S plan-launch-doc -m sol ...       # Drafting a launch document
+veda -S plan-auth-refactor -m {{model}} ...    # Planning a refactor
+veda -S plan-pricing-research -m {{model}} ... # Researching pricing options
+veda -S plan-launch-doc -m {{model}} ...       # Drafting a launch document
 ```
 
 ---
@@ -101,12 +101,12 @@ veda -S plan-auth-refactor sel clear
 veda -S plan-auth-refactor sel add "src/auth/" "src/api/users.ts"
 
 # 2. Start planning conversation - commit to a position
-veda -S plan-auth-refactor -m sol -p navigator-plan 'Goal: [what done looks like, and for whom]. My understanding: [situation + evidence]. Proposed approach: [details]. Non-goals: [scope limits]. Key question: [your real uncertainty]. What do you think?'
+veda -S plan-auth-refactor -m {{model}} -p navigator-plan 'Goal: [what done looks like, and for whom]. My understanding: [situation + evidence]. Proposed approach: [details]. Non-goals: [scope limits]. Key question: [your real uncertainty]. What do you think?'
 
 # 3. Continue discussion (session-scoped resume)
-veda -S plan-auth-refactor -m sol resume "What about edge case X?"
+veda -S plan-auth-refactor -m {{model}} resume "What about edge case X?"
 # Or switch to chat mode for back-and-forth
-veda -S plan-auth-refactor -m sol -p navigator-chat "What about edge case X?"
+veda -S plan-auth-refactor -m {{model}} -p navigator-chat "What about edge case X?"
 ```
 
 Confirm alignment before you start executing. **Once aligned, you (the Driver) proceed to execution.** Navigator does not execute; you do.
@@ -123,7 +123,7 @@ After aligning with Navigator:
 - Escalate to the user (via `ask_user`) per the rule above: scope, cost, or direction changes, or input only they can provide
 - You can consult Navigator mid-execution:
   ```bash
-  veda -S plan-auth-refactor -m sol -p navigator-chat "Quick question: should X handle Y this way?"
+  veda -S plan-auth-refactor -m {{model}} -p navigator-chat "Quick question: should X handle Y this way?"
   ```
 
 Before ending your turn, check your last paragraph. If it is a plan, a list of next steps, or a promise about work you have not done ("I'll...", "let me know when..."), do that work now. End your turn only when the task is complete or you are blocked on input only the user can provide.
@@ -137,9 +137,9 @@ Key commands:
 - `veda -S plan-TASKNAME sel add` to build context (quote globs: `"src/*.c"`)
 - `veda -S plan-TASKNAME sel add file.c:10-50` to add line-range slices
 - `veda -S plan-TASKNAME sel ls` to verify selection and token count
-- `veda -S plan-TASKNAME -m sol -p navigator-plan` for initial planning (high reasoning)
-- `veda -S plan-TASKNAME -m sol -p navigator-chat` for follow-up discussion (medium reasoning)
-- `veda -S plan-TASKNAME -m sol resume` to continue a conversation (session-scoped)
+- `veda -S plan-TASKNAME -m {{model}} -p navigator-plan` for initial planning (high reasoning)
+- `veda -S plan-TASKNAME -m {{model}} -p navigator-chat` for follow-up discussion (medium reasoning)
+- `veda -S plan-TASKNAME -m {{model}} resume` to continue a conversation (session-scoped)
 - Output goes to stdout; use `-o file.md` to save response
 
 Do not execute yet; all we want to do is iterate on a solid plan.

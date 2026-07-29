@@ -53,6 +53,9 @@ const EMBEDDED_SKILL_PATHS: Record<SkillName, string> = {
  * Tries the on-disk source first (dev / npm-package distribution), then falls
  * back to the embedded build-time asset (compiled binary). One resolver, both
  * distribution shapes.
+ *
+ * The returned content may contain `{{model}}` placeholders. Call
+ * `renderSkill()` to substitute the detected default model before writing.
  */
 export async function getSkillContent(name: SkillName): Promise<string> {
 	// 1. On-disk source: <this module>/../../.agents/skills/<name>/SKILL.md
@@ -67,6 +70,16 @@ export async function getSkillContent(name: SkillName): Promise<string> {
 	//    time; Bun.file() reads the baked-in content at runtime.
 	const embedded = Bun.file(EMBEDDED_SKILL_PATHS[name]);
 	return await embedded.text();
+}
+
+/**
+ * Render a skill template by replacing `{{model}}` with the given model name.
+ * If no model is provided, the placeholders are left intact (useful for
+ * inspecting the raw template).
+ */
+export function renderSkill(content: string, model?: string): string {
+	if (!model) return content;
+	return content.replaceAll('{{model}}', model);
 }
 
 // =============================================================================
@@ -88,8 +101,8 @@ export interface InstallResult {
  * skill. Overwrites the file if its content changed; re-creates the symlink if
  * missing or pointing elsewhere.
  */
-export async function installSkill(name: SkillName): Promise<InstallResult> {
-	const content = await getSkillContent(name);
+export async function installSkill(name: SkillName, model?: string): Promise<InstallResult> {
+	const content = renderSkill(await getSkillContent(name), model);
 
 	const agentsSkillsRoot = getAgentSkillsDir();
 	const claudeSkillsRoot = getClaudeSkillsDir();
@@ -243,12 +256,13 @@ async function ensureSymlink(linkPath: string, targetDir: string): Promise<void>
 export async function handleSkills(
 	subcommand: string | undefined,
 	_args: string[],
+	model?: string,
 ): Promise<void> {
 	switch (subcommand) {
 		case 'install': {
 			let installed = 0, updated = 0, unchanged = 0;
 			for (const name of SKILL_NAMES) {
-				const r = await installSkill(name);
+				const r = await installSkill(name, model);
 				if (r.status === 'installed') installed++;
 				else if (r.status === 'updated') updated++;
 				else unchanged++;
