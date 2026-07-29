@@ -12,7 +12,7 @@ Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.4
 
 The driver writes the code. Veda brings in frontier intelligence only where it earns its cost.
 
-Veda is that consultation channel. It wraps codex, claude-code, droid, and pi behind personas (navigator-plan, navigator-plan-design, reviewer). Your driver can ask a frontier model to plan or review without handing over the steering wheel.
+Veda is that consultation channel. It wraps codex, claude-code, droid, and pi behind personas (navigator-plan, navigator-plan-design, reviewer).
 
 ### Heavy thinking, based on a few academic papers
 
