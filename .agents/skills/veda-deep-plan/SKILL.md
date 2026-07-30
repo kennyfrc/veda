@@ -1,6 +1,12 @@
 ---
 name: veda-deep-plan
-description: Plan the hardest problems with Veda Deep Thinking — parallel solvers, a judge, and a verifier converge on the best plan. Use when a single planning call is not enough: architectural design, subtle bugs with no obvious cause, decisions with no clear answer. Drives `veda -S deep-TASKNAME -m {{model}} deep "..."`; does not execute. Invoke when the user says deep plan, hard problem, multiple approaches, converge, or wants several independent attempts before committing.
+description: >
+  Plan the hardest problems with Veda Deep Thinking — parallel solvers, a judge, and a
+  verifier converge on the best plan. Use when a single planning call is not enough:
+  architectural design, subtle bugs with no obvious cause, decisions with no clear
+  answer. Drives `veda -S deep-TASKNAME -m {{model}} deep "..."`; does not execute.
+  Invoke when the user says deep plan, hard problem, multiple approaches, converge, or
+  wants several independent attempts before committing.
 argument-hint: "[veda-flags]"
 ---
 
