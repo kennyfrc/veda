@@ -434,8 +434,9 @@ a driver-navigator workflow inspired by pair programming best practices.
   -k <num>                  Parallel solvers (default: 6, max: 12)
   --categories <list>       Reasoning categories (comma-separated)
   --modules <list>           Module specifiers (category/module format)
-  --no-verify               Skip verification
-  --force-verify            Force verification even at high confidence
+  --no-verify               Disable verifier + revision (now the default)
+  --verify                  Run verifier + revision (opt-in; skipped when off)
+  --force-verify            Run verification even at high confidence (implies --verify)
   --trace <file>            Save trace to YAML
   --resume                  Resume from checkpoint
   --distribute-solvers       Distribute solvers across backends (round-robin)

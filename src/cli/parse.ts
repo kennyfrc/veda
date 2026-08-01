@@ -42,6 +42,7 @@ const BOOLEAN_FLAGS = new Set([
   '--no-tools', '-nt',
   '--deep', '-d',
   '--no-verify',
+  '--verify',
   '--force-verify',
   '--distribute-solvers',
   '--uniform',
@@ -341,6 +342,9 @@ function parseBooleanFlag(flags: RawFlags, flag: string): void {
       break;
     case '--no-verify':
       flags.noVerify = true;
+      break;
+    case '--verify':
+      flags.verify = true;
       break;
     case '--force-verify':
       flags.forceVerify = true;

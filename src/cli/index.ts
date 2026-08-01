@@ -344,6 +344,7 @@ function extractFlagsForDryRun(flags: RawFlags): Record<string, unknown> {
   if (flags.categories) result.categories = flags.categories;
   if (flags.modules) result.modules = flags.modules;
   if (flags.noVerify) result.noVerify = true;
+  if (flags.verify) result.verify = true;
   if (flags.forceVerify) result.forceVerify = true;
   if (flags.trace) result.trace = flags.trace;
   if (flags.distributeSolvers) result.distributeSolvers = true;

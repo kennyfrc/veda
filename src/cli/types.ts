@@ -237,6 +237,7 @@ export interface RawFlags {
   categories?: string[];
   modules?: string[];
   noVerify: boolean;
+  verify?: boolean;
   forceVerify: boolean;
   trace?: string;
   

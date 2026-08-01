@@ -15,6 +15,7 @@ const DEEP_ONLY_FLAGS = [
   'categories',
   'modules',
   'noVerify',
+  'verify',
   'forceVerify',
   'trace',
   'solverBackend',
@@ -38,6 +39,7 @@ const FLAG_DISPLAY_NAMES: Record<string, string> = {
   categories: '--categories',
   modules: '--modules',
   noVerify: '--no-verify',
+  verify: '--verify',
   forceVerify: '--force-verify',
   trace: '--trace',
   solverBackend: '--solver-backend',
@@ -194,6 +196,14 @@ function hasFlag(flags: RawFlags, key: string): boolean {
 // =============================================================================
 
 export function detectConflicts(flags: RawFlags): void {
+  // --verify vs --no-verify
+  if (flags.verify && flags.noVerify) {
+    throw new CliValidationError(
+      'Cannot use --verify and --no-verify together',
+      'MUTUALLY_EXCLUSIVE_FLAGS'
+    );
+  }
+
   // --no-verify vs --force-verify
   if (flags.noVerify && flags.forceVerify) {
     throw new CliValidationError(

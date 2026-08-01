@@ -514,7 +514,12 @@ export function resolveVerifyConfig(flags: RawFlags): VerifyConfig {
   if (flags.noVerify) {
     return { enabled: false };
   }
-  return { enabled: true, forced: flags.forceVerify };
+  if (flags.verify || flags.forceVerify) {
+    return { enabled: true, forced: !!flags.forceVerify };
+  }
+  // Off by default — verifier + revision only run when explicitly opted in
+  // with --verify (or --force-verify).
+  return { enabled: false };
 }
 
 // =============================================================================
