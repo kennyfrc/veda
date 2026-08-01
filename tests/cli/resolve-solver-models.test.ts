@@ -28,7 +28,7 @@ describe('resolveSolverConfig — listed mode', () => {
 
     expect(solver.slots).toEqual([
       { backend: 'codex', model: 'gpt-5.6-sol', reasoning: 'max' },
-      { backend: 'pi', model: 'pi/neuralwatt/kimi-k3', reasoning: 'high' },
+      { backend: 'pi', model: 'pi/neuralwatt/kimi-k3', reasoning: 'max' },
       { backend: 'droid', model: 'claude-fable-5', reasoning: 'medium' },
     ]);
   });

@@ -314,7 +314,7 @@ describe('resolveBackendModel', () => {
       expect(result.backend).toBe('pi');
       expect(result.model).toBe('pi/makora/zai-org/GLM-5.2-NVFP4');
       expect(result.source).toEqual({ kind: 'alias', aliasName: 'glm' });
-      expect(result.aliasReasoning).toBe('high');
+      expect(result.aliasReasoning).toBe('xhigh');
     });
 
     test('resolves sol alias to codex backend with reasoning', () => {

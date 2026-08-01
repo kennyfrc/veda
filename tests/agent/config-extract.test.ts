@@ -46,7 +46,7 @@ describe('BackendModelResolver helpers', () => {
       const glm = tryResolveAliasTarget('glm');
       expect(glm?.backend).toBe('pi');
       expect(glm?.model).toBe('pi/makora/zai-org/GLM-5.2-NVFP4');
-      expect(glm?.reasoning).toBe('high');
+      expect(glm?.reasoning).toBe('xhigh');
 
       const sol = tryResolveAliasTarget('sol');
       expect(sol?.backend).toBe('codex');
