@@ -184,6 +184,35 @@ describe('persona', () => {
       expect(reviewer.tools).toEqual([]);
     });
 
+    test('defaults to no tools when neither persona nor CLI grants them', async () => {
+      // navigator-chat test persona declares no tools in frontmatter.
+      const config = await resolveAgentConfig(
+        { persona: 'navigator-chat', backend: 'pi', baseDir: TEST_BASE },
+        defaults
+      );
+      expect(config.tools).toEqual([]);
+      // The no-access sandbox notice must be present to match runtime capability.
+      expect(config.systemPrompt).toContain('Sandbox Notice');
+    });
+
+    test('CLI --tools opt-in overrides the no-tools default', async () => {
+      const config = await resolveAgentConfig(
+        { persona: 'navigator-chat', tools: ['read', 'grep'], backend: 'pi', baseDir: TEST_BASE },
+        defaults
+      );
+      expect(config.tools).toEqual(['read', 'grep']);
+      // No no-tools notice when tools are granted.
+      expect(config.systemPrompt).not.toContain('Sandbox Notice');
+    });
+
+    test('noTools flag forces an empty allowlist even when tools are opted in', async () => {
+      const config = await resolveAgentConfig(
+        { persona: 'navigator-chat', tools: ['read'], noTools: true, backend: 'pi', baseDir: TEST_BASE },
+        defaults
+      );
+      expect(config.tools).toEqual([]);
+    });
+
     test('overrides persona', async () => {
       const config = await resolveAgentConfig(
         { persona: 'navigator-plan', backend: 'codex', baseDir: TEST_BASE },
@@ -200,9 +229,20 @@ describe('persona', () => {
         defaults
       );
       
-      // System prompt is passed through as-is (prepended to input by backend)
-      expect(config.systemPrompt).toBe('Custom prompt');
+      // Tools default to none, so the no-tools sandbox notice is prepended.
+      expect(config.tools).toEqual([]);
+      expect(config.systemPrompt).toContain('Sandbox Notice');
+      expect(config.systemPrompt).toContain('Custom prompt');
       expect(config.systemPromptPath).toBeUndefined();
+    });
+
+    test('inline system prompt passes through as-is when tools are opted in', async () => {
+      const config = await resolveAgentConfig(
+        { systemPrompt: 'Custom prompt', tools: ['read'], backend: 'codex', baseDir: TEST_BASE },
+        defaults
+      );
+      expect(config.tools).toEqual(['read']);
+      expect(config.systemPrompt).toBe('Custom prompt');
     });
 
     test('sets sandbox mode', async () => {

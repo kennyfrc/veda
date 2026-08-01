@@ -160,6 +160,7 @@ function constructSimpleInput(
     reasoning: flags.reasoning as SimpleConfig['reasoning'],
     sandbox: flags.sandbox as SimpleConfig['sandbox'],
     noTools: flags.noTools || undefined,
+    tools: flags.tools,
     context: constructContextConfig(flags),
     output: constructOutputConfig(flags),
     notify: flags.notify ?? globalConfig.notify ?? true,
@@ -294,6 +295,7 @@ function constructResumeInput(
     reasoning: flags.reasoning as ResumeConfig['reasoning'],
     sandbox: flags.sandbox as ResumeConfig['sandbox'],
     noTools: flags.noTools || undefined,
+    tools: flags.tools,
     output: constructOutputConfig(flags),
     notify: flags.notify ?? globalConfig.notify ?? true,
     notifySound: flags.notifySound ?? globalConfig.notifySound,
@@ -331,6 +333,7 @@ function extractFlagsForDryRun(flags: RawFlags): Record<string, unknown> {
   if (flags.reasoning) result.reasoning = flags.reasoning;
   if (flags.sandbox) result.sandbox = flags.sandbox;
   if (flags.noTools) result.noTools = true;
+  if (flags.tools) result.tools = flags.tools;
   if (flags.files.length > 0) result.files = flags.files;
   if (flags.noSel) result.noSel = true;
   if (flags.output) result.output = flags.output;

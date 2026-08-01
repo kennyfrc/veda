@@ -33,6 +33,7 @@ export async function handleResume(
       sandbox: options.sandbox,
       backend: backendName,  // Use saved backend for resolution
       noTools: options.noTools,
+      tools: options.tools,
     },
     defaults,
     globalConfig

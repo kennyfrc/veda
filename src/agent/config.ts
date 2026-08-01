@@ -22,7 +22,7 @@ export interface AgentConfig {
   model: string;
   reasoning: ReasoningLevel;
   sandbox: SandboxMode;
-  /** Optional tool allowlist. Undefined preserves backend defaults; [] requests no tools. */
+  /** Optional tool allowlist. Undefined or [] requests no tools (the default); a non-empty list grants those tools. */
   tools?: string[];
   systemPrompt: string;
   systemPromptPath?: string;

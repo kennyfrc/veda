@@ -39,6 +39,8 @@ export interface SimpleConfig {
   reasoning?: ReasoningLevel;
   sandbox?: SandboxMode;
   noTools?: boolean;
+  /** Tool opt-in allowlist (--tools read,grep). Overrides the no-tools default. */
+  tools?: string[];
   context: ContextConfig;
   output: OutputConfig;
   notify: boolean;
@@ -120,6 +122,8 @@ export interface ResumeConfig {
   reasoning?: ReasoningLevel;
   sandbox?: SandboxMode;
   noTools?: boolean;
+  /** Tool opt-in allowlist (--tools read,grep). Overrides the no-tools default. */
+  tools?: string[];
   output: OutputConfig;
   notify: boolean;
   notifySound?: string;
@@ -278,6 +282,8 @@ export interface RawFlags {
   
   // Tool control
   noTools: boolean;
+  /** Tool opt-in allowlist (--tools read,grep). */
+  tools?: string[];
 }
 
 export interface ParsedPositionals {

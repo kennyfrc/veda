@@ -22,6 +22,8 @@ export interface CliOptions {
   notify?: boolean;
   notifySound?: string;
   noTools?: boolean;
+  /** Tool opt-in allowlist (--tools read,grep). Overrides the no-tools default. */
+  tools?: string[];
   help?: boolean;
   version?: boolean;
   
@@ -69,6 +71,7 @@ const FLAGS_WITH_VALUES = new Set([
   '-m', '--model',
   '-r', '--reasoning',
   '--sandbox',
+  '--tools',
   '-o', '--output',
   '-f', '--files',
   '-k', '--k',
@@ -132,6 +135,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
           break;
         case '--sandbox':
           options.sandbox = value as CliOptions['sandbox'];
+          break;
+        case '--tools':
+          options.tools = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
           break;
         case '-o':
         case '--output':
@@ -411,7 +417,8 @@ a driver-navigator workflow inspired by pair programming best practices.
                             Aliases: ${listModelAliases().join(', ')}
   -r, --reasoning <level>   Reasoning: minimal, low, medium, high, xhigh
   --sandbox <mode>          Sandbox: read-only, workspace-write, full
-  --no-tools, -nt           Disable all tools (agent responds from context only)
+  --no-tools, -nt           Disable all tools (default; agent responds from context only)
+  --tools <list>            Opt IN to tools (e.g. read,grep,glob; overrides the no-tools default)
   -o, --output <file>       Save response to file
   -f, --files <file>        Ad-hoc files (doesn't modify selection)
   --no-sel                  Ignore selection for this run

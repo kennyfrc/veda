@@ -247,18 +247,22 @@ export async function resolveAgentConfig(
         globalConfig,
       });
   
+  const tools = options.noTools
+    ? []
+    : (options.tools ?? personaTools ?? []);
+
   return {
     model: model ?? '',
     reasoning,
     sandbox: options.sandbox ?? 'read-only',
-    tools: (options.noTools ? [] : options.tools) ?? personaTools,
-    systemPrompt: withNoToolsNotice(systemPrompt, options.noTools ? [] : (options.tools ?? personaTools)),
+    tools,
+    systemPrompt: withNoToolsNotice(systemPrompt, tools),
     systemPromptPath,
   };
 }
 
 function withNoToolsNotice(systemPrompt: string, tools: string[] | undefined): string {
-  // tools === undefined → backend defaults (no notice needed)
+  // tools === undefined → treat as no tools (defensive; resolver defaults to [])
   // tools === [] → explicitly no tools; prepend the no-access sandbox notice
   if (tools === undefined || tools.length > 0) return systemPrompt;
   return SANDBOX_NOTICE + systemPrompt;

@@ -38,26 +38,23 @@ veda -S impl-auth-feature -p navigator-plan 'The function uses \`console.log\` t
 | **Navigator** | Collaborate on approach, provide architectural guidance, verify your claims with read tools, help think through tradeoffs |
 | **Reviewer** | Final code review after implementation is complete |
 
-### No-Tools Mode
+### Tools
 
-Use \`--no-tools\` (or \`-nt\`) to disable all tool access for a run. The agent responds from the provided context only — no file reads, no grep, no shell commands. This is useful when:
-
-- You want a pure reasoning response without tool-call overhead
-- The selected context is sufficient and you don't want the agent exploring
-- You're using a model on a backend that charges per tool call
+Tools are **off by default** across all modes (chat, persona, and deep) — the agent reasons from the supplied context only. Opt in explicitly with \`--tools\` for a single run.
 
 \`\`\`bash
-# Disable tools for a single run (works with any persona)
-veda -S impl-auth-feature -m sol --no-tools -p navigator-plan 'Design a caching layer'
+# Default: no tools, context-only reasoning
+veda -S impl-auth-feature -m sol 'Design a caching layer'
 
-# Or use the dedicated notools personas (tools: none in frontmatter)
-veda -S impl-auth-feature -m sol -p navigator-plan-notools 'Design a caching layer'
+# Opt back in for a single run
+veda -S impl-auth-feature -m sol --tools read,grep,glob -p navigator-chat 'What about edge case X?'
 \`\`\`
 
-| Persona | Default Reasoning | Use Case |
-|---------|-------------------|----------|
-| \`navigator-plan-notools\` | high | Planning without tool access (context-only) |
-| \`navigator-chat-notools\` | medium | In-flight discussion without tool access (context-only) |
+| Persona | Default Reasoning | Tools |
+|---------|-------------------|------|
+| \`navigator-plan\` | high | none (default) |
+| \`navigator-chat\` | medium | none by default; opt in with \`--tools\` |
+| \`reviewer\` | medium | none |
 
 ---
 

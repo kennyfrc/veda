@@ -39,6 +39,7 @@ export async function handleRun(
       sandbox: options.sandbox,
       backend: backendName,
       noTools: options.noTools,
+      tools: options.tools,
       aliasReasoning: resolved.aliasReasoning,
     },
     defaults,

@@ -17,6 +17,7 @@ const FLAGS_WITH_VALUES = new Set([
   '-m', '--model',
   '-r', '--reasoning',
   '--sandbox',
+  '--tools',
   '-o', '--output',
   '-f', '--files',
   '-k',
@@ -238,6 +239,9 @@ function parseFlagWithValue(flags: RawFlags, flag: string, value: string): void 
       break;
     case '--sandbox':
       flags.sandbox = value;
+      break;
+    case '--tools':
+      flags.tools = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
       break;
     case '-o':
     case '--output':
