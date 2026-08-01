@@ -25,8 +25,11 @@ export function toPiThinking(reasoning: ReasoningLevel): string {
     case 'medium':
       return 'medium';
     case 'high':
-    case 'xhigh':
       return 'high';
+    case 'xhigh':
+      return 'xhigh';
+    case 'max':
+      return 'max';
   }
 }
 

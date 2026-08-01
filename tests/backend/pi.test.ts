@@ -51,8 +51,12 @@ describe('toPiThinking', () => {
     expect(toPiThinking('high')).toBe('high');
   });
 
-  test('maps xhigh to high', () => {
-    expect(toPiThinking('xhigh')).toBe('high');
+  test('maps xhigh to xhigh', () => {
+    expect(toPiThinking('xhigh')).toBe('xhigh');
+  });
+
+  test('maps max to max', () => {
+    expect(toPiThinking('max')).toBe('max');
   });
 });
 

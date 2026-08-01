@@ -18,6 +18,8 @@ export function toDroidReasoning(reasoning: ReasoningLevel): string {
       return 'high';
     case 'xhigh':
       return 'high';
+    case 'max':
+      return 'max';
   }
 }
 

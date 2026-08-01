@@ -66,7 +66,7 @@ export interface LoadPersonaOptions {
 /**
  * Parse persona metadata from YAML frontmatter.
  * Supports simple scalar values: key: value
- * Preserves reasoning: minimal|low|medium|high|xhigh
+ * Preserves reasoning: minimal|low|medium|high|xhigh|max
  */
 export function parsePersonaMetadata(content: string): PersonaMetadata {
   // Extract frontmatter between --- delimiters
@@ -91,7 +91,7 @@ export function parsePersonaMetadata(content: string): PersonaMetadata {
 
         if (normalizedKey === 'reasoning') {
           // Validate reasoning level
-          const validReasoning: ReasoningLevel[] = ['minimal', 'low', 'medium', 'high', 'xhigh'];
+          const validReasoning: ReasoningLevel[] = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
           if (validReasoning.includes(normalizedValue as ReasoningLevel)) {
             metadata.reasoning = normalizedValue as ReasoningLevel;
           }

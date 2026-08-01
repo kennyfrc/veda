@@ -1,4 +1,4 @@
-export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 export type ModelStage = 'base' | 'solver' | 'judge' | 'verifier' | 'revision';
 

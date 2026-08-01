@@ -157,7 +157,7 @@ export type OutputConfig =
   | { format: 'json' }
   | { format: 'file'; path: string }
 
-export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type SandboxMode = 'read-only' | 'workspace-write' | 'full';
 
 // =============================================================================

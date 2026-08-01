@@ -242,8 +242,8 @@ function resolveSolverConfig(
       if (alias) {
         backend = alias.backend;
         model = alias.model;
-        // Note: alias reasoning strings pass through as-is (pre-existing unchecked
-        // behavior, e.g. 'max' on sol) — per-slot, not base-wide, in listed mode.
+        // Alias reasoning strings pass through as-is; 'xhigh'/'max' are valid
+        // ReasoningLevels (per-slot, not base-wide) in listed mode.
         entryAliasReasoning = alias.reasoning as ReasoningLevel | undefined;
       } else {
         // Prefix inference or unknown — resolveBackendModel throws UNKNOWN_MODEL.
@@ -526,7 +526,7 @@ export function resolveVerifyConfig(flags: RawFlags): VerifyConfig {
 // Reasoning Resolution
 // =============================================================================
 
-const VALID_REASONING_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+const VALID_REASONING_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 
 function isValidReasoning(level: string): level is ReasoningLevel {
   return VALID_REASONING_LEVELS.includes(level as ReasoningLevel);

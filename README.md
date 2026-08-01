@@ -254,7 +254,7 @@ interface LlmRequest {
   context?: string;
   systemPrompt: string;
   model?: string;
-  reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   sandbox?: 'read-only' | 'workspace-write' | 'full';
 }
 
@@ -384,7 +384,7 @@ Options:
   -p, --persona <name>   navigator-plan-design|navigator-plan|navigator-chat|reviewer
   -b, --backend <name>   codex|claude-code|droid|pi
   -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|glm-5.2|makora|pi/<provider>/<model-id>)
-  -r, --reasoning <lvl>  minimal|low|medium|high|xhigh
+  -r, --reasoning <lvl>  minimal|low|medium|high|xhigh|max
   -k <n>                 Solver count for deep mode (default: 3, max: 8)
   --categories <list>    Reasoning categories (comma-separated)
   --modules <list>       Module specifiers: category/id, category, or id
@@ -436,6 +436,7 @@ CLAUDE_CODE_MODEL="opus"
 #   medium → 15999 (16k-1 tokens)
 #   high → 31999 (32k-1 tokens)
 #   xhigh → 63999 (64k-1 tokens)
+#   max → 63999 (64k-1 tokens)
 
 # Gemini 3.x: Maps --reasoning to thinkingLevel (LOW|MEDIUM|HIGH)
 
@@ -447,14 +448,16 @@ DROID_REASONING="medium"
 #   medium → medium
 #   high → high
 #   xhigh → high
+#   max → max
 
 PI_MODEL="pi/wafer/glm-5.1"
-# pi CLI: Maps --reasoning to --thinking flag, --sandbox to --tools flag
-#   minimal → LOW
-#   low → LOW
-#   medium → MEDIUM
-#   high → HIGH
-#   xhigh → HIGH
+# pi CLI: Maps --reasoning to --thinking flag (off|minimal|low|medium|high|xhigh|max)
+#   minimal → minimal
+#   low → low
+#   medium → medium
+#   high → high
+#   xhigh → xhigh
+#   max → max
 # Gemini 2.x: Maps --reasoning to thinkingBudget (tokens)
 #   minimal → 8192 (same as low)
 #   low → 8192

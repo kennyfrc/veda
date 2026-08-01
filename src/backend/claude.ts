@@ -21,6 +21,7 @@ function toClaudeReasoningTokens(reasoning: ReasoningLevel): string {
     case 'medium': return '31999';  // 32k-1
     case 'high': return '63999';    // 64k-1
     case 'xhigh': return '63999';   // 64k-1
+    case 'max': return '63999';     // 64k-1
   }
 }
 

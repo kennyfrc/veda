@@ -12,7 +12,7 @@ const DEFAULT_CONFIG = `# veda configuration
 # Default model
 # MODEL="gpt-5.2"
 
-# Default reasoning level (minimal, low, medium, high, xhigh)
+# Default reasoning level (minimal, low, medium, high, xhigh, max)
 # REASONING="medium"
 
 # Default persona

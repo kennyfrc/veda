@@ -9,7 +9,7 @@ import {
 
 export type { Message, UsageStats };
 
-export type Reasoning = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+export type Reasoning = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type Sandbox = 'read-only' | 'workspace-write' | 'full';
 
 export interface LlmRequest {

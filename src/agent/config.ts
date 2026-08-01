@@ -7,7 +7,7 @@ import {
 } from '../backend/defaults';
 import { resolveBackendModelExtracted, tryResolveAliasTarget } from './config-extract';
 
-export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type SandboxMode = 'read-only' | 'workspace-write' | 'full';
 
 export function toCodexSandbox(mode: SandboxMode): string {
@@ -211,7 +211,7 @@ export async function getDefaults(baseDir?: string): Promise<{
 }
 
 export function isValidReasoning(level: string): level is ReasoningLevel {
-  return ['minimal', 'low', 'medium', 'high', 'xhigh'].includes(level);
+  return ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(level);
 }
 
 export function isValidSandbox(mode: string): mode is SandboxMode {

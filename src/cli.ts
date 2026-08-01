@@ -6,7 +6,7 @@ export interface CliOptions {
   persona?: string;
   backend?: string;
   model?: string;
-  reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   sandbox?: 'read-only' | 'workspace-write' | 'full';
   output?: string;
   noSel?: boolean;
@@ -40,15 +40,15 @@ export interface CliOptions {
   solverBackends?: string[];
   /** Listed mode: fully-resolved per-slot solver identities (from --solver-models / DEEP_SOLVER_MODELS).
    *  Populated by the adapter after stage resolution; legacy parseArgs cannot produce it. */
-  solverSlots?: Array<{ backend: string; model: string; reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' }>;
+  solverSlots?: Array<{ backend: string; model: string; reasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' }>;
   uniform?: boolean;  // Disable Thompson Sampling, use uniform random selection
   lowCountModules?: boolean;  // Bias selection toward low-appearance modules (single-judge only)
   
   // Deep mode per-stage reasoning
-  solverReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
-  judgeReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
-  verifierReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
-  revisionReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+  solverReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  judgeReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  verifierReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  revisionReasoning?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   
   // Deep mode resume/checkpoint flags
   resume?: boolean;        // Resume from checkpoint
@@ -415,7 +415,7 @@ a driver-navigator workflow inspired by pair programming best practices.
   -b, --backend <name>      Backend: codex, claude-code, droid, pi
   -m, --model <name>        Model or alias (auto-selects backend if -b omitted)
                             Aliases: ${listModelAliases().join(', ')}
-  -r, --reasoning <level>   Reasoning: minimal, low, medium, high, xhigh
+  -r, --reasoning <level>   Reasoning: minimal, low, medium, high, xhigh, max
   --sandbox <mode>          Sandbox: read-only, workspace-write, full
   --no-tools, -nt           Disable all tools (default; agent responds from context only)
   --tools <list>            Opt IN to tools (e.g. read,grep,glob; overrides the no-tools default)
