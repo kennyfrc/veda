@@ -68,16 +68,16 @@ describe('veda skills install/uninstall/list', () => {
 	});
 
 	test('install updates content if the embedded source changed', async () => {
-		await installSkill('veda-worker-verify');
+		await installSkill('veda-worker');
 		// tamper with the canonical file
-		const skillFile = join(tempHome, '.agents', 'skills', 'veda-worker-verify', 'SKILL.md');
+		const skillFile = join(tempHome, '.agents', 'skills', 'veda-worker', 'SKILL.md');
 		await Bun.write(skillFile, 'stale content');
 
-		const r2 = await installSkill('veda-worker-verify');
+		const r2 = await installSkill('veda-worker');
 		expect(r2.status).toBe('updated');
 		const text = await readFile(skillFile, 'utf-8');
 		expect(text).not.toContain('stale content');
-		expect(text).toContain('name: veda-worker-verify');
+		expect(text).toContain('name: veda-worker');
 	});
 
 	test('uninstallSkill removes canonical dir + claude symlink', async () => {

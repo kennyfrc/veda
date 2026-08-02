@@ -125,7 +125,7 @@ export async function handleInit(_options: CliOptions): Promise<void> {
   console.log('');
   console.log('Skills installed for pi, Codex CLI, and Claude Code:');
   console.log('  veda-plan-implement, veda-plan-implement-verify, veda-deep-plan,');
-  console.log('  veda-worker-verify, veda-worker');
+  console.log('  veda-worker');
   console.log('');
   console.log(`veda initialized at ${vedaHome}`);
 }
