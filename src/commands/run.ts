@@ -63,21 +63,25 @@ export async function handleRun(
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
   
-  // Program-design auto-attach: when the verifier persona runs and a
-  // design.json exists for this session, append it as context so the
-  // verifier can check the implementation against the design's signatures
-  // and invariants. (The veda-worker skill relies on this.)
-  const verifierPersonaName = options.persona ?? defaults.persona;
-  if (verifierPersonaName === 'verifier') {
+  // Program-design auto-attach: when the verifier or worker persona runs and a
+  // design.json exists for this session, append it as context. The verifier uses
+  // it to check implementation against the design's signatures/invariants; the
+  // worker uses it as the contract it implements. (The veda-worker skill relies
+  // on this — the worker must not guess the design contents or path.)
+  if (personaName === 'verifier' || personaName === 'worker') {
     const { getSessionDir } = await import('../util/paths');
     const { existsSync, readFileSync } = await import('fs');
     const designPath = `${getSessionDir(options.session)}/design.json`;
     if (existsSync(designPath)) {
-      const designContext = `<program_design>
+      const designContext = `<program_design src="${designPath}">
 ${readFileSync(designPath, 'utf-8')}
 </program_design>
 
-Check the implementation against this design's signatures, call stacks, and invariants.`;
+${
+  personaName === 'worker'
+    ? 'This is the program design you must implement — read it and treat it as the contract (do not guess or approximate it).'
+    : 'Check the implementation against this design\'s signatures, call stacks, and invariants.'
+}`;
       context = context ? `${context}\n\n${designContext}` : designContext;
     }
   }

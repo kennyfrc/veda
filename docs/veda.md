@@ -63,8 +63,10 @@ veda -S task-NAME -p navigator-chat -m sol 'Quick question: …'
 ## Delegating to the worker (big-model lane)
 
 ```bash
-veda -S task-NAME -p worker -m sol 'Implement the program design in this session (design.json) in full. Run the verification the design names; prove observable behavior against the running surface with evidence. Report once via <worker_report>; status "completed" only if every named verification passed.'
+veda -S task-NAME -p worker -m sol 'Implement the program design in full. FIRST read <project>/.veda/sessions/task-NAME/design.json — that file is the contract (read it, don't guess or approximate it). Run the verification the design names; prove observable behavior against the running surface with evidence. Report once via <worker_report>; status "completed" only if every named verification passed.'
 ```
+
+Always name the **absolute path** to `design.json` (here `<project>/.veda/sessions/task-NAME/design.json`) in the worker prompt — the worker runs from the repo and its first read must be the contract at that exact path; don't rely on it inferring the session.
 
 - The worker ends with a mandatory `<worker_report>`; veda parses it into
   `<project>/.veda/sessions/task-NAME/report.yaml` (next to the raw `response.yaml`).

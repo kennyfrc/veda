@@ -10,17 +10,21 @@
 import { describe, expect, test, afterAll, mock } from 'bun:test';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { mkdtempSync, rmSync, readFileSync, existsSync } from 'fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 
 let fixtureText = '<canned>';
+let capturedContext: string | undefined;
 
 mock.module('../../src/core', () => ({
-  runLlm: async () => ({
-    messages: [],
-    text: fixtureText,
-    errors: [],
-    usage: { inputTokens: 1000, outputTokens: 500 },
-  }),
+  runLlm: async (req: { context?: string }) => {
+    capturedContext = req?.context;
+    return {
+      messages: [],
+      text: fixtureText,
+      errors: [],
+      usage: { inputTokens: 1000, outputTokens: 500 },
+    };
+  },
   isBackendAvailable: async () => true,
 }));
 
@@ -57,11 +61,13 @@ describe('worker run protocol', () => {
 
   async function runWorker(
     text: string,
-    opts: Partial<CliOptions> = {}
+    opts: Partial<CliOptions> = {},
+    seedCb?: (home: string) => void
   ): Promise<{ exit?: number; stdout: string[]; stderr: string[] }> {
     vedaHome = mkdtempSync(join(tmpdir(), 'veda-worker-int-'));
     process.env.VEDA_HOME = vedaHome;
     fixtureText = text;
+    seedCb?.(vedaHome);
 
     const origExit = process.exit;
     const origLog = console.log;
@@ -114,6 +120,20 @@ describe('worker run protocol', () => {
     expect(yaml).toContain('salientSummary:');
     expect(yaml).toContain('whatWasImplemented:');
     expect(yaml).toContain('commandsRun:');
+  });
+
+  test('worker persona auto-attaches design.json from the session dir', async () => {
+    await runWorker(WELL_FORMED, {}, (home) => {
+      const sessDir = join(home, 'sessions', 'worker-int-test');
+      mkdirSync(sessDir, { recursive: true });
+      writeFileSync(join(sessDir, 'design.json'), JSON.stringify({ name: 'cache-layer', task: 'build cache' }));
+    });
+
+    // The design must reach the worker as context (not guessed from the prompt).
+    expect(capturedContext).toBeDefined();
+    expect(capturedContext).toContain('<program_design');
+    expect(capturedContext).toContain('"name":"cache-layer"');
+    expect(capturedContext).toMatch(/contract|implement/i);
   });
 
   test('blocked status in a well-formed block exits 0 (truthful verdict is a successful delegation)', async () => {
