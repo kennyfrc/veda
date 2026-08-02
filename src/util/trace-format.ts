@@ -328,7 +328,8 @@ export function formatChatHeader(
   persona: string | undefined,
   backend: string,
   model: string | undefined,
-  width: number = FORMAT_CONFIG.lineWidth
+  width: number = FORMAT_CONFIG.lineWidth,
+  sandbox?: string
 ): string {
   const { symbols } = FORMAT_CONFIG;
   
@@ -346,9 +347,10 @@ export function formatChatHeader(
     identifier = backend;
   }
   
+  const suffix = sandbox ? ` · ${sandbox}` : '';
   const prefix = `${symbols.phase} ${identifier}`;
-  const dashes = Math.max(0, width - prefix.length - 1);
-  return c.cyan(`${prefix} ${symbols.separator.repeat(dashes)}`);
+  const dashes = Math.max(0, width - prefix.length - suffix.length - 1);
+  return c.cyan(`${prefix}${suffix} ${symbols.separator.repeat(dashes)}`);
 }
 
 /**
@@ -366,12 +368,13 @@ export function formatChatToolEvent(toolName: string, toolInput?: unknown): stri
  * Format chat completion summary.
  * Example: "  ✓ complete (1.2K in, 450 out)"
  */
-export function formatChatComplete(inputTokens?: number, outputTokens?: number): string {
+export function formatChatComplete(inputTokens?: number, outputTokens?: number, sandbox?: string): string {
   const { symbols } = FORMAT_CONFIG;
+  const suffix = sandbox ? ` · ${sandbox}` : '';
   if (inputTokens !== undefined && outputTokens !== undefined) {
-    return c.dim(`  ${symbols.done} complete (${formatUsageCompact(inputTokens, outputTokens)})`);
+    return c.dim(`  ${symbols.done} complete (${formatUsageCompact(inputTokens, outputTokens)})${suffix}`);
   }
-  return c.dim(`  ${symbols.done} complete`);
+  return c.dim(`  ${symbols.done} complete${suffix}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

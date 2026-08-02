@@ -7,7 +7,7 @@ import { ConversationStore } from '../conversation';
 import type { CliOptions } from '../cli';
 import type { Message } from '../backend';
 import { resolve } from 'path';
-import { formatUsageStats, formatChatHeader, formatChatToolEvent, formatChatComplete, saveResponseYaml, c } from '../util';
+import { formatUsageStats, formatChatHeader, formatChatToolEvent, formatChatComplete, saveResponseYaml, saveWorkerReport, parseWorkerReport, type WorkerReport, c } from '../util';
 
 export async function handleRun(
   prompt: string,
@@ -15,6 +15,8 @@ export async function handleRun(
 ): Promise<void> {
   const defaults = await getDefaults();
   const globalConfig = await loadGlobalConfig();
+  const personaName = options.persona ?? defaults.persona;
+  const isWorker = personaName === 'worker';
   
   // supports model aliases: `-m opus` auto-selects claude-code backend
   const resolved = resolveBackendModel({
@@ -61,12 +63,13 @@ export async function handleRun(
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
   
-  // Program-design auto-attach: when the reviewer persona runs and a
+  // Program-design auto-attach: when the verifier persona runs and a
   // design.json exists for this session, append it as context so the
-  // reviewer can check the implementation against the design's signatures
-  // and invariants. (The veda-design-implement skill relies on this.)
-  const reviewerPersonaName = options.persona ?? defaults.persona;
-  if (reviewerPersonaName === 'reviewer') {
+  // verifier can check the implementation against the design's signatures
+  // and invariants. (The veda-design-implement-review and veda-worker skills
+  // rely on this.)
+  const verifierPersonaName = options.persona ?? defaults.persona;
+  if (verifierPersonaName === 'verifier') {
     const { getSessionDir } = await import('../util/paths');
     const { existsSync, readFileSync } = await import('fs');
     const designPath = `${getSessionDir(options.session)}/design.json`;
@@ -83,9 +86,17 @@ Check the implementation against this design's signatures, call stacks, and inva
   // Show progress unless --json mode
   const showProgress = !options.json;
   
-  // Always emit header at start
+  // Always emit header at start. The worker is the first write-capable
+  // persona, so its header must display the sandbox mode (workspace-write)
+  // before the run starts — the blast-radius change is visible up front.
   if (showProgress) {
-    console.error(formatChatHeader(options.persona, backendName, config.model));
+    console.error(formatChatHeader(
+      options.persona,
+      backendName,
+      config.model,
+      undefined,
+      isWorker ? config.sandbox : undefined
+    ));
   }
   
   const onMessage = showProgress ? (msg: Message) => {
@@ -113,7 +124,11 @@ Check the implementation against this design's signatures, call stacks, and inva
   
   // Emit completion summary
   if (showProgress) {
-    console.error(formatChatComplete(response.usage?.inputTokens, response.usage?.outputTokens));
+    console.error(formatChatComplete(
+      response.usage?.inputTokens,
+      response.usage?.outputTokens,
+      isWorker ? config.sandbox : undefined
+    ));
     console.error('');  // Blank line before response
   }
   
@@ -165,9 +180,8 @@ Check the implementation against this design's signatures, call stacks, and inva
   // parse and validate any <program> block, then write artifacts to the
   // session dir for the caller (pi, a human, another agent) to implement.
   // Veda stays read-only — this only writes to the session dir, never the repo.
-  const personaName = options.persona ?? defaults.persona;
   let designResult: { ok: boolean; path?: string; errors?: string[] } | undefined;
-  if (personaName === 'navigator-plan-design') {
+  if (personaName === 'navigator-plan') {
     const { parseProgramDesign, validateDesign, writeDesign } =
       await import('../core/design');
     const parseResult = parseProgramDesign(response.text);
@@ -214,6 +228,51 @@ Check the implementation against this design's signatures, call stacks, and inva
     }
   }
 
+  // Worker protocol: the worker persona's final message MUST be a single
+  // <worker_report> block. Parse it, persist report.yaml, and apply the
+  // §7 parse-failure ladder:
+  //   well-formed            → persist + echo block, exit 0 (even if status
+  //                            is failed/blocked — a truthful verdict is a
+  //                            successful delegation)
+  //   missing required field → persist what parsed, warn to stderr, exit 0
+  //   no block / malformed  → protocol error with the tail, exit non-zero
+  let workerResult:
+    | { ok: true; block: string; report: WorkerReport; path?: string; warnings: string[] }
+    | { ok: false; reason: 'no-block' | 'malformed'; detail?: string; tail: string }
+    | undefined;
+  if (personaName === 'worker') {
+    const parsed = parseWorkerReport(response.text);
+    if (parsed.ok) {
+      const reportPath = await saveWorkerReport({
+        session: options.session,
+        model: config.model,
+        usage: response.usage,
+        report: parsed.report,
+        block: parsed.block,
+      });
+      workerResult = {
+        ok: true,
+        block: parsed.block,
+        report: parsed.report,
+        path: reportPath,
+        warnings: parsed.warnings,
+      };
+      if (!options.json) {
+        console.error(`${c.dim('[report]')} ${c.cyan(reportPath ?? '(failed to write)')}`);
+        for (const w of parsed.warnings) {
+          console.error(`${c.yellow('report warning:')} ${w}`);
+        }
+      }
+    } else {
+      workerResult = parsed;
+      if (!options.json) {
+        console.error(`${c.red('[worker]')} worker protocol error (${parsed.reason}): no valid <worker_report> block`);
+        if (parsed.detail) console.error(`  ${parsed.detail}`);
+        console.error(parsed.tail);
+      }
+    }
+  }
+
   if (options.output) {
     await Bun.write(options.output, response.text);
     console.error(`Response saved to ${options.output}`);
@@ -226,9 +285,28 @@ Check the implementation against this design's signatures, call stacks, and inva
       sessionId: response.sessionId,
       usage: response.usage,
       ...(designResult ? { design: designResult } : {}),
+      ...(workerResult
+        ? workerResult.ok
+          ? { worker: { ok: true, status: workerResult.report.status, path: workerResult.path, warnings: workerResult.warnings } }
+          : { worker: { ok: false, reason: workerResult.reason, detail: workerResult.detail } }
+        : {}),
     }, null, 2));
+  } else if (workerResult) {
+    // In text mode the <worker_report> block is the only thing on stdout — a
+    // Driver can pipe stdout straight into a parser while the trace runs to
+    // stderr. On protocol failure nothing is echoed; the error is on stderr.
+    if (workerResult.ok) {
+      console.log(workerResult.block);
+    }
   } else {
     console.log(response.text);
+  }
+
+  // Protocol health controls the exit code, not the task outcome: a
+  // well-formed report that truthfully says failed/blocked exits 0; a missing
+  // or malformed block is a failure of the run itself.
+  if (isWorker && workerResult && !workerResult.ok) {
+    process.exit(1);
   }
 
   if (options.notify ?? globalConfig.notify ?? true) {

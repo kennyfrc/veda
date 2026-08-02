@@ -50,4 +50,21 @@ export {
   type FormatterState,
 } from './trace-format';
 
-export { saveResponseYaml, type ResponseSaveOptions } from './response-save';
+export { saveResponseYaml, type ResponseSaveOptions, saveWorkerReport, type WorkerReportSaveOptions } from './response-save';
+
+export {
+  parseWorkerReport,
+  extractWorkerReportBlock,
+  type WorkerReport,
+  type WorkerReportStatus,
+  type WorkerReportParseResult,
+  type WorkerVerificationCommand,
+  type WorkerEvidence,
+  type WorkerTests,
+  type WorkerDiscoveredIssue,
+  type WorkerIssueSeverity,
+  isWorkerIssueSeverity,
+  type WorkerVerification,
+  type VerificationTool,
+  isVerificationTool,
+} from './report-parse';

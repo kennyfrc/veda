@@ -2,8 +2,8 @@ import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { getPersonasDir, getPersonaDir } from '../util/paths';
 import type { ReasoningLevel, AgentConfig, SandboxMode, GlobalConfig } from './config';
-import { resolveModel, resolveReasoning } from './config';
-import { SANDBOX_NOTICE } from './sandbox';
+import { resolveModel, resolveReasoning, parseSandboxMode } from './config';
+import { withSandboxModeNotice } from './sandbox';
 
 // Embedded (batteries-included) personas. These ship in the binary and are
 // the default source — no `veda init` required. Users can override any of
@@ -11,20 +11,16 @@ import { SANDBOX_NOTICE } from './sandbox';
 // or add brand-new personas there.
 // (Mirrors the skills.ts embedding pattern: `import ... with { type: 'file' }`
 // resolves to a path that Bun embeds into the compiled binary.)
-import navigatorPlanAgent from '../../personas/navigator-plan/AGENTS.md' with { type: 'file' };
 import navigatorChatAgent from '../../personas/navigator-chat/AGENTS.md' with { type: 'file' };
-import navigatorPlanNotoolsAgent from '../../personas/navigator-plan-notools/AGENTS.md' with { type: 'file' };
-import navigatorChatNotoolsAgent from '../../personas/navigator-chat-notools/AGENTS.md' with { type: 'file' };
-import reviewerAgent from '../../personas/reviewer/AGENTS.md' with { type: 'file' };
-import navigatorPlanDesignAgent from '../../personas/navigator-plan-design/AGENTS.md' with { type: 'file' };
+import verifierAgent from '../../personas/verifier/AGENTS.md' with { type: 'file' };
+import navigatorPlanAgent from '../../personas/navigator-plan/AGENTS.md' with { type: 'file' };
+import workerAgent from '../../personas/worker/AGENTS.md' with { type: 'file' };
 
 const EMBEDDED_PERSONA_PATHS: Record<string, string> = {
-  'navigator-plan': navigatorPlanAgent,
   'navigator-chat': navigatorChatAgent,
-  'navigator-plan-notools': navigatorPlanNotoolsAgent,
-  'navigator-chat-notools': navigatorChatNotoolsAgent,
-  'reviewer': reviewerAgent,
-  'navigator-plan-design': navigatorPlanDesignAgent,
+  'verifier': verifierAgent,
+  'navigator-plan': navigatorPlanAgent,
+  'worker': workerAgent,
 };
 
 /** Names of all batteries-included personas. */
@@ -44,9 +40,11 @@ export async function readPersonaForInit(name: string): Promise<string | undefin
 
 export interface PersonaMetadata {
   reasoning?: ReasoningLevel;
-  /** Tool allowlist. An empty array means no tools. */
-  tools?: string[];
-  // Future: sandbox?, category?, etc.
+  /** Tool allowlist. An empty array means no tools; 'all' grants the backend's full toolset. */
+  tools?: string[] | 'all';
+  /** Sandbox mode requested by the persona (worker defaults to workspace-write). */
+  sandbox?: SandboxMode;
+  // Future: category?, etc.
 }
 
 export interface Persona {
@@ -54,7 +52,9 @@ export interface Persona {
   systemPrompt: string;
   path: string;
   defaultReasoning: ReasoningLevel;
-  tools?: string[];
+  tools?: string[] | 'all';
+  /** Sandbox mode from frontmatter (falls below an explicit --sandbox flag). */
+  defaultSandbox?: SandboxMode;
   metadata?: PersonaMetadata; // Parsed from frontmatter
 }
 
@@ -96,9 +96,18 @@ export function parsePersonaMetadata(content: string): PersonaMetadata {
             metadata.reasoning = normalizedValue as ReasoningLevel;
           }
         } else if (normalizedKey === 'tools') {
-          metadata.tools = normalizedValue === 'none'
-            ? []
-            : normalizedValue.split(',').map(tool => tool.trim()).filter(Boolean);
+          const lower = normalizedValue.toLowerCase();
+          if (lower === 'none') {
+            metadata.tools = [];
+          } else if (lower === 'all') {
+            // 'all' grants the backend's full toolset (undefined allowlist).
+            metadata.tools = 'all';
+          } else {
+            metadata.tools = normalizedValue.split(',').map(tool => tool.trim()).filter(Boolean);
+          }
+        } else if (normalizedKey === 'sandbox') {
+          const mode = parseSandboxMode(normalizedValue);
+          if (mode) metadata.sandbox = mode;
         }
         // Future: parse other metadata fields here
       }
@@ -136,6 +145,7 @@ export async function loadPersona(name: string, optionsOrBaseDir?: LoadPersonaOp
       path: configDirPath,
       defaultReasoning,
       tools: options.metadata?.tools ?? frontmatterMetadata.tools,
+      defaultSandbox: frontmatterMetadata.sandbox,
       metadata: frontmatterMetadata,
     };
   }
@@ -153,6 +163,7 @@ export async function loadPersona(name: string, optionsOrBaseDir?: LoadPersonaOp
       path: EMBEDDED_PERSONA_PATHS[name],
       defaultReasoning,
       tools: options.metadata?.tools ?? frontmatterMetadata.tools,
+      defaultSandbox: frontmatterMetadata.sandbox,
       metadata: frontmatterMetadata,
     };
   }
@@ -217,7 +228,8 @@ export async function resolveAgentConfig(
   let systemPrompt: string;
   let systemPromptPath: string | undefined;
   let personaReasoning: ReasoningLevel | undefined;
-  let personaTools: string[] | undefined;
+  let personaTools: string[] | 'all' | undefined;
+  let personaSandbox: SandboxMode | undefined;
   
   if (options.systemPrompt) {
     systemPrompt = options.systemPrompt;
@@ -227,6 +239,7 @@ export async function resolveAgentConfig(
     systemPromptPath = persona.path;
     personaReasoning = persona.defaultReasoning;
     personaTools = persona.tools;
+    personaSandbox = persona.defaultSandbox;
   }
   
   if (!options.backend) {
@@ -246,24 +259,37 @@ export async function resolveAgentConfig(
         backend: options.backend,
         globalConfig,
       });
-  
-  const tools = options.noTools
-    ? []
-    : (options.tools ?? personaTools ?? []);
+
+  // Sandbox precedence: explicit --sandbox flag, then persona frontmatter
+  // sandbox:, then the config DEFAULT_SANDBOX, then read-only.
+  const sandbox = options.sandbox
+    ?? personaSandbox
+    ?? globalConfig?.defaultSandbox
+    ?? 'read-only';
+
+  // Tool policy. undefined means "backend's full toolset" (worker's
+  // `tools: all`); [] means "no tools"; a list is an explicit allowlist.
+  // Precedence: --no-tools > --tools > persona frontmatter > no tools.
+  let tools: string[] | undefined;
+  if (options.noTools) {
+    tools = [];
+  } else if (options.tools) {
+    tools = options.tools;
+  } else if (personaTools === undefined) {
+    tools = [];
+  } else if (personaTools === 'all') {
+    tools = undefined;
+  } else {
+    tools = personaTools;
+  }
 
   return {
     model: model ?? '',
     reasoning,
-    sandbox: options.sandbox ?? 'read-only',
+    sandbox,
     tools,
-    systemPrompt: withNoToolsNotice(systemPrompt, tools),
+    systemPrompt: withSandboxModeNotice(systemPrompt, { tools, sandbox }),
     systemPromptPath,
   };
 }
 
-function withNoToolsNotice(systemPrompt: string, tools: string[] | undefined): string {
-  // tools === undefined → treat as no tools (defensive; resolver defaults to [])
-  // tools === [] → explicitly no tools; prepend the no-access sandbox notice
-  if (tools === undefined || tools.length > 0) return systemPrompt;
-  return SANDBOX_NOTICE + systemPrompt;
-}

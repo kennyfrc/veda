@@ -32,10 +32,16 @@ describe('persona', () => {
       '---\nreasoning: medium\n---\n# Navigator Chat\n\nYou are a chat assistant.'
     );
 
-    await mkdir(join(TEST_PERSONAS_DIR, 'reviewer'));
+    await mkdir(join(TEST_PERSONAS_DIR, 'verifier'));
     await writeFile(
-      join(TEST_PERSONAS_DIR, 'reviewer', 'AGENTS.md'),
-      '---\nreasoning: medium\ntools: none\n---\n# Reviewer\n\nYou are a code reviewer.'
+      join(TEST_PERSONAS_DIR, 'verifier', 'AGENTS.md'),
+      '---\nreasoning: medium\ntools: none\n---\n# Verifier\n\nYou are an adversarial verifier.'
+    );
+
+    await mkdir(join(TEST_PERSONAS_DIR, 'worker'));
+    await writeFile(
+      join(TEST_PERSONAS_DIR, 'worker', 'AGENTS.md'),
+      '---\nreasoning: high\ntools: all\nsandbox: workspace-write\n---\n# Worker\n\nYou implement tasks.'
     );
 
     // Create empty directory (should not be listed)
@@ -67,14 +73,14 @@ describe('persona', () => {
     test('uses correct default reasoning per persona', async () => {
       const plan = await loadPersona('navigator-plan', TEST_BASE);
       const chat = await loadPersona('navigator-chat', TEST_BASE);
-      const reviewer = await loadPersona('reviewer', TEST_BASE);
+      const verifier = await loadPersona('verifier', TEST_BASE);
       
       expect(plan.defaultReasoning).toBe('high');
       expect(chat.defaultReasoning).toBe('medium');
-      expect(reviewer.defaultReasoning).toBe('medium');
+      expect(verifier.defaultReasoning).toBe('medium');
       expect(plan.tools).toEqual(['read', 'grep', 'glob']);
       expect(chat.tools).toBeUndefined();
-      expect(reviewer.tools).toEqual([]);
+      expect(verifier.tools).toEqual([]);
     });
   });
 
@@ -84,7 +90,7 @@ describe('persona', () => {
       
       expect(personas).toContain('navigator-plan');
       expect(personas).toContain('navigator-chat');
-      expect(personas).toContain('reviewer');
+      expect(personas).toContain('verifier');
       expect(personas).not.toContain('empty-dir');
     });
 
@@ -100,7 +106,7 @@ describe('persona', () => {
       const personas = await listPersonas('/nonexistent/path');
       expect(personas.length).toBeGreaterThan(0);
       expect(personas).toContain('navigator-plan');
-      expect(personas).toContain('reviewer');
+      expect(personas).toContain('verifier');
     });
   });
 
@@ -175,13 +181,13 @@ describe('persona', () => {
         { persona: 'navigator-plan', backend: 'pi', baseDir: TEST_BASE },
         defaults
       );
-      const reviewer = await resolveAgentConfig(
-        { persona: 'reviewer', backend: 'pi', baseDir: TEST_BASE },
+      const verifier = await resolveAgentConfig(
+        { persona: 'verifier', backend: 'pi', baseDir: TEST_BASE },
         defaults
       );
 
       expect(plan.tools).toEqual(['read', 'grep', 'glob']);
-      expect(reviewer.tools).toEqual([]);
+      expect(verifier.tools).toEqual([]);
     });
 
     test('defaults to no tools when neither persona nor CLI grants them', async () => {
@@ -405,6 +411,51 @@ reasoning: "medium"
       const metadata = parsePersonaMetadata(content);
       expect(metadata.reasoning).toBeUndefined(); // Quotes not supported in simple parser
     });
+
+    test('parses tools all as the full-toolset marker', () => {
+      const content = `---
+tools: all
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.tools).toBe('all');
+    });
+
+    test('parses sandbox from frontmatter', () => {
+      const content = `---
+sandbox: workspace-write
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.sandbox).toBe('workspace-write');
+    });
+
+    test('parses sandbox case-insensitively', () => {
+      const content = `---
+sandbox: WORKSPACE-WRITE
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.sandbox).toBe('workspace-write');
+    });
+
+    test('ignores invalid sandbox values', () => {
+      const content = `---
+sandbox: every-file
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.sandbox).toBeUndefined();
+    });
+
+    test('parses sandbox read-only', () => {
+      const content = `---
+sandbox: read-only
+---
+# Persona`;
+      const metadata = parsePersonaMetadata(content);
+      expect(metadata.sandbox).toBe('read-only');
+    });
   });
 
   describe('loadPersona with metadata', () => {
@@ -493,5 +544,130 @@ You test precedence.`
       const persona = await loadPersona('no-meta-persona', TEST_BASE);
       expect(persona.defaultReasoning).toBe('medium'); // Default fallback
     });
+  });
+});
+
+describe('worker persona — write-capable defaults', () => {
+  test('loadPersona(worker) yields frontmatter metadata', async () => {
+    const persona = await loadPersona('worker', TEST_BASE);
+    expect(persona.defaultReasoning).toBe('high');
+    expect(persona.tools).toBe('all');
+    expect(persona.defaultSandbox).toBe('workspace-write');
+    expect(persona.metadata).toEqual({
+      reasoning: 'high',
+      tools: 'all',
+      sandbox: 'workspace-write',
+    });
+  });
+
+  test('resolveAgentConfig(worker) resolves tools to the full toolset and write sandbox', async () => {
+    const config = await resolveAgentConfig(
+      { persona: 'worker', backend: 'codex', baseDir: TEST_BASE },
+      { persona: 'navigator-chat' }
+    );
+    // undefined tools = backend's full toolset (not the no-tools default)
+    expect(config.tools).toBeUndefined();
+    expect(config.sandbox).toBe('workspace-write');
+    // The write sandbox notice is prepended so the model sees its capability.
+    expect(config.systemPrompt).toContain('workspace-write access');
+    expect(config.systemPrompt).not.toContain('no access to tools');
+  });
+
+  test('--no-tools forces an empty allowlist even on the worker', async () => {
+    const config = await resolveAgentConfig(
+      { persona: 'worker', noTools: true, backend: 'codex', baseDir: TEST_BASE },
+      { persona: 'navigator-chat' }
+    );
+    expect(config.tools).toEqual([]);
+    // No-access notice now matches runtime (tools disabled).
+    expect(config.systemPrompt).toContain('no access to tools');
+  });
+
+  test('sandbox precedence: --sandbox flag beats persona frontmatter', async () => {
+    const config = await resolveAgentConfig(
+      { persona: 'worker', sandbox: 'read-only', backend: 'codex', baseDir: TEST_BASE },
+      { persona: 'navigator-chat' }
+    );
+    expect(config.sandbox).toBe('read-only');
+  });
+
+  test('sandbox precedence: persona frontmatter beats global defaultSandbox', async () => {
+    const config = await resolveAgentConfig(
+      { persona: 'worker', backend: 'codex', baseDir: TEST_BASE },
+      { persona: 'navigator-chat' },
+      { defaultSandbox: 'full' }
+    );
+    expect(config.sandbox).toBe('workspace-write');
+  });
+
+  test('sandbox precedence: global defaultSandbox fills in when persona has none', async () => {
+    const config = await resolveAgentConfig(
+      { persona: 'navigator-chat', backend: 'codex', baseDir: TEST_BASE },
+      { persona: 'navigator-chat' },
+      { defaultSandbox: 'workspace-write' }
+    );
+    expect(config.sandbox).toBe('workspace-write');
+  });
+
+  test('sandbox precedence: read-only is the bottom default', async () => {
+    const config = await resolveAgentConfig(
+      { persona: 'navigator-chat', backend: 'codex', baseDir: TEST_BASE },
+      { persona: 'navigator-chat' }
+    );
+    expect(config.sandbox).toBe('read-only');
+  });
+
+  test('embedded worker persona is available without a config-dir copy', async () => {
+    const persona = await loadPersona('worker', '/nonexistent/path');
+    expect(persona.defaultReasoning).toBe('high');
+    expect(persona.tools).toBe('all');
+    expect(persona.defaultSandbox).toBe('workspace-write');
+  });
+});
+
+describe('verifier persona — adversarial correctness, tools on by default', () => {
+  test('embedded verifier loads with reasoning + read,bash,grep,glob tools', async () => {
+    const persona = await loadPersona('verifier', '/nonexistent/path');
+    expect(persona.defaultReasoning).toBe('medium');
+    expect(persona.tools).toEqual(['read', 'bash', 'grep', 'glob']);
+  });
+
+  test('resolveAgentConfig(verifier) resolves tools to read,bash,grep,glob (not the no-tools default)', async () => {
+    const config = await resolveAgentConfig(
+      { persona: 'verifier', backend: 'pi', baseDir: TEST_BASE },
+      { persona: 'navigator-chat' }
+    );
+    expect(config.tools).toEqual(['read', 'bash', 'grep', 'glob']);
+    // A granted allowlist gets no sandbox notice (matches advisory behavior).
+    expect(config.systemPrompt).not.toContain('no access to tools');
+  });
+
+  test('--no-tools forces an empty allowlist on the verifier too', async () => {
+    const config = await resolveAgentConfig(
+      { persona: 'verifier', noTools: true, backend: 'pi', baseDir: TEST_BASE },
+      { persona: 'navigator-chat' }
+    );
+    expect(config.tools).toEqual([]);
+    expect(config.systemPrompt).toContain('no access to tools');
+  });
+
+  test('verifier prompt is adversarial and ends with a verifier_report/verdict protocol', async () => {
+    const persona = await loadPersona('verifier', '/nonexistent/path');
+    expect(persona.systemPrompt).toContain('try to break it');
+    expect(persona.systemPrompt).toContain('verifier_report');
+    expect(persona.systemPrompt).toContain('verdict');
+    expect(persona.systemPrompt).toContain('PASS | FAIL | PARTIAL');
+  });
+
+  test('verifier prompt is veda-tool-agnostic and lists affordances + tests them', async () => {
+    const persona = await loadPersona('verifier', '/nonexistent/path');
+    // veda tools, not Claude MCP references
+    expect(persona.systemPrompt).toContain('cdp');
+    expect(persona.systemPrompt).toContain('xtui');
+    expect(persona.systemPrompt).not.toContain('mcp__claude-in-chrome');
+    expect(persona.systemPrompt).not.toContain('mcp__playwright');
+    // affordance-testing discipline
+    expect(persona.systemPrompt).toContain('affordances');
+    expect(persona.systemPrompt).toContain('List the affordances');
   });
 });

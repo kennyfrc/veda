@@ -44,7 +44,10 @@ export {
   SANDBOX_NOTICE,
   SANDBOX_NOTICE_READONLY,
   SANDBOX_NOTICE_READONLY_CONTEXTFIRST,
+  SANDBOX_NOTICE_WRITE,
   withSandboxNotice,
   withReadOnlySandboxNotice,
   withReadOnlyContextFirstNotice,
+  withWriteSandboxNotice,
+  withSandboxModeNotice,
 } from './sandbox';
