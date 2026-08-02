@@ -81,7 +81,7 @@ to keep in sync across agent dirs.
 Every skill assumes the agent has onboarded itself with Veda first:
 
 ```bash
-cat ~/.jdc/agent/old-docs/veda.md
+cat ~/.pi/agent/docs/veda.md
 ```
 
 ## Notes

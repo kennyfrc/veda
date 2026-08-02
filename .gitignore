@@ -22,7 +22,10 @@ coverage/
 devdocs/
 
 # Stale docs (superseded by README.md and devdocs/)
-docs/
+# docs/veda.md is tracked — the onboarding doc synced to ~/.pi/agent/docs by
+# 'veda skills install' and referenced by every skill.
+docs/*
+!docs/veda.md
 
 # Legacy prompt templates (superseded by .agents/skills/)
 prompts/

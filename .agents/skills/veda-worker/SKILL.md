@@ -143,7 +143,7 @@ When you write your final summary, write it for a reader who did not see any of 
 
 ## Reminders
 
-Onboard yourself with veda at `~/.jdc/agent/old-docs/veda.md` before acting.
+Onboard yourself with veda at `~/.pi/agent/docs/veda.md` before acting.
 Key commands:
 - `veda -S task-TASKNAME -p navigator-plan -m {{model}} '…'` to produce the design (writes design.json to the session)
 - `veda -S task-TASKNAME sel add <files>` to build context (and add `/tmp/orchestrate.diff` before review)

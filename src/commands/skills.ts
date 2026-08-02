@@ -38,6 +38,7 @@ import vedaPlanImplSkill from '../../.agents/skills/veda-plan-implement/SKILL.md
 import vedaPlanImplVerifySkill from '../../.agents/skills/veda-plan-implement-verify/SKILL.md' with { type: 'file' };
 import vedaDeepPlanSkill from '../../.agents/skills/veda-deep-plan/SKILL.md' with { type: 'file' };
 import vedaWorkerSkill from '../../.agents/skills/veda-worker/SKILL.md' with { type: 'file' };
+import vedaOnboardingDoc from '../../docs/veda.md' with { type: 'file' };
 
 const EMBEDDED_SKILL_PATHS: Record<SkillName, string> = {
 	'veda-plan-implement': vedaPlanImplSkill,
@@ -275,6 +276,22 @@ export async function handleSkills(
 			}
 			console.log(`\nDone: ${installed} installed, ${updated} updated, ${unchanged} unchanged.`);
 			console.log(`Skills available to pi, Codex CLI, and Claude Code.`);
+
+			// Sync the onboarding doc to ~/.pi/agent/docs/veda.md (the skills'
+			// "Onboard yourself" reminder points there). Imported as an embedded
+			// asset so the compiled binary can install it without a repo on disk.
+			const vedaDocContent = await Bun.file(vedaOnboardingDoc).text().catch(() => null);
+			if (vedaDocContent !== null) {
+				const piDocsDir = join(getHomeDir(), '.pi', 'agent', 'docs');
+				await mkdir(piDocsDir, { recursive: true });
+				const existingDoc = await Bun.file(join(piDocsDir, 'veda.md')).text().catch(() => null);
+				if (existingDoc !== vedaDocContent) {
+					await writeFile(join(piDocsDir, 'veda.md'), vedaDocContent, 'utf-8');
+					console.log(`  ~ veda.md  →  ${join(piDocsDir, 'veda.md')}`);
+				} else {
+					console.log(`  = veda.md  →  ${join(piDocsDir, 'veda.md')} (unchanged)`);
+				}
+			}
 
 			const agentsRoot = getAgentSkillsDir();
 			const claudeRoot = getClaudeSkillsDir();

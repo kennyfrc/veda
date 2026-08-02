@@ -132,7 +132,7 @@ When you write your final summary, write it for a reader who did not see any of 
 
 ## Reminders
 
-Onboard yourself with veda at `~/.jdc/agent/old-docs/veda.md` before acting.
+Onboard yourself with veda at `~/.pi/agent/docs/veda.md` before acting.
 Key commands:
 - `veda -S plan-TASKNAME sel add` to build context (quote globs: `"src/*.c"`)
 - `veda -S plan-TASKNAME sel add file.c:10-50` to add line-range slices
