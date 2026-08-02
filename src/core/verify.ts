@@ -414,6 +414,7 @@ export async function runGenerateChecks(
     systemPrompt: args.systemPrompt,
     reasoning: args.reasoning,
     sandbox: args.sandbox,
+    tools: [],
     cwd: args.cwd,
     onMessage: args.onMessage,
   });
@@ -478,6 +479,7 @@ export async function runAnswerCheck(
     systemPrompt: args.systemPrompt,
     reasoning,
     sandbox: args.sandbox,
+    tools: [],
     cwd: args.cwd,
     onMessage: args.onMessage,
   });
@@ -765,6 +767,7 @@ export async function runRevision(args: {
     systemPrompt,
     reasoning,
     sandbox,
+    tools: [],
     cwd,
     onMessage,
   });

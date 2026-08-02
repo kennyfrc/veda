@@ -79,6 +79,7 @@ export async function runJudge(args: {
     systemPrompt,
     reasoning,
     sandbox,
+    tools: [],
     cwd,
     onMessage,
   });

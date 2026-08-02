@@ -103,6 +103,16 @@ describe('toPiTools', () => {
   test('persona tool policy cannot expand sandbox capabilities', () => {
     expect(toPiTools('read-only', ['read', 'edit', 'write'])).toBe('read');
   });
+
+  test('undefined tool policy means FULL toolset (worker tools: all)', () => {
+    // The worker persona resolves to `tools: undefined` (full backend toolset).
+    // A regression here (flattening undefined to []) silently downgrades the
+    // worker to no tools — the bug that surfaced as pi receiving --no-tools.
+    expect(toPiTools('workspace-write', undefined)).toContain('edit');
+    expect(toPiTools('workspace-write', undefined)).toContain('write');
+    expect(toPiTools('workspace-write', undefined)).toContain('bash');
+    expect(toPiTools('read-only', undefined)).toBe('read,bash,grep,glob,list_threads,read_thread,todo_write,compact');
+  });
 });
 
 describe('PiBackend', () => {

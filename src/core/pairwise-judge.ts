@@ -587,6 +587,7 @@ export async function runPairwiseJudge(
           systemPrompt: PAIRWISE_JUDGE_SYSTEM_PROMPT,
           reasoning: reasoning ?? 'medium',
           sandbox: sandbox ?? 'read-only',
+          tools: [],
           cwd,
           onMessage: onMessage ? (msg) => onMessage(assignment.judgeBackend, msg) : undefined,
         });

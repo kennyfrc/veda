@@ -20,7 +20,9 @@ export interface LlmRequest {
   model?: string;
   reasoning?: Reasoning;
   sandbox?: Sandbox;
-  /** Optional tool allowlist. Undefined (or []) requests no tools — the default. */
+  /** Tool policy. `undefined` = the backend's full toolset (e.g. the worker
+   *  persona's `tools: all`). `[]` = no tools (the advisory personas).
+   *  A non-empty list = an explicit allowlist. */
   tools?: string[];
   cwd?: string;
   onMessage?: (msg: Message) => void;
@@ -34,19 +36,29 @@ export interface LlmResponse {
   usage?: UsageStats;
 }
 
+/**
+ * Build the backend AgentConfig from a request. Single derivation point for
+ * tool policy: `tools: undefined` (worker's `tools: all`) reaches the backend
+ * intact; `[]` stays "no tools" for the advisory personas. Never coerce
+ * undefined to [] here — that silently strips the worker of its toolset.
+ */
+export function buildBackendConfig(req: LlmRequest) {
+  return {
+    model: req.model ?? '',
+    reasoning: req.reasoning ?? ('medium' as Reasoning),
+    sandbox: req.sandbox ?? ('read-only' as Sandbox),
+    tools: req.tools,
+    systemPrompt: req.systemPrompt,
+  };
+}
+
 export async function runLlm(req: LlmRequest): Promise<LlmResponse> {
   const backend = getBackend(req.backend);
   
   const stream = backend.run({
     prompt: req.prompt,
     context: req.context,
-    config: {
-      model: req.model ?? '',
-      reasoning: req.reasoning ?? 'medium',
-      sandbox: req.sandbox ?? 'read-only',
-      tools: req.tools ?? [],
-      systemPrompt: req.systemPrompt,
-    },
+    config: buildBackendConfig(req),
     cwd: req.cwd,
   });
   
@@ -71,13 +83,7 @@ export async function* streamLlm(req: LlmRequest): AsyncIterable<Message> {
   yield* backend.run({
     prompt: req.prompt,
     context: req.context,
-    config: {
-      model: req.model ?? '',
-      reasoning: req.reasoning ?? 'medium',
-      sandbox: req.sandbox ?? 'read-only',
-      tools: req.tools ?? [],
-      systemPrompt: req.systemPrompt,
-    },
+    config: buildBackendConfig(req),
     cwd: req.cwd,
   });
 }

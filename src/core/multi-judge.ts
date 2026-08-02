@@ -350,6 +350,7 @@ export async function executeSingleJudgePool(args: ExecuteJudgePoolArgs): Promis
     systemPrompt: MULTI_JUDGE_SYSTEM_PROMPT,
     reasoning: reasoning ?? 'medium',
     sandbox: sandbox ?? 'read-only',
+    tools: [],
     cwd,
     onMessage,
   });

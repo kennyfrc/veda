@@ -809,6 +809,7 @@ export function buildSolverMembers(
         systemPrompt: module ? buildDeepSolverSystemPrompt({ module }) : SOLVER_SYSTEM_PROMPT,
         reasoning,
         sandbox: solver.sandbox,
+        tools: [],
         cwd: solver.cwd,
       },
     });
