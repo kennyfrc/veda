@@ -59,8 +59,9 @@ veda -S impl-auth-feature -m sol -p worker 'Implement the cache slice per design
 (\`MODEL_ALIASES="flash=pi/neuralwatt/deepseek-v4-flash"\`) and use \`-m flash\` everywhere.
 
 The **orchestration workflow is bundled as the \`veda-worker\` skill** — from
-the caller's point of view: *you* orchestrate (plan with navigator-plan, delegate
-the whole design to one worker run, verify the result), the *worker* drives
+the caller's point of view: *you* orchestrate (you author the plan and
+design.json yourself — never delegated to navigator-plan — hand the whole
+design to one worker run, verify the result), the *worker* drives
 (edits, verifies, reports). Install it with \`veda skills install\`.
 
 | Persona | Default Reasoning | Tools |
