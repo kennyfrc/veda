@@ -65,7 +65,7 @@ the whole design to one worker run, verify the result), the *worker* drives
 
 | Persona | Default Reasoning | Tools |
 |---------|-------------------|------|
-| \`navigator-plan\` | max | none (default) |
+| \`navigator-plan\` | high | none (default) |
 | \`navigator-chat\` | medium | none (default) |
 | \`verifier\` | medium | read,bash,grep,glob (default) |
 | \`worker\` | high | all (workspace-write sandbox) |
@@ -226,7 +226,7 @@ Key commands:
 - \`veda -S impl-TASKNAME sel add\` to build context (quote globs: \`"src/*.c"\`)
 - \`veda -S impl-TASKNAME sel add file.c:10-50\` to add specific line ranges (slices)
 - \`veda -S impl-TASKNAME sel ls\` to verify selection and token count
-- \`veda -S impl-TASKNAME -p navigator-plan\` for initial planning (max reasoning)
+- \`veda -S impl-TASKNAME -p navigator-plan\` for initial planning (high reasoning)
 - \`veda -S impl-TASKNAME -p navigator-chat\` for follow-up discussion (medium reasoning)
 - \`veda -S impl-TASKNAME -p worker\` to delegate a bounded implementation task (writes report.yaml)
 - \`veda -S review-TASKNAME -p verifier\` for the final adversarial verification (medium reasoning, tools on)
