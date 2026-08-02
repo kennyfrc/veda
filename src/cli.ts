@@ -468,7 +468,7 @@ a driver-navigator workflow inspired by pair programming best practices.
                              ~/.claude/skills/ (discovered by pi, Codex CLI,
                              Claude Code). Also run by 'veda init'.
   Bundled skills             veda-plan-implement, veda-plan-implement-verify, veda-deep-plan,
-                             veda-design-implement-review, veda-worker-verify, veda-worker
+                             veda-worker-verify, veda-worker
   skills uninstall           Remove the installed skills
   skills list                Show install status and symlink health
 

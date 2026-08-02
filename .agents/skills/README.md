@@ -14,7 +14,6 @@ plus a Markdown body of instructions.
 | `veda-plan-implement` | `/veda:plan-implement` | **Small-model lane**: align on a plan with Navigator **before** implementing. No execution. |
 | `veda-plan-implement-verify` | `/veda:plan-implement-verify` | **Small-model lane**: align on a plan, then **execute** it. Navigator has read-only tools. |
 | `veda-deep-plan` | `/veda:deep-plan` | Plan the **hardest** problems with Deep Thinking (parallel solvers + judge + verifier). No execution. |
-| `veda-design-implement-review` | `/veda:design-implement-review` | Full plan + program design + implement + review cycle. Fused plan+design in one call. |
 | `veda-worker-verify` | `/veda:worker-verify` | **Big-model lane**: mandatory **final** verify-fix loop with the Verifier model (adversarial, reports VERDICT). Not for mid-implementation. |
 | `veda-worker` | `/veda:worker` | **Big-model lane**: caller-POV orchestration — navigator-plan → one worker run for the whole design → verifier at the end. You orchestrate (plan, scope, review); the worker drives. Use when you want a model to implement, not advise. |
 
@@ -22,7 +21,7 @@ plus a Markdown body of instructions.
 
 ### From a Veda install (recommended)
 
-`veda` bundles the six skills and can materialize them into the cross-agent discovery
+`veda` bundles the five skills and can materialize them into the cross-agent discovery
 directories. Once `veda` is installed on your machine:
 
 ```bash
@@ -58,7 +57,6 @@ The canonical skill source lives in `.agents/skills/`:
 ├── veda-plan-implement/SKILL.md
 ├── veda-plan-implement-verify/SKILL.md
 ├── veda-deep-plan/SKILL.md
-├── veda-design-implement-review/SKILL.md
 ├── veda-worker-verify/SKILL.md
 └── veda-worker/SKILL.md
 ```
@@ -92,7 +90,7 @@ cat ~/.jdc/agent/old-docs/veda.md
 
 - Skill `name` values use lowercase + hyphens only (spec rule). The `/veda:plan-implement` style labels
   in docs are descriptive; the actual discoverable names are `veda-plan-implement`,
-  `veda-plan-implement-verify`, `veda-deep-plan`, `veda-design-implement-review`,
+  `veda-plan-implement-verify`, `veda-deep-plan`,
   `veda-worker-verify`, and `veda-worker`.
 - Keep `SKILL.md` under 500 lines; move long reference material into a `references/` subdir.
 - The `~/.agents/skills/` location is a *de-facto cross-agent convention* (not mandated by

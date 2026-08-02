@@ -28,7 +28,7 @@ import { pickDefaultModel } from '../agent/detect';
 // Skill registry
 // =============================================================================
 
-export const SKILL_NAMES = ['veda-plan-implement', 'veda-plan-implement-verify', 'veda-deep-plan', 'veda-design-implement-review', 'veda-worker-verify', 'veda-worker'] as const;
+export const SKILL_NAMES = ['veda-plan-implement', 'veda-plan-implement-verify', 'veda-deep-plan', 'veda-worker-verify', 'veda-worker'] as const;
 export type SkillName = (typeof SKILL_NAMES)[number];
 
 // Embedded asset imports. Under `bun build --compile` these are baked into the
@@ -37,7 +37,6 @@ export type SkillName = (typeof SKILL_NAMES)[number];
 import vedaPlanImplSkill from '../../.agents/skills/veda-plan-implement/SKILL.md' with { type: 'file' };
 import vedaPlanImplVerifySkill from '../../.agents/skills/veda-plan-implement-verify/SKILL.md' with { type: 'file' };
 import vedaDeepPlanSkill from '../../.agents/skills/veda-deep-plan/SKILL.md' with { type: 'file' };
-import vedaDesignImplSkill from '../../.agents/skills/veda-design-implement-review/SKILL.md' with { type: 'file' };
 import vedaWorkerVerifySkill from '../../.agents/skills/veda-worker-verify/SKILL.md' with { type: 'file' };
 import vedaWorkerSkill from '../../.agents/skills/veda-worker/SKILL.md' with { type: 'file' };
 
@@ -45,7 +44,6 @@ const EMBEDDED_SKILL_PATHS: Record<SkillName, string> = {
 	'veda-plan-implement': vedaPlanImplSkill,
 	'veda-plan-implement-verify': vedaPlanImplVerifySkill,
 	'veda-deep-plan': vedaDeepPlanSkill,
-	'veda-design-implement-review': vedaDesignImplSkill,
 	'veda-worker-verify': vedaWorkerVerifySkill,
 	'veda-worker': vedaWorkerSkill,
 };

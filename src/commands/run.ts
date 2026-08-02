@@ -66,8 +66,7 @@ export async function handleRun(
   // Program-design auto-attach: when the verifier persona runs and a
   // design.json exists for this session, append it as context so the
   // verifier can check the implementation against the design's signatures
-  // and invariants. (The veda-design-implement-review and veda-worker skills
-  // rely on this.)
+  // and invariants. (The veda-worker skill relies on this.)
   const verifierPersonaName = options.persona ?? defaults.persona;
   if (verifierPersonaName === 'verifier') {
     const { getSessionDir } = await import('../util/paths');
