@@ -1,6 +1,6 @@
 ---
 name: veda-worker
-description: Orchestrate a full plan → implement → verify cycle with Veda, from the caller's point of view. YOU are the orchestrator: you plan and drive navigator-plan to produce the design, hand the WHOLE design to one worker run (the worker is the driver, executes with write access), read its report.yaml, then run the verifier against the design. You NEVER implement — every edit and every fix is delegated to the worker agent. Branches on report.yaml (completed → verify; blocked → answer needs + resume, cap 3, then escalate; failed → replan). Exit 0 = the delegation succeeded even when the report's status is failed/blocked; non-zero = protocol failure. Use when you want the implementation DELEGATED to the worker agent, not done by you.
+description: "Orchestrate a full plan → implement → verify cycle with Veda, from the caller's point of view. YOU are the orchestrator: you plan and drive navigator-plan to produce the design, hand the WHOLE design to one worker run (the worker is the driver, executes with write access), read its report.yaml, then run the verifier against the design. You NEVER implement — every edit and every fix is delegated to the worker agent. Branches on report.yaml (completed → verify; blocked → answer needs + resume, cap 3, then escalate; failed → replan). Exit 0 = the delegation succeeded even when the report's status is failed/blocked; non-zero = protocol failure. Use when you want the implementation DELEGATED to the worker agent, not done by you."
 argument-hint: "[veda-flags]"
 ---
 
