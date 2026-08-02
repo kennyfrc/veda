@@ -6,6 +6,7 @@ import {
   type ModelStage,
 } from '../backend/defaults';
 import { resolveBackendModelExtracted, tryResolveAliasTarget } from './config-extract';
+import { parseModelAliases, type UserAliases } from './model-aliases';
 
 export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type SandboxMode = 'read-only' | 'workspace-write' | 'full';
@@ -22,7 +23,9 @@ export interface AgentConfig {
   model: string;
   reasoning: ReasoningLevel;
   sandbox: SandboxMode;
-  /** Optional tool allowlist. Undefined or [] requests no tools (the default); a non-empty list grants those tools. */
+  /** Tool allowlist. `[]` means no tools (the advisory default). `undefined`
+   *  means the backend's full toolset is granted (the worker's `tools: all`).
+   *  A non-empty list is an explicit allowlist. */
   tools?: string[];
   systemPrompt: string;
   systemPromptPath?: string;
@@ -57,6 +60,8 @@ export interface GlobalConfig {
   deep?: DeepModeConfig;
   defaultReasoning?: ReasoningLevel;
   defaultSandbox?: SandboxMode;
+  /** User-defined model aliases (MODEL_ALIASES). Override the built-in table. */
+  modelAliases?: UserAliases;
 }
 
 const DEFAULT_PERSONA = 'navigator-chat';
@@ -152,9 +157,18 @@ export function parseConfigFile(content: string): GlobalConfig {
         case 'MODEL':
           config.model = value;
           break;
+        case 'MODEL_ALIASES':
+          // User-defined aliases (name=backend/model[:reasoning], comma-separated).
+          config.modelAliases = parseModelAliases(value);
+          break;
         case 'SESSION':
           config.session = value;
           break;
+        case 'DEFAULT_SANDBOX': {
+          const mode = parseSandboxMode(value);
+          if (mode) config.defaultSandbox = mode;
+          break;
+        }
         case 'NOTIFY': {
           const lval = value.toLowerCase();
           if (lval === 'true') config.notify = true;
@@ -249,7 +263,7 @@ export function resolveModel(options: ResolveModelOptions): string | undefined {
   if (userOverride) return userOverride;
 
   if (globalConfig?.model) {
-    const alias = tryResolveAliasTarget(globalConfig.model);
+    const alias = tryResolveAliasTarget(globalConfig.model, globalConfig.modelAliases);
     if (!alias || alias.backend === backend) {
       return globalConfig.model;
     }
@@ -279,7 +293,7 @@ export function resolveModelForStage(options: ResolveModelForStageOptions): stri
   if (userOverride) return userOverride;
 
   if (globalConfig?.model) {
-    const alias = tryResolveAliasTarget(globalConfig.model);
+    const alias = tryResolveAliasTarget(globalConfig.model, globalConfig.modelAliases);
     if (!alias || alias.backend === backend) {
       return globalConfig.model;
     }
@@ -336,7 +350,7 @@ export function resolveBackendModel(opts: ResolveBackendModelOptions): ResolvedB
   const { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig } = opts;
 
   return resolveBackendModelExtracted(
-    { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig },
+    { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig, modelAliases: globalConfig?.modelAliases },
     (backend, model) => resolveModel({ backend, explicitModel: model, globalConfig })
   );
 }
@@ -348,7 +362,7 @@ export function resolveBackendModelForStage(
   const { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig } = opts;
 
   return resolveBackendModelExtracted(
-    { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig },
+    { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig, modelAliases: globalConfig?.modelAliases },
     (backend, model) => resolveModelForStage({ backend, stage, explicitModel: model, globalConfig })
   );
 }

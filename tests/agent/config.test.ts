@@ -138,6 +138,29 @@ DEEP_SOLVER_BACKENDS=" codex , claude-code , droid "
     const config = parseConfigFile(content);
     expect(config.deep?.solverBackends).toEqual(['codex', 'claude-code', 'droid']);
   });
+
+  test('parses DEFAULT_SANDBOX', () => {
+    const config = parseConfigFile(`
+DEFAULT_SANDBOX="workspace-write"
+`);
+    expect(config.defaultSandbox).toBe('workspace-write');
+  });
+
+  test('ignores invalid DEFAULT_SANDBOX value', () => {
+    const config = parseConfigFile(`
+DEFAULT_SANDBOX="every-file"
+`);
+    expect(config.defaultSandbox).toBeUndefined();
+  });
+
+  test('parses MODEL_ALIASES into user aliases', () => {
+    const config = parseConfigFile(`
+MODEL_ALIASES="flash=pi/neuralwatt/deepseek-v4-flash"
+`);
+    expect(config.modelAliases).toEqual({
+      flash: { backend: 'pi', model: 'pi/neuralwatt/deepseek-v4-flash' },
+    });
+  });
 });
 
 describe('isValidReasoning', () => {

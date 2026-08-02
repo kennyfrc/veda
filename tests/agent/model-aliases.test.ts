@@ -5,6 +5,7 @@ import {
   resolveModelAlias,
   isModelAlias,
   listModelAliases,
+  parseModelAliases,
 } from '../../src/agent/model-aliases';
 
 describe('MODEL_ALIASES', () => {
@@ -131,5 +132,59 @@ describe('listModelAliases', () => {
 
   test('returns expected count', () => {
     expect(listModelAliases().length).toBe(8);
+  });
+});
+
+describe('parseModelAliases and user alias overrides', () => {
+  test('parses name=model and infers pi backend from prefix', () => {
+    expect(parseModelAliases('flash=pi/neuralwatt/deepseek-v4-flash')).toEqual({
+      flash: { backend: 'pi', model: 'pi/neuralwatt/deepseek-v4-flash' },
+    });
+  });
+
+  test('preserves the full model string (parsePiModel needs the pi/ prefix)', () => {
+    const aliases = parseModelAliases('flash=pi/neuralwatt/deepseek-v4-flash');
+    expect(aliases.flash.model).toBe('pi/neuralwatt/deepseek-v4-flash');
+  });
+
+  test('infers codex backend from gpt- prefix with reasoning', () => {
+    expect(parseModelAliases('fast=gpt-5.2:low')).toEqual({
+      fast: { backend: 'codex', model: 'gpt-5.2', reasoning: 'low' },
+    });
+  });
+
+  test('parses multiple comma-separated aliases (quoted in config)', () => {
+    expect(parseModelAliases('flash=pi/neuralwatt/deepseek-v4-flash,fast=gpt-5.2:low')).toEqual({
+      flash: { backend: 'pi', model: 'pi/neuralwatt/deepseek-v4-flash' },
+      fast: { backend: 'codex', model: 'gpt-5.2', reasoning: 'low' },
+    });
+  });
+
+  test('skips invalid entries without throwing', () => {
+    expect(parseModelAliases('flash=pi/neuralwatt/deepseek-v4-flash,,bad,=nope,noequals,unknown=whatever')).toEqual({
+      flash: { backend: 'pi', model: 'pi/neuralwatt/deepseek-v4-flash' },
+    });
+  });
+
+  test('normalizes alias names to lowercase', () => {
+    expect(parseModelAliases('FLASH=pi/neuralwatt/deepseek-v4-flash')).toEqual({
+      flash: { backend: 'pi', model: 'pi/neuralwatt/deepseek-v4-flash' },
+    });
+  });
+
+  test('user alias overrides built-in table', () => {
+    const user = parseModelAliases('sol=pi/neuralwatt/deepseek-v4-flash');
+    expect(resolveModelAlias('sol', user)).toEqual({ backend: 'pi', model: 'pi/neuralwatt/deepseek-v4-flash' });
+  });
+
+  test('user alias resolves without built-in fallback', () => {
+    const user = parseModelAliases('flash=pi/neuralwatt/deepseek-v4-flash');
+    expect(resolveModelAlias('flash', user)).toEqual({ backend: 'pi', model: 'pi/neuralwatt/deepseek-v4-flash' });
+    expect(resolveModelAlias('flash')).toBeUndefined(); // not built-in
+  });
+
+  test('extra aliases appear in the alias list', () => {
+    const user = parseModelAliases('flash=pi/neuralwatt/deepseek-v4-flash');
+    expect(listModelAliases(user)).toContain('flash');
   });
 });

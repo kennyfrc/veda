@@ -88,7 +88,7 @@ export function resolveBackendModel(opts: ResolveOptions): ResolvedBackendModel 
   const { explicitBackend, explicitModel, globalConfig, stage = 'base', aliasReasoning: _aliasReasoning } = opts;
   
   // Try to resolve model alias first
-  const aliasTarget = explicitModel ? resolveModelAlias(explicitModel) : undefined;
+  const aliasTarget = explicitModel ? resolveModelAlias(explicitModel, globalConfig?.modelAliases) : undefined;
   
   // Check for alias/backend mismatch
   if (aliasTarget && explicitBackend && aliasTarget.backend !== explicitBackend) {
@@ -141,7 +141,7 @@ export function resolveBackendModel(opts: ResolveOptions): ResolvedBackendModel 
     model = globalConfig.backendModels[backend];
   } else if (globalConfig?.model) {
     // Check if global model is an alias that doesn't match our backend
-    const globalAlias = resolveModelAlias(globalConfig.model);
+    const globalAlias = resolveModelAlias(globalConfig.model, globalConfig.modelAliases);
     if (globalAlias && globalAlias.backend !== backend) {
       // Global model alias doesn't match our backend, use backend default
       model = getBackendDefaultModelForStage(backend, stage) ?? 'unknown';
@@ -234,7 +234,7 @@ function resolveSolverConfig(
     const configOrDefault = resolveStageReasoning(flags, 'solver', globalConfig);
 
     const slots: ListedSlot[] = listedModelEntries.map((entry) => {
-      const alias = resolveModelAlias(entry);
+      const alias = resolveModelAlias(entry, globalConfig?.modelAliases);
       let backend: string;
       let model: string;
       let entryAliasReasoning: ReasoningLevel | undefined;
@@ -268,7 +268,7 @@ function resolveSolverConfig(
   }
   
   // Check if solver model is an alias (drives backend choice)
-  const solverModelAlias = flags.solverModel ? resolveModelAlias(flags.solverModel) : undefined;
+  const solverModelAlias = flags.solverModel ? resolveModelAlias(flags.solverModel, globalConfig?.modelAliases) : undefined;
   
   // Check for solver-specific alias mismatch (only when both are explicit)
   if (flags.solverModel && flags.solverBackend) {
@@ -374,7 +374,7 @@ function resolveJudgeConfig(
   
   // Check for judge-specific alias mismatch (only when both are explicit)
   if (flags.judgeModel && flags.judgeBackend) {
-    const alias = resolveModelAlias(flags.judgeModel);
+    const alias = resolveModelAlias(flags.judgeModel, globalConfig?.modelAliases);
     if (alias && alias.backend !== flags.judgeBackend) {
       throw new CliValidationError(
         `Model alias '${flags.judgeModel}' targets ${alias.backend}, conflicts with --judge-backend ${flags.judgeBackend}`,
@@ -389,7 +389,7 @@ function resolveJudgeConfig(
   // If judge model is an alias, let it drive the backend
   // When base is pinned and no stage-specific flags, use base model (not config)
   const judgeModel = flags.judgeModel ?? (basePinned ? flags.model : deepConfig?.judgeModel);
-  const judgeModelAlias = judgeModel ? resolveModelAlias(judgeModel) : undefined;
+  const judgeModelAlias = judgeModel ? resolveModelAlias(judgeModel, globalConfig?.modelAliases) : undefined;
   
   // Judge backend: CLI > alias-inferred > (pinned base | config) > base
   const effectiveBackend = flags.judgeBackend 
@@ -419,7 +419,7 @@ function resolveVerifierConfig(
   
   // Check for verifier-specific alias mismatch (only when both are explicit)
   if (flags.verifierModel && flags.verifierBackend) {
-    const alias = resolveModelAlias(flags.verifierModel);
+    const alias = resolveModelAlias(flags.verifierModel, globalConfig?.modelAliases);
     if (alias && alias.backend !== flags.verifierBackend) {
       throw new CliValidationError(
         `Model alias '${flags.verifierModel}' targets ${alias.backend}, conflicts with --verifier-backend ${flags.verifierBackend}`,
@@ -434,7 +434,7 @@ function resolveVerifierConfig(
   // If verifier model is an alias, let it drive the backend
   // When base is pinned and no stage-specific flags, use base model (not config)
   const verifierModel = flags.verifierModel ?? (basePinned ? flags.model : deepConfig?.verifierModel);
-  const verifierModelAlias = verifierModel ? resolveModelAlias(verifierModel) : undefined;
+  const verifierModelAlias = verifierModel ? resolveModelAlias(verifierModel, globalConfig?.modelAliases) : undefined;
   
   // Verifier backend: CLI > alias-inferred > (pinned base | config) > base
   const effectiveBackend = flags.verifierBackend 
@@ -465,7 +465,7 @@ function resolveRevisionConfig(
   
   // Check for revision-specific alias mismatch (only when both are explicit)
   if (flags.revisionModel && flags.revisionBackend) {
-    const alias = resolveModelAlias(flags.revisionModel);
+    const alias = resolveModelAlias(flags.revisionModel, globalConfig?.modelAliases);
     if (alias && alias.backend !== flags.revisionBackend) {
       throw new CliValidationError(
         `Model alias '${flags.revisionModel}' targets ${alias.backend}, conflicts with --revision-backend ${flags.revisionBackend}`,
@@ -480,7 +480,7 @@ function resolveRevisionConfig(
   // If revision model is an alias, let it drive the backend (don't inherit from verifier)
   // When base is pinned and no stage-specific flags, use base model (not config)
   const revisionModel = flags.revisionModel ?? (basePinned ? flags.model : deepConfig?.revisionModel);
-  const revisionModelAlias = revisionModel ? resolveModelAlias(revisionModel) : undefined;
+  const revisionModelAlias = revisionModel ? resolveModelAlias(revisionModel, globalConfig?.modelAliases) : undefined;
   
   // Revision backend: CLI > alias-inferred > (pinned base | config > verifier) > base
   const effectiveBackend = flags.revisionBackend 

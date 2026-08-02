@@ -52,12 +52,12 @@ function formatValidModels(): string {
  * Validate that a model can be resolved to a backend.
  * Throws if model is unknown and no explicit backend is provided.
  */
-export function validateModelOrThrow(modelName: string, explicitBackend?: string): void {
+export function validateModelOrThrow(modelName: string, explicitBackend?: string, extraAliases?: Record<string, AliasTarget>): void {
   // If explicit backend provided, no validation needed - user knows what they're doing
   if (explicitBackend) return;
   
   // Check if it's an alias
-  const aliasTarget = tryResolveAliasTarget(modelName);
+  const aliasTarget = tryResolveAliasTarget(modelName, extraAliases);
   if (aliasTarget) return;
   
   // Check if it matches a known prefix
@@ -89,9 +89,11 @@ export function resolveModelAliasNormalized(model: string): string {
 /**
  * Try to resolve a model name to its alias target.
  * Returns undefined if not a known alias.
+ *
+ * `extraAliases` (user-defined, from MODEL_ALIASES) override the built-in table.
  */
-export function tryResolveAliasTarget(model: string): AliasTarget | undefined {
-  return resolveModelAliasImpl(model);
+export function tryResolveAliasTarget(model: string, extraAliases?: Record<string, AliasTarget>): AliasTarget | undefined {
+  return resolveModelAliasImpl(model, extraAliases);
 }
 
 /**
@@ -122,7 +124,8 @@ export function determineBackend(
   aliasTarget: AliasTarget | undefined,
   shouldUseAlias: boolean,
   fallbackBackend: string,
-  explicitModel?: string
+  explicitModel?: string,
+  extraAliases?: Record<string, AliasTarget>
 ): string {
   if (explicitBackend) {
     return explicitBackend;
@@ -137,7 +140,7 @@ export function determineBackend(
       return inferred;
     }
     // Model specified but can't infer backend - throw helpful error
-    validateModelOrThrow(explicitModel, explicitBackend);
+    validateModelOrThrow(explicitModel, explicitBackend, extraAliases);
   }
   return fallbackBackend;
 }
@@ -194,19 +197,21 @@ export interface ResolveBackendModelExtractedOptions {
   fallbackBackend?: string;
   fallbackModel?: string;
   globalConfig?: { model?: string };
+  /** User-defined aliases (MODEL_ALIASES); override the built-in table. */
+  modelAliases?: Record<string, AliasTarget>;
 }
 
 export function resolveBackendModelExtracted(
   opts: ResolveBackendModelExtractedOptions,
   resolveModelFn: (backend: string, model?: string) => string | undefined
 ): ResolvedBackendModel {
-  const { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig } = opts;
+  const { explicitBackend, explicitModel, fallbackBackend, fallbackModel, globalConfig, modelAliases } = opts;
 
   // Potential model to consider for alias resolution
   const preferredModel = explicitModel ?? fallbackModel ?? globalConfig?.model;
 
   // Try to resolve alias
-  const aliasTarget = preferredModel ? tryResolveAliasTarget(preferredModel) : undefined;
+  const aliasTarget = preferredModel ? tryResolveAliasTarget(preferredModel, modelAliases) : undefined;
 
   // Determine if we should use the alias
   // We only use the alias if it applies to the backend we're using
@@ -225,7 +230,8 @@ export function resolveBackendModelExtracted(
     aliasTarget,
     useAlias ?? false,
     fallbackBackend ?? 'codex',
-    explicitModel
+    explicitModel,
+    modelAliases
   );
 
   // Determine model for final resolution
