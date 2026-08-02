@@ -22,7 +22,7 @@ export interface CliOptions {
   notify?: boolean;
   notifySound?: string;
   noTools?: boolean;
-  /** Tool opt-in allowlist (--tools read,grep). Overrides the no-tools default. */
+  /** Tool opt-in allowlist (--tools read,grep). Off by default; personas default to no tools. */
   tools?: string[];
   help?: boolean;
   version?: boolean;
@@ -367,12 +367,13 @@ export function parseArgs(argv: string[]): ParsedArgs {
 export function showHelp(): void {
   console.log(`veda - Pair Programming CLI with multi-backend support
 
-veda pairs you (the Driver) with AI collaborators (Navigator + Reviewer) using
+veda pairs you (the Driver) with AI collaborators (Navigator + Verifier + Worker) using
 a driver-navigator workflow inspired by pair programming best practices.
 
   You (Driver)     explore, edit, implement, run tests
   Navigator        plans, stress-tests, directs (read-only tools, no edits)
-  Reviewer         reviews finished work (read-only, after implementation)
+  Verifier         adversarially verifies finished work (tools on, after implementation)
+  Worker           executes a delegated implementation task (writes your repo)
 
 == Quick Start ==
 
@@ -387,13 +388,15 @@ a driver-navigator workflow inspired by pair programming best practices.
   veda -S impl-my-task -m sol -p navigator-chat \\
     'What about edge case X?'
 
-  # 4. Implement (you do this, not the Navigator)
+  # 4. Implement (you do this, not the Navigator) — or delegate a bounded slice
+  veda -S impl-my-task -m sol -p worker \\
+    'Implement slice 1 of design.json; run the slice tests; report via worker_report.'
 
-  # 5. Review with Reviewer
+  # 5. Verify with Verifier
   git diff > /tmp/changes.diff
   veda -S review-my-task sel add /tmp/changes.diff src/auth/
-  veda -S review-my-task -m sol -p reviewer \\
-    'Implementation complete. Please review.'
+  veda -S review-my-task -m sol -p verifier \\
+    'Implementation complete. Verify against the design and report VERDICT.'
 
 == Commands ==
 
@@ -411,14 +414,14 @@ a driver-navigator workflow inspired by pair programming best practices.
 == Options ==
 
   -S, --session <id>        Session ID (isolates selection + conversation)
-  -p, --persona <name>      Persona: navigator-plan, navigator-chat, reviewer
+  -p, --persona <name>      Persona: navigator-plan, navigator-chat, verifier, worker
   -b, --backend <name>      Backend: codex, claude-code, droid, pi
   -m, --model <name>        Model or alias (auto-selects backend if -b omitted)
                             Aliases: ${listModelAliases().join(', ')}
   -r, --reasoning <level>   Reasoning: minimal, low, medium, high, xhigh, max
   --sandbox <mode>          Sandbox: read-only, workspace-write, full
-  --no-tools, -nt           Disable all tools (default; agent responds from context only)
-  --tools <list>            Opt IN to tools (e.g. read,grep,glob; overrides the no-tools default)
+  --no-tools, -nt           Disable all tools (context-only response)
+  --tools <list>            Opt IN to tools (e.g. read,grep,glob; off by default)
   -o, --output <file>       Save response to file
   -f, --files <file>        Ad-hoc files (doesn't modify selection)
   --no-sel                  Ignore selection for this run
@@ -464,6 +467,8 @@ a driver-navigator workflow inspired by pair programming best practices.
   skills install             Install bundled skills into ~/.agents/skills/ +
                              ~/.claude/skills/ (discovered by pi, Codex CLI,
                              Claude Code). Also run by 'veda init'.
+  Bundled skills             veda-plan-implement, veda-plan-implement-verify, veda-deep-plan,
+                             veda-design-implement-review, veda-worker-verify, veda-worker
   skills uninstall           Remove the installed skills
   skills list                Show install status and symlink health
 

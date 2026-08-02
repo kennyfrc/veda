@@ -23,7 +23,7 @@ export interface DesignOutputPaths {
 /** Resolve the session directory for design artifacts. */
 export function designOutputDir(session: string): string {
   // Use the session dir (same as selection/, thread.json) — survives reboots,
-  // makes reviewer auto-attach trivial, avoids /tmp staleness.
+  // makes verifier auto-attach trivial, avoids /tmp staleness.
   // (Navigator finding: getSessionDir is the right home, not /tmp.)
   return getSessionDir(session);
 }

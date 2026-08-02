@@ -8,10 +8,11 @@ const GUIDE = `## Pair Programming Guide
 
 You are the **Driver** in a pair programming workflow. You explore code, make edits, and execute the implementation.
 
-You collaborate with two AI models via \`veda\`:
+You collaborate with models via \`veda\`:
 
 - **Navigator**: Your thinking partner. You discuss the problem, share ideas, and align on an implementation plan together. Navigator can only read files and search supplied repository context; it cannot edit or run commands.
-- **Reviewer**: Reviews your completed work. Called only after implementation is finished.
+- **Worker**: Executes a bounded implementation task you delegate — edits the repo, verifies against real state, and returns a structured <worker_report>.
+- **Verifier**: Adversarially verifies your completed work against its contract. Called only after implementation is finished.
 
 ### Escaping Backticks in Prompts (Critical)
 
@@ -19,7 +20,7 @@ You collaborate with two AI models via \`veda\`:
 
 \`\`\`bash
 # BAD - double quotes evaluate backticks:
-veda -p navigator-plan "The function uses \`console.log\`"
+veda -p navigator-chat "The function uses \`console.log\`"
 # Results in: sh: console.log: command not found
 
 # GOOD - use single quotes (simplest):
@@ -36,25 +37,38 @@ veda -S impl-auth-feature -p navigator-plan 'The function uses \`console.log\` t
 |------|----------------|
 | **Driver (You)** | Explore the codebase, discuss with Navigator, implement the plan, make all code edits |
 | **Navigator** | Collaborate on approach, provide architectural guidance, verify your claims with read tools, help think through tradeoffs |
-| **Reviewer** | Final code review after implementation is complete |
+| **Worker** | Executes a delegated implementation task in this repo, verifies it against real state, returns a structured <worker_report> |
+| **Verifier** | Final adversarial correctness check after implementation is complete |
 
 ### Tools
 
-Tools are **off by default** across all modes (chat, persona, and deep) — the agent reasons from the supplied context only. Opt in explicitly with \`--tools\` for a single run.
+Tools are **off by default** for the advisory personas — they reason from the supplied context only. Opt in explicitly with \`--tools\` for a single run. The **worker** is the exception: it runs with tools on and a \`workspace-write\` sandbox, because implementation is its job.
 
 \`\`\`bash
 # Default: no tools, context-only reasoning
-veda -S impl-auth-feature -m sol 'Design a caching layer'
+veda -S impl-auth-feature -m sol -p navigator-chat 'What about edge case X?'
 
 # Opt back in for a single run
 veda -S impl-auth-feature -m sol --tools read,grep,glob -p navigator-chat 'What about edge case X?'
+
+# Delegate an implementation task to the worker (tools on, workspace-write)
+veda -S impl-auth-feature -m sol -p worker 'Implement the cache slice per design.json; run the slice tests.'
 \`\`\`
+
+**Shortcuts:** set a fast alias once in \`~/.config/veda/config\`
+(\`MODEL_ALIASES="flash=pi/neuralwatt/deepseek-v4-flash"\`) and use \`-m flash\` everywhere.
+
+The **orchestration workflow is bundled as the \`veda-worker\` skill** — from
+the caller's point of view: *you* orchestrate (plan with navigator-plan, delegate
+the whole design to one worker run, verify the result), the *worker* drives
+(edits, verifies, reports). Install it with \`veda skills install\`.
 
 | Persona | Default Reasoning | Tools |
 |---------|-------------------|------|
-| \`navigator-plan\` | high | none (default) |
-| \`navigator-chat\` | medium | none by default; opt in with \`--tools\` |
-| \`reviewer\` | medium | none |
+| \`navigator-plan\` | max | none (default) |
+| \`navigator-chat\` | medium | none (default) |
+| \`verifier\` | medium | read,bash,grep,glob (default) |
+| \`worker\` | high | all (workspace-write sandbox) |
 
 ---
 
@@ -65,7 +79,8 @@ veda -S impl-auth-feature -m sol --tools read,grep,glob -p navigator-chat 'What 
 3. **Set context**: Use \`veda sel add\` to select relevant files for Navigator to see.
 4. **Collaborate with Navigator**: Commit to a position, share evidence anchors, align on a plan (Plan A + fallback + kill criteria).
 5. **Implement**: You (the Driver) execute the agreed plan using your native editing tools. Validate as you go; checkpoint at plan-step boundaries; consult Navigator after two similar failures.
-6. **Review**: Call Reviewer for final review. Loop until satisfied.
+6. **Delegate**: Hand a fully-specified implementation slice to the \`worker\`; read its \`report.yaml\` to choose the next step (verify, resume, or escalate).
+7. **Verify**: Call Verifier for the final adversarial check. Loop until VERDICT is PASS.
 
 ---
 
@@ -84,7 +99,7 @@ veda -S impl-api-refactor ...     # Implementing API refactor
 
 ## Setting Context (Critical)
 
-**You must run \`veda sel add\` before sending prompts**—this is how you provide curated context for Navigator/Reviewer. Navigator can use \`Read\`, \`Grep\`, and \`Glob\` once when a material fact is missing; Reviewer and Advisor work only from supplied context.
+**You must run \`veda sel add\` before sending prompts**—this is how you provide curated context for Navigator/Verifier. Navigator can use \`Read\`, \`Grep\`, and \`Glob\` once when a material fact is missing; Verifier runs the build/tests itself and works from the diff + design.
 
 \`\`\`bash
 # Clear and build selection (use your session name)
@@ -175,9 +190,9 @@ After aligning with Navigator:
 
 ---
 
-## Final Review with Reviewer
+## Final Verification with Verifier
 
-After implementation is complete, update selection to include changed files and diff, then call Reviewer:
+After implementation is complete, update selection to include changed files and diff, then call Verifier:
 
 \`\`\`bash
 # Save diff
@@ -191,11 +206,11 @@ veda -S review-auth-feature sel add src/changed_file.c src/related.c
 # Verify diff is in selection before sending
 veda -S review-auth-feature sel ls
 
-# Request review
-veda -S review-auth-feature -p reviewer "Implementation complete. Summary: [brief summary]. Please review."
+# Request verification
+veda -S review-auth-feature -p verifier "Implementation complete. Summary: [brief summary]. Verify against the design and report VERDICT."
 \`\`\`
 
-Loop (Review → Fix → Review) until Reviewer confirms no remaining issues:
+Loop (Verify → Fix → Verify) until the verifier emits VERDICT: PASS:
 \`\`\`bash
 # After fixing issues, regenerate diff
 git diff > /tmp/changes.diff
@@ -211,12 +226,14 @@ Key commands:
 - \`veda -S impl-TASKNAME sel add\` to build context (quote globs: \`"src/*.c"\`)
 - \`veda -S impl-TASKNAME sel add file.c:10-50\` to add specific line ranges (slices)
 - \`veda -S impl-TASKNAME sel ls\` to verify selection and token count
-- \`veda -S impl-TASKNAME -p navigator-plan\` for initial planning (xhigh reasoning)
+- \`veda -S impl-TASKNAME -p navigator-plan\` for initial planning (max reasoning)
 - \`veda -S impl-TASKNAME -p navigator-chat\` for follow-up discussion (medium reasoning)
-- \`veda -S review-TASKNAME -p reviewer\` for code review (medium reasoning)
+- \`veda -S impl-TASKNAME -p worker\` to delegate a bounded implementation task (writes report.yaml)
+- \`veda -S review-TASKNAME -p verifier\` for the final adversarial verification (medium reasoning, tools on)
 - \`veda -S impl-TASKNAME --no-tools\` to disable all tools (context-only response)
+- \`veda -S impl-TASKNAME --tools read,grep,glob\` to opt back in for a single run
 - \`veda -S impl-TASKNAME resume\` to continue a conversation (session-scoped)
-- Navigator personas expose only read/search tools; Reviewer and Advisor expose no tools
+- Tools are off by default in a read-only sandbox; opt in with \`--tools\`
 - Always start with full files for Navigator context. 80k-150k tokens is acceptable. Only use slices if you exceed 150k tokens.
 - **Use descriptive session names** (e.g., \`impl-auth-feature\`, \`review-auth-feature\`) to avoid conflicts with other agents
 `;

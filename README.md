@@ -12,7 +12,7 @@ Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.4
 
 The driver writes the code. Veda brings in frontier intelligence only where it earns its cost.
 
-Veda is that consultation channel. It wraps codex, claude-code, droid, and pi behind personas (navigator-plan, navigator-plan-design, reviewer).
+Veda is that consultation channel. It wraps codex, claude-code, droid, and pi behind personas (navigator-plan, navigator-chat, verifier, worker).
 
 ### Heavy thinking, based on a few academic papers
 
@@ -59,7 +59,7 @@ veda init                          # first-time setup: installs agent skills for
 #      /veda:plan-and-implement the rate-limiter plan
 ```
 
-After `veda init`, your driver agent (pi, codex, or claude) auto-discovers the bundled skills (`veda-plan`, `veda-plan-and-implement`, `veda-deep-plan`, `veda-design-implement-review`, `veda-review`) and can invoke veda on its own. Run `veda skills list` to verify they installed.
+After `veda init`, your driver agent (pi, codex, or claude) auto-discovers the bundled skills (`veda-plan`, `veda-plan-and-implement`, `veda-deep-plan`, `veda-design-implement-review`, `veda-review`, `veda-orchestrate`) and can invoke veda on its own. Run `veda skills list` to verify they installed.
 
 <details>
 <summary>Build from source</summary>
@@ -75,10 +75,10 @@ cp dist/veda ~/.local/bin/
 
 ## Install Agent Skills
 
-Veda bundles five [Agent Skills](https://agentskills.io/specification) (`veda-plan`,
-`veda-plan-and-implement`, `veda-deep-plan`, `veda-design-implement-review`,
-`veda-review`) that teach coding agents how to collaborate
-with the Navigator / Reviewer models. One command installs them into the directories
+Veda bundles six [Agent Skills](https://agentskills.io/specification) (`veda-plan-implement`,
+`veda-plan-implement-verify`, `veda-deep-plan`, `veda-design-implement-review`,
+`veda-worker-verify`, `veda-worker`) that teach coding agents how to collaborate
+with the Navigator / Verifier models. One command installs them into the directories
 read by **Pi**, **OpenAI Codex CLI**, and **Claude Code**:
 
 ```bash
@@ -142,6 +142,19 @@ veda -m pi/neuralwatt/moonshotai/Kimi-K2.6 "..."      # neuralwatt provider
 ```
 
 When you specify both `-b` and `-m`, the model is passed literally (no alias resolution).
+
+**User-defined aliases.** Add your own aliases to `~/.config/veda/config`; they override
+the built-in table and work everywhere `-m` works (base persona, worker, and deep-mode
+solver/judge/verifier/revision slots):
+
+```bash
+# ~/.config/veda/config — comma-separated name=full-model[:reasoning]
+MODEL_ALIASES="flash=pi/neuralwatt/deepseek-v4-flash"
+```
+
+```bash
+veda -m flash "..."        # → pi backend, pi/neuralwatt/deepseek-v4-flash
+```
 
 **Note:** The `--reasoning` flag (`-r`) is fully supported by the Codex backend, automatically configured for the Claude backend (mapped to `MAX_THINKING_TOKENS`), and supported by the Gemini backend (via scoped settings.json override with automatic cleanup).
 
@@ -233,12 +246,70 @@ Each entry resolves through the alias/prefix machinery, so backend, model, and p
 ### Use Personas
 
 ```bash
-veda -p navigator-plan "..."        # Planning (high reasoning)
-veda -p navigator-plan-design "..." # Plan + program-design protocol (high)
+veda -p navigator-plan "..."        # Plan + program-design protocol (high)
 veda -p navigator-chat "..."        # Discussion (medium reasoning)
-veda -p reviewer "..."              # Code review (high reasoning)
+veda -p verifier "..."             # Adversarial verification (medium reasoning, tools on)
+veda -p worker "..."                # Execute an implementation task (writes your repo)
 veda personas                      # List available
 ```
+
+#### The Worker persona (write-capable)
+
+The **worker** is veda's first write-capable seat. It inverts the advisory
+personas' defaults — `tools: all` and `sandbox: workspace-write` — and is meant
+for bounded implementation tasks a Driver can fully specify.
+
+```bash
+# Delegate an implementation task; tools on, workspace-write sandbox
+veda -S feat-42 -p worker "Implement slice 1 of design.json; run the slice tests"
+
+# -m semantics are identical to every other persona
+veda -S feat-42 -p worker -m opus "Apply the auth fix from design.json"
+```
+
+Every worker run ends with a mandatory `<worker_report>` block (Factory's
+subagent handoff contract) parsed by veda into `report.yaml` in the session
+dir — `~/.config/veda/sessions/<session>/report.yaml` — alongside the full
+raw transcript `response.yaml`. A Driver (often another agent) branches on
+`report.yaml`:
+
+```bash
+STATUS=$(yq '.status' ~/.config/veda/sessions/feat-42/report.yaml)
+case "$STATUS" in
+  completed) veda -S feat-42 -p verifier "Verify against design.json" ;;
+  blocked)   veda -S feat-42 resume "$(yq '.needs' .../report.yaml)" ;;
+  failed)    # route discovered_issues back to navigator-plan ;;
+esac
+```
+
+Because the worker edits your repo by default, its run header shows the
+sandbox mode up front, and `--sandbox read-only` is always available to run it
+as a dry-run planner (a report with no edits). The worker stays in scope:
+tools on, workspace-write — both overridable via `--tools`/`--no-tools` and
+`--sandbox`.
+
+This orchestration workflow is bundled as the **`veda-worker`** agent skill
+(from the caller's point of view: *you* orchestrate plan → one worker run → verify;
+the *worker* drives the implementation). Install it with `veda skills install`.
+
+#### The Verifier persona (adversarial)
+
+The **verifier** (formerly `reviewer`) is the closing correctness gate. It runs
+with `read,bash,grep,glob` on by default so it can run the build and the tests
+itself — its job is not to confirm the implementation works but to try to
+break it: contract compliance against `design.json` (auto-attached), concrete
+commands with observed output, and at least one adversarial probe (boundary,
+idempotency, orphan op, concurrency) before it may pass.
+
+```bash
+git diff > /tmp/changes.diff
+veda -S feat-42 sel add /tmp/changes.diff
+veda -S feat-42 -p verifier "Verify against the design and report VERDICT"
+```
+
+Every verifier run ends with a machine-parseable `<verifier_report>` block
+whose `verdict` is exactly one of `PASS | FAIL | PARTIAL` (PARTIAL =
+environmental limits only). Branch on that verdict, not on prose.
 
 ## Architecture
 
@@ -381,7 +452,7 @@ veda deep [options] <prompt>
 
 Options:
   -S, --session <id>     Session ID (or VEDA_SESSION env)
-  -p, --persona <name>   navigator-plan-design|navigator-plan|navigator-chat|reviewer
+  -p, --persona <name>   navigator-plan|navigator-chat|verifier|worker
   -b, --backend <name>   codex|claude-code|droid|pi
   -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|glm-5.2|makora|pi/<provider>/<model-id>)
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh|max
@@ -424,6 +495,9 @@ src/
 # Default backend
 BACKEND="pi"
 PERSONA="navigator-chat"
+
+# User-defined model aliases (comma-separated name=full-model[:reasoning])
+MODEL_ALIASES="flash=pi/neuralwatt/deepseek-v4-flash"
 
 # Per-backend model and reasoning settings
 CODEX_MODEL="gpt-5.2"

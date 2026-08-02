@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>veda personas — final prompts</title>
+<style>body{font-family:-apple-system,sans-serif;max-width:760px;margin:40px auto;padding:0 20px;color:#1a1a2e;line-height:1.6}
+h1{font-size:24px}li{margin:8px 0;font-size:16px}a{color:#6d28d9;text-decoration:none}a:hover{text-decoration:underline}
+code{background:#efeee8;padding:1px 5px;border-radius:4px;font-size:.9em}p{color:#5a5a72}</style></head><body>
+<h1>veda personas — final prompts</h1>
+<p>Rewritten onto the Factory droid frame. Flat depth-1 XML final blocks. <code>verifier</code> (formerly reviewer) is the adversarial checker.</p>
+<ul>
+<li><a href="navigator-plan/AGENTS.md">navigator-plan</a> — read-only architect (Claude planAgent) · <code>reasoning: max</code> · <code>plan_report</code></li>
+<li><a href="navigator-chat/AGENTS.md">navigator-chat</a> — in-flight advisor · <code>reasoning: medium</code> · <code>chat_report</code></li>
+<li><a href="verifier/AGENTS.md">verifier</a> — adversarial correctness (Claude verificationAgent) · tools read,bash,grep,glob · <code>verifier_report</code> + VERDICT</li>
+<li><a href="worker/AGENTS.md">worker</a> — write-capable driver · <code>tools: all, workspace-write</code> · <code>worker_report</code> → report.yaml</li>
+</ul>
+</body></html>

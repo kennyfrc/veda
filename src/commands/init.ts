@@ -12,11 +12,17 @@ const DEFAULT_CONFIG = `# veda configuration
 # Default model
 # MODEL="gpt-5.2"
 
+# User-defined model aliases (comma-separated name=backend/model[:reasoning])
+# MODEL_ALIASES="flash=pi/neuralwatt/deepseek-v4-flash"
+
 # Default reasoning level (minimal, low, medium, high, xhigh, max)
 # REASONING="medium"
 
 # Default persona
 # PERSONA="navigator-chat"
+
+# Default sandbox (read-only, workspace-write, full)
+# DEFAULT_SANDBOX="read-only"
 
 # Default backend (codex, claude-code, droid, pi)
 # BACKEND="codex"
@@ -112,14 +118,14 @@ export async function handleInit(_options: CliOptions): Promise<void> {
   console.log('Deep thinking for the hardest problems (parallel solvers + judge + verify):');
   console.log('  veda deep "Best architecture for real-time sync?"');
   console.log('');
-  console.log('Review your work (reviewer checks diffs + invariants):');
+  console.log('Verify your work (verifier runs checks against the design):');
   console.log('  git diff > /tmp/changes.diff');
   console.log('  veda sel add /tmp/changes.diff');
-  console.log('  veda -p reviewer "Review my changes"');
+  console.log('  veda -p verifier "Verify my changes; report VERDICT"');
   console.log('');
   console.log('Skills installed for pi, Codex CLI, and Claude Code:');
-  console.log('  veda-plan, veda-plan-and-implement, veda-deep-plan,');
-  console.log('  veda-design-implement-review, veda-review');
+  console.log('  veda-plan-implement, veda-plan-implement-verify, veda-deep-plan,');
+  console.log('  veda-design-implement-review, veda-worker-verify, veda-worker');
   console.log('');
   console.log(`veda initialized at ${vedaHome}`);
 }

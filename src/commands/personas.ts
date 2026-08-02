@@ -43,15 +43,13 @@ export async function handlePersonas(
 function personaDescription(name: string): string {
   switch (name) {
     case 'navigator-plan':
-      return 'High-reasoning planning (use once per task)';
+      return 'Plan + structured program design';
     case 'navigator-chat':
       return 'Medium-reasoning in-flight discussion';
-    case 'navigator-plan-notools':
-      return 'Planning mode, no tool access (context-only)';
-    case 'navigator-chat-notools':
-      return 'In-flight discussion, no tool access (context-only)';
-    case 'reviewer':
-      return 'Code review with [P0]-[P3] findings';
+    case 'verifier':
+      return 'Adversarial correctness check with [P0]-[P3] findings + VERDICT';
+    case 'worker':
+      return 'Write-capable implementation worker (workspace-write)';
     default:
       return '';
   }
