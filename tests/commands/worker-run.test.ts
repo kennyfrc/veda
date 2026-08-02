@@ -137,7 +137,7 @@ describe('worker run protocol', () => {
     expect(stderr.some(l => l.includes('no-block'))).toBe(true);
 
     // Raw response YAML still persisted even on protocol failure.
-    expect(existsSync(join('/tmp', 'veda', 'worker-int-test', 'response.yaml'))).toBe(true);
+    expect(existsSync(join(vedaHome, 'sessions', 'worker-int-test', 'response.yaml'))).toBe(true);
   });
 
   test('malformed (unterminated) block: protocol error, exit 1', async () => {

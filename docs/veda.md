@@ -67,7 +67,9 @@ veda -S task-NAME -p worker -m sol 'Implement the program design in this session
 ```
 
 - The worker ends with a mandatory `<worker_report>`; veda parses it into
-  `~/.config/veda/sessions/task-NAME/report.yaml` (next to the raw `response.yaml`).
+  `<project>/.veda/sessions/task-NAME/report.yaml` (next to the raw `response.yaml`).
+  Inside a git repo, session artifacts live in the project's `.veda/`; outside,
+  veda falls back to `~/.config/veda/sessions/`.
 - **Exit codes:** `0` = the delegation worked (protocol block well-formed) even
   when `status` is `failed`/`blocked` — a truthful negative is a successful
   report. Non-zero = protocol failure (missing/malformed block): inspect the
@@ -105,8 +107,11 @@ veda -S task-NAME -p verifier -m sol 'Verify against this session's design.json 
 
 - `~/.config/veda/config` — backend, persona, model, `MODEL_ALIASES`,
   per-backend models, `DEFAULT_SANDBOX`.
-- `~/.config/veda/sessions/<session>/` — `design.json` (+ `design.xml`/
-  `design.report`), `report.yaml`, `response.yaml`.
+- `<project>/.veda/sessions/<session>/` (project-local; `~/.config/veda/sessions/`
+  when run outside a git repo) — `design.json` (+ `design.xml`/
+  `design.report`), `report.yaml`, `response.yaml`, `selection/`, `thread.json`,
+  `checkpoint.yaml`. The session base is the nearest git root's `.veda/`;
+  an explicit `VEDA_HOME` env override always wins.
 - Skills install to `~/.agents/skills/` (+ symlinks in `~/.claude/skills/`).
 
 ## Operating rules

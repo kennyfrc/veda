@@ -21,6 +21,9 @@ coverage/
 # Design docs / working artifacts (local only, not for origin)
 devdocs/
 
+# Project-local veda session artifacts (created when tests/veda run in this repo)
+.veda/
+
 # Stale docs (superseded by README.md and devdocs/)
 # docs/veda.md is tracked — the onboarding doc synced to ~/.pi/agent/docs by
 # 'veda skills install' and referenced by every skill.

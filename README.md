@@ -269,12 +269,12 @@ veda -S feat-42 -p worker -m opus "Apply the auth fix from design.json"
 
 Every worker run ends with a mandatory `<worker_report>` block (Factory's
 subagent handoff contract) parsed by veda into `report.yaml` in the session
-dir — `~/.config/veda/sessions/<session>/report.yaml` — alongside the full
+dir — `<project>/.veda/sessions/<session>/report.yaml` (project-local; `~/.config/veda/sessions/` outside a git repo) — alongside the full
 raw transcript `response.yaml`. A Driver (often another agent) branches on
 `report.yaml`:
 
 ```bash
-STATUS=$(yq '.status' ~/.config/veda/sessions/feat-42/report.yaml)
+STATUS=$(yq '.status' "$(git rev-parse --show-toplevel)/.veda/sessions/feat-42/report.yaml")
 case "$STATUS" in
   completed) veda -S feat-42 -p verifier "Verify against design.json" ;;
   blocked)   veda -S feat-42 resume "$(yq '.needs' .../report.yaml)" ;;
@@ -436,8 +436,8 @@ interface Message {
 ### Sessions
 
 Sessions isolate state between concurrent agents:
-- File selection: `~/.config/veda/sessions/<id>/selection`
-- Thread info: `~/.config/veda/sessions/<id>/thread.json`
+- File selection: `<project>/.veda/sessions/<id>/selection` (global fallback `~/.config/veda/sessions/`)
+- Thread info: `<project>/.veda/sessions/<id>/thread.json` (global fallback `~/.config/veda/sessions/`)
 
 ## Reference
 

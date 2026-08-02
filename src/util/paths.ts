@@ -1,4 +1,6 @@
-import { join } from 'path';
+import { join, dirname, resolve } from 'path';
+import { existsSync } from 'fs';
+import { cwd } from 'process';
 import { homedir } from 'os';
 
 /**
@@ -20,8 +22,40 @@ export function getVedaHome(): string {
 /** @deprecated Use getVedaHome() instead */
 export const VEDA_HOME = join(homedir(), '.config', 'veda');
 
+/**
+ * Find the nearest project root — the closest ancestor of `dir` (default:
+ * current working directory) that contains a `.git` entry. Returns undefined
+ * when no git root is found (e.g. running outside a repo).
+ */
+export function findProjectRoot(dir?: string): string | undefined {
+  let current = dir ? resolve(dir) : cwd();
+  for (;;) {
+    if (existsSync(join(current, '.git'))) return current;
+    const parent = dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+}
+
+/**
+ * Project-local veda home: `<projectRoot>/.veda`, or undefined when no git
+ * project root is discoverable from the cwd. Session artifacts live here so
+ * they travel with the repo and any agent operating in the folder can read
+ * them in place (rather than hiding them in the user-global config).
+ */
+export function getProjectVedaBase(dir?: string): string | undefined {
+  const root = findProjectRoot(dir);
+  return root ? join(root, '.veda') : undefined;
+}
+
 export function getSessionDir(sessionId: string, baseDir?: string): string {
-  return join(baseDir ?? getVedaHome(), 'sessions', sessionId);
+  // Explicit baseDir (tests) and an explicit VEDA_HOME override always win.
+  // Otherwise prefer project-local `.veda/sessions/<session>`; fall back to
+  // the user-global veda home when no project root is discoverable. Config,
+  // personas, and stats stay user-global (getVedaHome) by design.
+  const base = baseDir
+    ?? (process.env.VEDA_HOME ? getVedaHome() : (getProjectVedaBase() ?? getVedaHome()));
+  return join(base, 'sessions', sessionId);
 }
 
 export function getSelectionPath(sessionId: string, baseDir?: string): string {

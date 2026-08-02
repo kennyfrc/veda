@@ -3,9 +3,11 @@ import { saveResponseYaml } from '../../src/util/response-save';
 import { exists, rm } from 'fs/promises';
 import { join } from 'path';
 import { readFileSync } from 'fs';
+import { getSessionDir } from '../../src/util/paths';
 
 const TEST_SESSION = 'test-save-response';
-const TEST_DIR = join('/tmp', 'veda', TEST_SESSION);
+// Session dir resolves to the project `.veda` when no VEDA_HOME override is set.
+const TEST_DIR = getSessionDir(TEST_SESSION);
 
 describe('saveResponseYaml', () => {
   afterEach(async () => {
@@ -16,7 +18,7 @@ describe('saveResponseYaml', () => {
     }
   });
 
-  test('saves response to /tmp/veda/<session>/response.yaml', async () => {
+  test('saves response to the session dir response.yaml', async () => {
     const path = await saveResponseYaml({
       session: TEST_SESSION,
       persona: 'navigator-plan',

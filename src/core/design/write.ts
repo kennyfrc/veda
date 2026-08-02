@@ -5,9 +5,11 @@
  * validator are pure; this module takes their output and materializes
  * it as files the caller (pi, a human, another agent) can read.
  *
- * Output layout: /tmp/veda/<session>/{design.xml, design.json, design.report}
- * /tmp is ephemeral by design — the caller can copy design.xml into the
- * repo to persist it, or re-run the designer to regenerate.
+ * Output layout: <session-dir>/{design.xml, design.json, design.report}
+ * The session dir is the project-local `.veda/sessions/<session>` when run
+ * inside a git repo (else `~/.config/veda/sessions/<session>`). It survives
+ * reboots and the caller can copy design.xml into the repo to persist it,
+ * or re-run the designer to regenerate.
  */
 import { join } from 'path';
 import { getSessionDir } from '../../util/paths';

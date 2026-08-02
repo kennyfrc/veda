@@ -42,11 +42,10 @@ const BACKEND_DEFAULT_MODEL: Record<string, DefaultModel> = {
   'claude-code': { model: 'claude-fable-5', backend: 'claude-code' },
   'codex':       { model: 'gpt-5.6-sol',    backend: 'codex' },
   'droid':       { model: 'claude-fable-5', backend: 'droid' },
-  // pi: fireworks hosts Kimi K3. The model id is path-shaped
-  // (accounts/fireworks/models/kimi-k3), so the veda spec is
-  // pi/fireworks/accounts/fireworks/models/kimi-k3 — parsePiModel
-  // splits on the first slash after pi/ to get provider + model.
-  'pi':          { model: 'pi/fireworks/accounts/fireworks/models/kimi-k3', backend: 'pi' },
+  // pi: NeuralWatt hosts Kimi K3 (kimi-k3). The veda spec is
+  // pi/neuralwatt/kimi-k3 — parsePiModel splits on the first slash
+  // after pi/ to get provider + model.
+  'pi':          { model: 'pi/neuralwatt/kimi-k3', backend: 'pi' },
 };
 
 /** Detection priority: codex → claude → pi → droid. */

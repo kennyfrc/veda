@@ -1,5 +1,7 @@
 /**
- * Save full LLM response to a YAML file in /tmp/veda/<session>/.
+ * Save full LLM response to a YAML file in the session dir: <home>/<session>/response.yaml
+ * (project `.veda/sessions/<session>` when run inside a git repo, else
+ * `~/.config/veda/sessions/<session>`).
  *
  * Motivation: long responses get truncated in stdout. Saving to a file
  * ensures the full response is always accessible.
@@ -24,11 +26,11 @@ export interface ResponseSaveOptions {
 }
 
 /**
- * Save response metadata + full text to /tmp/veda/<session>/response.yaml.
+ * Save response metadata + full text to the session dir's response.yaml.
  * Returns the file path on success, undefined on failure.
  */
 export async function saveResponseYaml(opts: ResponseSaveOptions): Promise<string | undefined> {
-  const dir = join('/tmp', 'veda', opts.session);
+  const dir = getSessionDir(opts.session);
   const filePath = join(dir, 'response.yaml');
 
   const doc: Record<string, unknown> = {
@@ -78,10 +80,10 @@ export interface WorkerReportSaveOptions {
 }
 
 /**
- * Save a parsed worker report to the session dir: ~/.config/veda/sessions/<session>/report.yaml
- * (the same session dir that holds design.json, selection/, thread.json — where the
- * Driver's next step reads it). The report fields sit at the top level so the Driver
- * can branch on them directly: `yq '.status' report.yaml`.
+ * Save a parsed worker report to the session dir: <session>/report.yaml
+ * (the same session dir that holds design.json, selection/, response.yaml,
+ * thread.json — where the Driver's next step reads it). The report fields
+ * sit at the top level so the Driver can branch on them directly: `yq '.status' report.yaml`.
  */
 export async function saveWorkerReport(opts: WorkerReportSaveOptions): Promise<string | undefined> {
   const dir = getSessionDir(opts.session);

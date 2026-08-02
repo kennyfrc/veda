@@ -23,7 +23,8 @@ export type FailedStage = 'judge' | 'verify' | 'revision';
  * Deep mode checkpoint for resumability.
  * 
  * Wraps a DeepThinkTrace with additional metadata needed to resume
- * from a failed stage. Stored at ~/.config/veda/sessions/{session}/checkpoint.yaml
+ * from a failed stage. Stored at <session-dir>/checkpoint.yaml (project `.veda`
+ * when run inside a git repo, else `~/.config/veda`).
  */
 export interface DeepThinkCheckpoint {
   /** Checkpoint format version (independent of trace_version) */
