@@ -1,6 +1,6 @@
 {
   "name": "veda-ts",
-  "version": "0.75.0",
+  "version": "0.75.1",
   "description": "A CLI oracle your coding agent consults for planning and review.",
   "type": "module",
   "license": "MIT",

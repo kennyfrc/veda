@@ -1,6 +1,6 @@
 {
   "name": "veda-ts-linux-arm64",
-  "version": "0.75.0",
+  "version": "0.75.1",
   "description": "veda binary for linux-arm64",
   "os": [
     "linux"
