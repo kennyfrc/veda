@@ -127,3 +127,8 @@ veda -S task-NAME -p verifier -m sol 'Verify against this session's design.json 
 - **Backticks in prompts:** use single quotes — double quotes let bash
   evaluate backticks as command substitution.
 - **`-o file.md`** saves the response instead of stdout.
+- **Never pipe veda with `2>&1`** (and don't capture both streams together).
+  veda writes its response/`<worker_report>` to **stdout** and its progress
+  header + trace to **stderr**; `2>&1` merges the header into the response and
+  garbles it. Read the streams separately, or use `-o file.md` to save only
+  the response.

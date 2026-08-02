@@ -234,6 +234,7 @@ Key commands:
 - \`veda -S impl-TASKNAME --no-tools\` to disable all tools (context-only response)
 - \`veda -S impl-TASKNAME --tools read,grep,glob\` to opt back in for a single run
 - \`veda -S impl-TASKNAME resume\` to continue a conversation (session-scoped)
+- **Don't pipe veda with \`2>&1\`** — the response goes to stdout, the progress header/trace to stderr; merging both garbles the response. Use \`-o file.md\` to save just the response.
 - Tools are off by default in a read-only sandbox; opt in with \`--tools\`
 - Always start with full files for Navigator context. 80k-150k tokens is acceptable. Only use slices if you exceed 150k tokens.
 - **Use descriptive session names** (e.g., \`impl-auth-feature\`, \`review-auth-feature\`) to avoid conflicts with other agents
