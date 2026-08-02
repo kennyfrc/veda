@@ -14,8 +14,8 @@ plus a Markdown body of instructions.
 | `veda-plan-implement` | `/veda:plan-implement` | **Small-model lane**: align on a plan with Navigator **before** implementing. No execution. |
 | `veda-plan-implement-verify` | `/veda:plan-implement-verify` | **Small-model lane**: align on a plan, then **execute** it. Navigator has read-only tools. |
 | `veda-deep-plan` | `/veda:deep-plan` | Plan the **hardest** problems with Deep Thinking (parallel solvers + judge + verifier). No execution. |
-| `veda-worker-verify` | `/veda:worker-verify` | **Big-model lane**: mandatory **final** verify-fix loop with the Verifier model (adversarial, reports VERDICT). Not for mid-implementation. |
-| `veda-worker` | `/veda:worker` | **Big-model lane**: caller-POV orchestration — navigator-plan → one worker run for the whole design → verifier at the end. You orchestrate (plan, scope, review); the worker drives. Use when you want a model to implement, not advise. |
+| `veda-worker-verify` | `/veda:worker-verify` | **Big-model lane**: mandatory **final** verify loop with the Verifier model (adversarial, reports VERDICT). You orchestrate; P0/P1 fixes are delegated to the worker agent. Not for mid-implementation. |
+| `veda-worker` | `/veda:worker` | **Big-model lane**: caller-POV orchestration — you plan, navigator-plan → one worker run for the whole design → verifier at the end. You NEVER implement; the worker drives (edits, fixes, reports). Use when you want implementation delegated to the worker agent, not done by you. |
 
 ## Installing the skills
 

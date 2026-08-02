@@ -1,12 +1,14 @@
 ---
 name: veda-worker
-description: Orchestrate a full plan → implement → verify cycle with Veda, from the caller's point of view. YOU are the orchestrator: you drive navigator-plan to produce the design, hand the WHOLE design to one worker run (the worker is the driver, executes with write access), read its report.yaml, then run the verifier against the design. Branches on report.yaml (completed → verify; blocked → answer needs + resume, cap 3, then escalate; failed → replan). Exit 0 = the delegation succeeded even when the report's status is failed/blocked; non-zero = protocol failure. Use when you want a model to implement a whole design, not just advise.
+description: Orchestrate a full plan → implement → verify cycle with Veda, from the caller's point of view. YOU are the orchestrator: you plan and drive navigator-plan to produce the design, hand the WHOLE design to one worker run (the worker is the driver, executes with write access), read its report.yaml, then run the verifier against the design. You NEVER implement — every edit and every fix is delegated to the worker agent. Branches on report.yaml (completed → verify; blocked → answer needs + resume, cap 3, then escalate; failed → replan). Exit 0 = the delegation succeeded even when the report's status is failed/blocked; non-zero = protocol failure. Use when you want the implementation DELEGATED to the worker agent, not done by you.
 argument-hint: "[veda-flags]"
 ---
 
 ## Your Task: Orchestrate the Design to Completion — the Worker Drives
 
-This skill is written from the caller's point of view: **you are the orchestrator** — you plan, scope, supply context, and judge quality — while the **worker persona is the driver**, executing the implementation with real write access and reporting back through a structured `<worker_report>`. Your job is to run the loop: design → deliver the whole design to one worker → verify the result. You do not implement; the worker does.
+This skill is written from the caller's point of view: **you are the orchestrator and the planner** — you plan, scope, supply context, and judge quality — while the **worker persona is the driver**, executing the implementation with real write access and reporting back through a structured `<worker_report>`. Your job is to run the loop: design → deliver the whole design to one worker → verify the result.
+
+**YOU NEVER IMPLEMENT. This is the hard rule of this skill.** You do not edit files, write code, run the build, or fix issues yourself — not once, not "just this small thing." Every implementation and every fix is delegated to the worker persona. If you catch yourself opening an editor or writing a patch, stop: that work belongs in a `-p worker` delegation.
 
 The worker is veda's write-capable seat: `tools: all`, `sandbox: workspace-write`. It edits files, runs tests/typecheck/build, and — whenever the change alters observable behavior — proves it against the live surface (browser via `cdp`, interactive CLI via `xtui`/`tmux`, API edges via scratch probes) with artifacts. Its final message is a mandatory `<worker_report>` (Factory subagent handoff contract), which veda parses into `report.yaml` next to the raw transcript `response.yaml` in the session dir.
 
@@ -60,7 +62,7 @@ veda -S task-cache-layer sel ls   # verify + token count
 
 ## Step 2 — Plan and Design (navigator-plan produces design.json)
 
-Drive `navigator-plan` in the session to produce the structured program design. Veda parses its `<program>` block and writes `design.xml` / `design.json` / `design.report` to the session dir. (You could plan yourself; delegating the plan to `navigator-plan` yields the machine-checkable `design.json` contract that the worker and verifier both read — that's why it's the default plan leg here.)
+Drive `navigator-plan` in the session to produce the structured program design. Veda parses its `<program>` block and writes `design.xml` / `design.json` / `design.report` to the session dir. Your role is the planner: you may write the plan yourself or delegate it to `navigator-plan` — either way the design is the contract, and implementation is always the worker's job, never yours.
 
 ```bash
 veda -S task-cache-layer -p navigator-plan -m {{model}} \
@@ -118,11 +120,16 @@ veda -S task-cache-layer -p verifier -m {{model}} \
   'Implementation complete. Verify the implementation against this session's design.json (auto-attached). The diff is in selection. You have read+bash — run the build and the tests yourself. List every affordance this change alters and test each on the real surface (cdp for web UI, xtui/tmux for CLI/TUI, curl for APIs). Only P0/P1 issues; skip P2/P3. End with <verifier_report>; verdict PASS only if every check passed and every affordance is verified.'
 ```
 
-The verifier auto-attaches the session's `design.json`, runs the build/tests itself (read+bash on by default), lists the change's affordances, and adversarially checks the implementation against its signatures and invariants. Read the `<verifier_report>`: `verdict` (`PASS|FAIL|PARTIAL`) is machine-read; `affordances` shows what it enumerated and whether each was tested — a listed-but-untested affordance is not verified, treat it as `PARTIAL`. Loop Verify → Fix → Verify until `verdict` is `PASS`. Only fix P0/P1 high-confidence issues; skip P2/P3. Escalate any remaining disagreement to the user.
+The verifier auto-attaches the session's `design.json`, runs the build/tests itself (read+bash on by default), lists the change's affordances, and adversarially checks the implementation against its signatures and invariants. Read the `<verifier_report>`: `verdict` (`PASS|FAIL|PARTIAL`) is machine-read; `affordances` shows what it enumerated and whether each was tested — a listed-but-untested affordance is not verified, treat it as `PARTIAL`. Loop Verify → (worker fixes) → Verify until `verdict` is `PASS`:
+
+- **FAIL with P0/P1 findings** → delegate the fix back to the worker agent: a fresh `-p worker` run in the same session with the findings pasted into the prompt ("Fix the verifier's P0/P1 findings: …"), or `resume` the original worker session with them. Re-run the verifier after the worker reports `completed`.
+- **FAIL on design grounds** (signatures/invariants/call stacks at fault) → route to `navigator-plan` to revise `design.json`, then re-delegate to the worker.
+- **You never fix code yourself.** Skip P2/P3. Escalate any remaining disagreement to the user.
 
 ## Loop Discipline — you are an orchestrator, not a micromanager
 
-- **One worker for the whole design.** Deliver the complete design in a single delegation and let the worker decompose internally. Re-delegate only on `blocked` (answer `needs` + resume) or `failed` (replan first).
+- **You never implement.** If the verifier finds issues, route them back to the worker; if the design is at fault, route to navigator-plan. Your hands stay off the code — an orchestrator who edits is a micromanager.
+- **One worker for the whole design.** Deliver the complete design in a single delegation and let the worker decompose internally. Re-delegate only on `blocked` (answer `needs` + resume), `failed` (replan first), or verifier findings (route them back).
 - **Stay in scope, bilaterally.** The `whatWasLeftUndone` list is mandatory — treat partial work claiming completeness as a protocol violation, not a status.
 - **Trust evidence, not narration.** `verification.commandsRun` and `evidence` entries name real commands/flags/artifacts. For UI/CLI claims, a visual change with no screenshot/terminal-snap is advisory, not evidence — the verifier pass (Step 5) is the independent cross-check of testimony vs the transcript.
 - **Don't restart shared infra.** If the dev server/API the task needs is down, the worker reports that leg `blocked`; supply/start it yourself, don't tell the worker to restart what it didn't start.

@@ -1,10 +1,10 @@
 ---
 name: veda-worker-verify
-description: Run a mandatory final verify-fix loop with the Veda Verifier model after implementation is complete. Drives `veda -S review-TASKNAME -m {{model}} -p verifier`, looping Verify, Fix, Verify until the Verifier's verdict is PASS. Only fix [P0]/[P1] high-confidence issues; skip P2/P3. Not for mid-implementation use. Invoke when the user says review, verify, final review, or wants completed code checked.
+description: Run a mandatory final verify loop with the Veda Verifier model after implementation is complete. Drives `veda -S review-TASKNAME -m {{model}} -p verifier`, looping Verify → (worker fixes) → Verify until the Verifier's verdict is PASS. You NEVER implement: P0/P1 findings are delegated to the worker agent to fix; you only re-run the verifier. Skip P2/P3. Not for mid-implementation use. Invoke when the user says review, verify, final review, or wants completed code checked.
 argument-hint: "[veda-flags]"
 ---
 
-## Your Task: Verify-Fix Loop with the Verifier after Implementation
+## Your Task: Verify Loop — You Orchestrate, the Worker Fixes
 
 You must always perform at least one final verification with the Verifier model via `veda -S review-TASKNAME -m {{model}} -p verifier` after all implementation work is complete.
 That final verification must run recursively in a Verify → Fix → Verify loop until the Verifier's `<verifier_report>` verdict is `PASS`.
@@ -16,7 +16,9 @@ During implementation, keep the work on track via mid-implementation validation 
 
 **Involve the user when the work genuinely requires them.** Use your `ask_user` tool (or plain questions if unavailable) when the goal is ambiguous, a decision would change scope, cost, or direction, or input only the user can provide. You navigate; the user decides. Otherwise, when you have enough information to act, act.
 
-You are the driver and the orchestrator for this verify leg: you plan and scope the work yourself and run the verifier against the result. If the plan itself needs a second opinion, handle that separately with your own planning — it is not this skill's job.
+You are the planner and orchestrator for this verify leg: you plan and scope the work yourself and run the verifier against the result.
+
+**YOU NEVER IMPLEMENT — the hard rule of this skill.** When the verifier finds P0/P1 issues, you do not fix them yourself: you delegate the fix to the worker agent and then re-verify. If the plan itself needs a second opinion, handle that separately with your own planning — it is not this skill's job.
 
 ### Escaping Backticks in Prompts (Critical)
 
@@ -85,19 +87,19 @@ Key files and the diff are selected. Verify correctness against the design (auto
 
 **4. Handle the response:**
 
-* **Only fix [P0] and [P1] issues** — ignore [P2]/[P3] (nice-to-haves can introduce new bugs)
-* **Only fix high-confidence findings** — if the verifier hedges ("might", "could potentially", "consider"), skip it
+* **Act only on [P0] and [P1] findings** — ignore [P2]/[P3] (nice-to-haves can introduce new bugs)
+* **Act only on high-confidence findings** — if the verifier hedges ("might", "could potentially", "consider"), skip it
 * **Exit when:** verdict is `PASS`, OR no [P0]/[P1] remain
 
-**5. If issues found, loop:**
+**5. If issues found, loop — delegate the fix to the worker agent:**
 
-* Fix only the [P0]/[P1] high-confidence issues
-* Regenerate and re-add the diff (verifier cannot see your fixes without it)
+* Delegate the fix to the worker: a `-p worker` run in the same session with the findings in the prompt (`'Fix the verifier's P0/P1 findings: …'`), or `resume` the original worker session with them. You never edit code yourself.
+* Regenerate and re-add the diff (the verifier cannot see the worker's fixes without it)
 * Request re-verification
 
 ```bash
-# After fixing, regenerate diff
-git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/changes.diff
+# After the worker fixes, regenerate the diff
+ git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/changes.diff
 
 # Update selection
 veda -S my-review sel rm /tmp/changes.diff
@@ -105,14 +107,14 @@ veda -S my-review sel add /tmp/changes.diff
 veda -S my-review sel ls   # verify again
 
 # Re-request
-veda -S my-review -m {{model}} -p verifier "Final Verification Follow-up: I have addressed your feedback:
-[briefly describe what you fixed]
+veda -S my-review -m {{model}} -p verifier "Final Verification Follow-up: The worker has addressed your feedback:
+[briefly describe what the worker fixed]
 Please re-verify and report VERDICT."
 ```
 
 **Important:** Always regenerate and re-add the diff before each re-verification. **Always verify with `sel ls` before sending.**
 
-### What NOT to fix
+### What NOT to ask the worker to fix
 
 * Verifier's opinion on architecture you intentionally chose
 * Style/formatting nits unless they violate documented standards
@@ -140,7 +142,7 @@ Key commands:
 - `veda -S my-review -m {{model}} -p verifier` for verification requests (medium reasoning, read+bash on)
 - `veda -S my-review -m {{model}} resume` to continue the verification conversation (session-scoped)
 - Look for the `<verifier_report>` `verdict`: `PASS | FAIL | PARTIAL`
-- **Only fix [P0]/[P1]** — skip P2/P3 and low-confidence suggestions
+- **Delegate P0/P1 fixes to the worker agent** — skip P2/P3 and low-confidence suggestions
 
 Before every request, verify:
 1. ✅ Diff file exists and is non-empty: `wc -l /tmp/changes.diff`
