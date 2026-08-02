@@ -1,8 +1,12 @@
 {
   "name": "veda-ts-linux-arm64",
-  "version": "0.74.0",
+  "version": "0.75.0",
   "description": "veda binary for linux-arm64",
-  "os": ["linux"],
-  "cpu": ["arm64"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
   "license": "MIT"
 }
