@@ -1,5 +1,5 @@
 ---
-name: veda-plan
+name: veda-plan-implement
 description: Plan work by collaborating with the Veda Navigator model before implementing. Use for planning a refactor, debugging approach, research, analysis, writing, or any course of action. Drives `veda -S plan-TASKNAME -m {{model}} -p navigator-plan` to align on a plan; does not execute. Invoke when the user says plan, discuss, align, or wants to iterate on a plan before coding.
 argument-hint: "[veda-flags]"
 ---

@@ -1,9 +1,9 @@
 /**
  * veda skills — install/uninstall/list the bundled Veda agent skills.
  *
- * Veda ships three Agent Skills (veda-plan, veda-plan-and-implement,
- * veda-review) that teach coding agents how to collaborate with the
- * Navigator / Reviewer models via the `veda` CLI.
+ * Veda ships six Agent Skills (veda-plan-implement, veda-plan-implement-verify,
+ * veda-worker-verify, ...) that teach coding agents how to collaborate with the
+ * Navigator / Verifier models via the `veda` CLI.
  *
  * `install` materializes the bundled SKILL.md files into the cross-agent
  * discovery directories:
@@ -28,24 +28,26 @@ import { pickDefaultModel } from '../agent/detect';
 // Skill registry
 // =============================================================================
 
-export const SKILL_NAMES = ['veda-plan', 'veda-plan-and-implement', 'veda-deep-plan', 'veda-design-implement-review', 'veda-review'] as const;
+export const SKILL_NAMES = ['veda-plan-implement', 'veda-plan-implement-verify', 'veda-deep-plan', 'veda-design-implement-review', 'veda-worker-verify', 'veda-worker'] as const;
 export type SkillName = (typeof SKILL_NAMES)[number];
 
 // Embedded asset imports. Under `bun build --compile` these are baked into the
 // binary; under `bun run`/npm they resolve to the on-disk source files. Either
 // way Bun.file(...).text() yields the content at runtime.
-import vedaPlanSkill from '../../.agents/skills/veda-plan/SKILL.md' with { type: 'file' };
-import vedaPlanImplSkill from '../../.agents/skills/veda-plan-and-implement/SKILL.md' with { type: 'file' };
+import vedaPlanImplSkill from '../../.agents/skills/veda-plan-implement/SKILL.md' with { type: 'file' };
+import vedaPlanImplVerifySkill from '../../.agents/skills/veda-plan-implement-verify/SKILL.md' with { type: 'file' };
 import vedaDeepPlanSkill from '../../.agents/skills/veda-deep-plan/SKILL.md' with { type: 'file' };
 import vedaDesignImplSkill from '../../.agents/skills/veda-design-implement-review/SKILL.md' with { type: 'file' };
-import vedaReviewSkill from '../../.agents/skills/veda-review/SKILL.md' with { type: 'file' };
+import vedaWorkerVerifySkill from '../../.agents/skills/veda-worker-verify/SKILL.md' with { type: 'file' };
+import vedaWorkerSkill from '../../.agents/skills/veda-worker/SKILL.md' with { type: 'file' };
 
 const EMBEDDED_SKILL_PATHS: Record<SkillName, string> = {
-	'veda-plan': vedaPlanSkill,
-	'veda-plan-and-implement': vedaPlanImplSkill,
+	'veda-plan-implement': vedaPlanImplSkill,
+	'veda-plan-implement-verify': vedaPlanImplVerifySkill,
 	'veda-deep-plan': vedaDeepPlanSkill,
 	'veda-design-implement-review': vedaDesignImplSkill,
-	'veda-review': vedaReviewSkill,
+	'veda-worker-verify': vedaWorkerVerifySkill,
+	'veda-worker': vedaWorkerSkill,
 };
 
 /**

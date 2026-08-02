@@ -19,8 +19,8 @@ let origHome: string | undefined;
 beforeAll(async () => {
 	// Sanity: getSkillContent resolves the embedded/on-disk skill content for
 	// at least one skill. If this fails, the asset imports aren't resolving.
-	const content = await getSkillContent('veda-plan');
-	expect(content).toContain('name: veda-plan');
+	const content = await getSkillContent('veda-plan-implement');
+	expect(content).toContain('name: veda-plan-implement');
 	expect(content.length).toBeGreaterThan(100);
 });
 
@@ -57,46 +57,46 @@ describe('veda skills install/uninstall/list', () => {
 	});
 
 	test('install is idempotent: re-running leaves one canonical copy + one symlink', async () => {
-		await installSkill('veda-plan');
-		const r2 = await installSkill('veda-plan');
+		await installSkill('veda-plan-implement');
+		const r2 = await installSkill('veda-plan-implement');
 		expect(r2.status).toBe('unchanged');
 
 		// still exactly one canonical dir, one symlink
-		expect(existsSync(join(tempHome, '.agents', 'skills', 'veda-plan', 'SKILL.md'))).toBe(true);
-		const link = join(tempHome, '.claude', 'skills', 'veda-plan');
+		expect(existsSync(join(tempHome, '.agents', 'skills', 'veda-plan-implement', 'SKILL.md'))).toBe(true);
+		const link = join(tempHome, '.claude', 'skills', 'veda-plan-implement');
 		expect((await lstat(link)).isSymbolicLink()).toBe(true);
 	});
 
 	test('install updates content if the embedded source changed', async () => {
-		await installSkill('veda-review');
+		await installSkill('veda-worker-verify');
 		// tamper with the canonical file
-		const skillFile = join(tempHome, '.agents', 'skills', 'veda-review', 'SKILL.md');
+		const skillFile = join(tempHome, '.agents', 'skills', 'veda-worker-verify', 'SKILL.md');
 		await Bun.write(skillFile, 'stale content');
 
-		const r2 = await installSkill('veda-review');
+		const r2 = await installSkill('veda-worker-verify');
 		expect(r2.status).toBe('updated');
 		const text = await readFile(skillFile, 'utf-8');
 		expect(text).not.toContain('stale content');
-		expect(text).toContain('name: veda-review');
+		expect(text).toContain('name: veda-worker-verify');
 	});
 
 	test('uninstallSkill removes canonical dir + claude symlink', async () => {
-		await installSkill('veda-plan');
-		const r = await uninstallSkill('veda-plan');
+		await installSkill('veda-plan-implement');
+		const r = await uninstallSkill('veda-plan-implement');
 		expect(r.removed).toBe(true);
-		expect(existsSync(join(tempHome, '.agents', 'skills', 'veda-plan'))).toBe(false);
-		expect(existsSync(join(tempHome, '.claude', 'skills', 'veda-plan'))).toBe(false);
+		expect(existsSync(join(tempHome, '.agents', 'skills', 'veda-plan-implement'))).toBe(false);
+		expect(existsSync(join(tempHome, '.claude', 'skills', 'veda-plan-implement'))).toBe(false);
 	});
 
 	test('uninstallSkill on a missing skill is a no-op (removed=false)', async () => {
-		const r = await uninstallSkill('veda-plan');
+		const r = await uninstallSkill('veda-plan-implement');
 		expect(r.removed).toBe(false);
 	});
 
 	test('uninstall does NOT clobber a user-owned real directory at the claude path', async () => {
-		await installSkill('veda-plan');
+		await installSkill('veda-plan-implement');
 		// Replace the symlink with a real, non-empty directory the user owns.
-		const link = join(tempHome, '.claude', 'skills', 'veda-plan');
+		const link = join(tempHome, '.claude', 'skills', 'veda-plan-implement');
 		await rm(link, { force: true });
 		const { mkdir, writeFile } = await import('fs/promises');
 		await mkdir(join(link, 'sub'), { recursive: true });
@@ -104,7 +104,7 @@ describe('veda skills install/uninstall/list', () => {
 
 		// uninstall should remove the canonical agents dir but refuse to touch
 		// the non-empty user dir.
-		const r = await uninstallSkill('veda-plan');
+		const r = await uninstallSkill('veda-plan-implement');
 		expect(r.removed).toBe(true); // canonical dir removed
 		expect(existsSync(link)).toBe(true); // user dir preserved
 		expect(await Bun.file(join(link, 'mine.md')).text()).toBe('user content');
@@ -138,7 +138,7 @@ describe('veda skills install/uninstall/list', () => {
 		} finally {
 			console.log = origLog;
 		}
-		expect(logs.join('\n')).toContain('veda-plan');
+		expect(logs.join('\n')).toContain('veda-plan-implement');
 		expect(logs.join('\n')).toMatch(/installed|Done/);
 	});
 

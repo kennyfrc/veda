@@ -1,7 +1,7 @@
 # Veda Agent Skills
 
 Project-scoped skills that teach coding agents (Claude Code, OpenAI Codex CLI, Pi) how to
-collaborate with the [Veda](https://github.com) Navigator / Reviewer models via the `veda` CLI.
+collaborate with the [Veda](https://github.com) Navigator / Verifier models via the `veda` CLI.
 
 These implement the open [Agent Skills](https://agentskills.io/specification) standard — each
 skill is a directory containing a `SKILL.md` with YAML frontmatter (`name`, `description`)
@@ -11,17 +11,18 @@ plus a Markdown body of instructions.
 
 | Skill | Slash label | When to use |
 | --- | --- | --- |
-| `veda-plan` | `/veda:plan` | Align on a plan with Navigator **before** implementing. No execution. |
-| `veda-plan-and-implement` | `/veda:plan-and-implement` | Align on a plan, then **execute** it. Navigator has read-only tools. |
+| `veda-plan-implement` | `/veda:plan-implement` | **Small-model lane**: align on a plan with Navigator **before** implementing. No execution. |
+| `veda-plan-implement-verify` | `/veda:plan-implement-verify` | **Small-model lane**: align on a plan, then **execute** it. Navigator has read-only tools. |
 | `veda-deep-plan` | `/veda:deep-plan` | Plan the **hardest** problems with Deep Thinking (parallel solvers + judge + verifier). No execution. |
 | `veda-design-implement-review` | `/veda:design-implement-review` | Full plan + program design + implement + review cycle. Fused plan+design in one call. |
-| `veda-review` | `/veda:review` | Mandatory **final** review-fix loop with the Reviewer model. Not for mid-implementation. |
+| `veda-worker-verify` | `/veda:worker-verify` | **Big-model lane**: mandatory **final** verify-fix loop with the Verifier model (adversarial, reports VERDICT). Not for mid-implementation. |
+| `veda-worker` | `/veda:worker` | **Big-model lane**: caller-POV orchestration — navigator-plan → one worker run for the whole design → verifier at the end. You orchestrate (plan, scope, review); the worker drives. Use when you want a model to implement, not advise. |
 
 ## Installing the skills
 
 ### From a Veda install (recommended)
 
-`veda` bundles the five skills and can materialize them into the cross-agent discovery
+`veda` bundles the six skills and can materialize them into the cross-agent discovery
 directories. Once `veda` is installed on your machine:
 
 ```bash
@@ -54,11 +55,12 @@ The canonical skill source lives in `.agents/skills/`:
 
 ```
 .agents/skills/
-├── veda-plan/SKILL.md
-├── veda-plan-and-implement/SKILL.md
+├── veda-plan-implement/SKILL.md
+├── veda-plan-implement-verify/SKILL.md
 ├── veda-deep-plan/SKILL.md
 ├── veda-design-implement-review/SKILL.md
-└── veda-review/SKILL.md
+├── veda-worker-verify/SKILL.md
+└── veda-worker/SKILL.md
 ```
 
 `.claude/skills/<name>` entries are **relative symlinks** into `.agents/skills/<name>`, so
@@ -88,9 +90,10 @@ cat ~/.jdc/agent/old-docs/veda.md
 
 ## Notes
 
-- Skill `name` values use lowercase + hyphens only (spec rule). The `/veda:plan` style labels
-  in docs are descriptive; the actual discoverable names are `veda-plan`,
-  `veda-plan-and-implement`, `veda-deep-plan`, `veda-design-implement-review`, and `veda-review`.
+- Skill `name` values use lowercase + hyphens only (spec rule). The `/veda:plan-implement` style labels
+  in docs are descriptive; the actual discoverable names are `veda-plan-implement`,
+  `veda-plan-implement-verify`, `veda-deep-plan`, `veda-design-implement-review`,
+  `veda-worker-verify`, and `veda-worker`.
 - Keep `SKILL.md` under 500 lines; move long reference material into a `references/` subdir.
 - The `~/.agents/skills/` location is a *de-facto cross-agent convention* (not mandated by
   the agentskills.io spec, which only defines the `SKILL.md` format) — Pi and Codex both

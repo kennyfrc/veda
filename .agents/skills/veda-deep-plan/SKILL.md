@@ -16,7 +16,7 @@ Plan the hardest problems using Veda's Deep Thinking mode: `veda -S deep-TASKNAM
 
 Deep mode runs **k parallel solvers** (default 6), each using a different reasoning strategy. A **judge** picks the best answer. A **verifier** kicks in when confidence is low. This is a homegrown Deepthink, inspired by Self-Consistency, Universal Self-Consistency, and Chain-of-Verification.
 
-**When to use this vs `veda-plan`:** Start with `veda-plan` (a single `navigator-plan` call). Escalate to `veda-deep-plan` only when the problem is genuinely hard — architectural design with many tradeoffs, subtle bugs where the cause is opaque, or decisions where you want independent perspectives before committing. Deep mode costs k× more tokens than a single call; reserve it for when that cost earns its keep.
+**When to use this:** a single planning call is the cheaper default. Reach for Deep Thinking only when the problem is genuinely hard — architectural design with many tradeoffs, subtle bugs where the cause is opaque, or decisions where you want independent perspectives before committing. Deep mode costs k× more tokens than a single call; reserve it for when that cost earns its keep.
 
 **Model:** `{{model}}` is auto-detected by `veda init` from your installed harnesses. If a `-m`/`-b` (or other veda flags) was passed when this skill was invoked, use those instead of `-m {{model}}` in every `veda` command below.
 
