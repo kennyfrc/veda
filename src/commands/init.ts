@@ -124,7 +124,8 @@ export async function handleInit(_options: CliOptions): Promise<void> {
   console.log('  veda -p reviewer "Review my changes; report P0/P1/P2 findings"');
   console.log('');
   console.log('Skills installed for pi, Codex CLI, and Claude Code:');
-  console.log('  veda-plan-implement, veda-plan-implement-review, veda-deep-plan,');
+  console.log('  veda-plan, veda-plan-implement, veda-plan-implement-review,');
+  console.log('  veda-deep-plan,');
   console.log('  veda-worker');
   console.log('');
   console.log(`veda initialized at ${vedaHome}`);

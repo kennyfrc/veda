@@ -467,7 +467,8 @@ a driver-navigator workflow inspired by pair programming best practices.
   skills install             Install bundled skills into ~/.agents/skills/ +
                              ~/.claude/skills/ (discovered by pi, Codex CLI,
                              Claude Code). Also run by 'veda init'.
-  Bundled skills             veda-plan-implement, veda-plan-implement-review, veda-deep-plan,
+  Bundled skills             veda-plan, veda-plan-implement, veda-plan-implement-review,
+                                                     veda-deep-plan,
                              veda-worker
   skills uninstall           Remove the installed skills
   skills list                Show install status and symlink health

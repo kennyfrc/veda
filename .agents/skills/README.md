@@ -11,6 +11,7 @@ plus a Markdown body of instructions.
 
 | Skill | Slash label | When to use |
 | --- | --- | --- |
+| `veda-plan` | `/veda:plan` | **Big-model planning lane**: produce an implementation-ready Architect plan + program design (`design.json`), then complete a self-contained HTML design doc (`devdocs/designs/`) as the durable deliverable. No implementation, no review. |
 | `veda-plan-implement` | `/veda:plan-implement` | **Small-model lane**: align on a plan with Navigator **before** implementing. No execution. |
 | `veda-plan-implement-review` | `/veda:plan-implement-review` | **Small-model lane**: align on a plan with Navigator, **execute** it, then close with a reviewer pass (fix P0/P1, re-review until `review: pass`). |
 | `veda-deep-plan` | `/veda:deep-plan` | Plan the **hardest** problems with Deep Thinking (parallel solvers + judge + verifier). No execution. |
@@ -53,6 +54,7 @@ The canonical skill source lives in `.agents/skills/`:
 
 ```
 .agents/skills/
+├── veda-plan/SKILL.md
 ├── veda-plan-implement/SKILL.md
 ├── veda-plan-implement-review/SKILL.md
 ├── veda-deep-plan/SKILL.md
@@ -87,8 +89,8 @@ cat ~/.pi/agent/docs/veda.md
 ## Notes
 
 - Skill `name` values use lowercase + hyphens only (spec rule). The `/veda:plan-implement` style labels
-  in docs are descriptive; the actual discoverable names are `veda-plan-implement`,
-  `veda-plan-implement-review`, `veda-deep-plan`,
+  in docs are descriptive; the actual discoverable names are `veda-plan`,
+  `veda-plan-implement`, `veda-plan-implement-review`, `veda-deep-plan`,
   and `veda-worker`.
 - Keep `SKILL.md` under 500 lines; move long reference material into a `references/` subdir.
 - The `~/.agents/skills/` location is a *de-facto cross-agent convention* (not mandated by
