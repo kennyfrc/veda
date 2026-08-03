@@ -395,8 +395,8 @@ a driver-navigator workflow inspired by pair programming best practices.
   # 5. Verify with Verifier
   git diff > /tmp/changes.diff
   veda -S review-my-task sel add /tmp/changes.diff src/auth/
-  veda -S review-my-task -m sol -p verifier \\
-    'Implementation complete. Verify against the design and report VERDICT.'
+  veda -S review-my-task -m sol -p reviewer \\
+    'Implementation complete. Review the diff against the design and report P0/P1/P2 findings.'
 
 == Commands ==
 
@@ -414,7 +414,7 @@ a driver-navigator workflow inspired by pair programming best practices.
 == Options ==
 
   -S, --session <id>        Session ID (isolates selection + conversation)
-  -p, --persona <name>      Persona: navigator-plan, navigator-chat, verifier, worker
+  -p, --persona <name>      Persona: navigator-plan, navigator-chat, reviewer, worker
   -b, --backend <name>      Backend: codex, claude-code, droid, pi
   -m, --model <name>        Model or alias (auto-selects backend if -b omitted)
                             Aliases: ${listModelAliases().join(', ')}

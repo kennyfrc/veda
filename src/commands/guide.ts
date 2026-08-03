@@ -68,7 +68,7 @@ design to one worker run, verify the result), the *worker* drives
 |---------|-------------------|------|
 | \`navigator-plan\` | high | none (default) |
 | \`navigator-chat\` | medium | none (default) |
-| \`verifier\` | medium | read,bash,grep,glob (default) |
+| \`reviewer\` | medium | none (default) |
 | \`worker\` | high | all (workspace-write sandbox) |
 
 ---
@@ -208,10 +208,10 @@ veda -S review-auth-feature sel add src/changed_file.c src/related.c
 veda -S review-auth-feature sel ls
 
 # Request verification
-veda -S review-auth-feature -p verifier "Implementation complete. Summary: [brief summary]. Verify against the design and report VERDICT."
+veda -S review-auth-feature -p reviewer "Implementation complete. Summary: [brief summary]. Review the diff against the design and report P0/P1/P2 findings."
 \`\`\`
 
-Loop (Verify → Fix → Verify) until the verifier emits VERDICT: PASS:
+Loop (Review → Fix → Review) until the reviewer returns \`review: pass\`:
 \`\`\`bash
 # After fixing issues, regenerate diff
 git diff > /tmp/changes.diff
@@ -230,7 +230,7 @@ Key commands:
 - \`veda -S impl-TASKNAME -p navigator-plan\` for initial planning (high reasoning)
 - \`veda -S impl-TASKNAME -p navigator-chat\` for follow-up discussion (medium reasoning)
 - \`veda -S impl-TASKNAME -p worker\` to delegate a bounded implementation task (writes report.yaml)
-- \`veda -S review-TASKNAME -p verifier\` for the final adversarial verification (medium reasoning, tools on)
+- \`veda -S review-TASKNAME -p reviewer\` for the final code review (P0/P1/P2 findings, no tools)
 - \`veda -S impl-TASKNAME --no-tools\` to disable all tools (context-only response)
 - \`veda -S impl-TASKNAME --tools read,grep,glob\` to opt back in for a single run
 - \`veda -S impl-TASKNAME resume\` to continue a conversation (session-scoped)

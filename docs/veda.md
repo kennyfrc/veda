@@ -5,7 +5,7 @@
 `veda` is a CLI your agent consults to plan, delegate implementation, and
 verify work. It wraps codex, claude-code, droid, and pi behind **personas** —
 seats with distinct capabilities and handoff contracts. You drive; veda's
-personas advise, implement (via the worker), and verify (via the verifier).
+personas advise, implement (via the worker), and review (via the reviewer).
 
 ## Personas
 
@@ -13,19 +13,19 @@ personas advise, implement (via the worker), and verify (via the verifier).
 |---|---|---|---|---|
 | `navigator-plan` | Architect: plan + `<program>` design in one call | high | none (read-only) | `<plan_report>`; `<program>` block → `design.json` in the session dir |
 | `navigator-chat` | In-flight advisor, short high-signal turns | medium | none (read-only) | `<chat_report>` |
-| `verifier` | Adversarial correctness checker — tries to break it, lists the change's affordances and tests each | medium | `read,bash,grep,glob` (default on) | `<verifier_report>` with `verdict: PASS\|FAIL\|PARTIAL` |
+| `reviewer` | Code review — P0/P1/P2 findings against the diff + `design.json` | medium | none (default) | `review: pass` / `review: needs-fix` |
 | `worker` | Write-capable driver: edits files, runs tests, proves behavior against the live surface | high | `all` + `workspace-write` (both overridable) | mandatory `<worker_report>` → `report.yaml` |
 
 Shared discipline: every persona ends with a flat depth-1 XML report block;
 `status` + `salient_summary` are the common spine. Personas never implement
-unless they are the worker — the verifier checks, the navigators advise, and
+unless they are the worker — the reviewer reviews, the navigators advise, and
 the **you (the caller) or the worker** writes code.
 
 ## Skills (bundled, two lanes)
 
 Small-model lane — the model implements itself, delegates planning/verification up:
 - `veda-plan-implement` — align with navigator-plan, then implement yourself.
-- `veda-plan-implement-verify` — same, plus a final verifier pass.
+- `veda-plan-implement-verify` — same, plus a final reviewer pass.
 
 Big-model lane — the model plans itself, delegates execution/verification:
 - `veda-worker` — orchestrate: plan/design → ONE worker run for the whole
@@ -80,19 +80,23 @@ Always name the **absolute path** to `design.json` (here `<project>/.veda/sessio
   single `needs` item and `resume` (cap 3, then escalate); `failed` → route
   `discovered_issues` back to `navigator-plan`, replan (cap 1), re-delegate.
 
-## Verifying (verifier)
+## Reviewing (reviewer)
 
 ```bash
 git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/changes.diff
 veda -S task-NAME sel add /tmp/changes.diff
-veda -S task-NAME -p verifier -m sol 'Verify against this session's design.json (auto-attached). Run the build and tests yourself. List every affordance this change alters and test each on the real surface (cdp for web UI, xtui/tmux for CLI/TUI, curl for APIs). End with <verifier_report>; verdict PASS only if every check passed and every affordance is verified.'
+veda -S task-NAME -p reviewer -m sol 'Review the diff against this session's design.json (auto-attached). Report P0/P1/P2 findings; end with review: pass or review: needs-fix.'
 ```
 
-- The verifier has `read,bash,grep,glob` on by default — it runs the build and
-  tests itself. `design.json` auto-attaches when it exists in the session.
-- `<verifier_report>` `verdict`: `PASS` (done), `FAIL` (P0/P1 → delegate the
-  fix to the worker, re-verify), `PARTIAL` (environmental limits only — a
-  listed-but-untested affordance is not verified). Only act on P0/P1.
+The reviewer runs with **no tools** — it reviews the diff + the selected file
+context + `design.json` (auto-attached when present) and names any missing
+artifact rather than searching for it. Findings are P0 (must fix) / P1 (should
+fix) / P2 (consider). Only act on P0/P1.
+
+**Review → fix loop:** P0/P1 findings are routed back to the worker to fix;
+after the fix, regenerate the diff and re-review until `review: pass`. P2 may
+remain open but does not block. Review errors on design grounds mean you
+revise `design.json` yourself, then re-delegate to the worker.
 
 ## Models
 

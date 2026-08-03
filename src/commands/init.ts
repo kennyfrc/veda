@@ -118,10 +118,10 @@ export async function handleInit(_options: CliOptions): Promise<void> {
   console.log('Deep thinking for the hardest problems (parallel solvers + judge + verify):');
   console.log('  veda deep "Best architecture for real-time sync?"');
   console.log('');
-  console.log('Verify your work (verifier runs checks against the design):');
+  console.log('Review your work (reviewer reports P0/P1/P2 findings against the design):');
   console.log('  git diff > /tmp/changes.diff');
   console.log('  veda sel add /tmp/changes.diff');
-  console.log('  veda -p verifier "Verify my changes; report VERDICT"');
+  console.log('  veda -p reviewer "Review my changes; report P0/P1/P2 findings"');
   console.log('');
   console.log('Skills installed for pi, Codex CLI, and Claude Code:');
   console.log('  veda-plan-implement, veda-plan-implement-verify, veda-deep-plan,');

@@ -12,7 +12,7 @@ Instead, use an economical agent like DeepSeek V4 ($0.14/$0.28) or GLM 5.2 ($1.4
 
 The driver writes the code. Veda brings in frontier intelligence only where it earns its cost.
 
-Veda is that consultation channel. It wraps codex, claude-code, droid, and pi behind personas (navigator-plan, navigator-chat, verifier, worker).
+Veda is that consultation channel. It wraps codex, claude-code, droid, and pi behind personas (navigator-plan, navigator-chat, reviewer, worker).
 
 ### Heavy thinking, based on a few academic papers
 
@@ -248,7 +248,7 @@ Each entry resolves through the alias/prefix machinery, so backend, model, and p
 ```bash
 veda -p navigator-plan "..."        # Plan + program-design protocol (high)
 veda -p navigator-chat "..."        # Discussion (medium reasoning)
-veda -p verifier "..."             # Adversarial verification (medium reasoning, tools on)
+veda -p reviewer "..."             # Code review — P0/P1/P2 findings (medium reasoning, no tools)
 veda -p worker "..."                # Execute an implementation task (writes your repo)
 veda personas                      # List available
 ```
@@ -276,7 +276,7 @@ raw transcript `response.yaml`. A Driver (often another agent) branches on
 ```bash
 STATUS=$(yq '.status' "$(git rev-parse --show-toplevel)/.veda/sessions/feat-42/report.yaml")
 case "$STATUS" in
-  completed) veda -S feat-42 -p verifier "Verify against design.json" ;;
+  completed) veda -S feat-42 -p reviewer "Review the diff against design.json" ;;
   blocked)   veda -S feat-42 resume "$(yq '.needs' .../report.yaml)" ;;
   failed)    # route discovered_issues back to navigator-plan ;;
 esac
@@ -292,24 +292,27 @@ This orchestration workflow is bundled as the **`veda-worker`** agent skill
 (from the caller's point of view: *you* orchestrate plan → one worker run → verify;
 the *worker* drives the implementation). Install it with `veda skills install`.
 
-#### The Verifier persona (adversarial)
+#### The Reviewer persona
 
-The **verifier** (formerly `reviewer`) is the closing correctness gate. It runs
-with `read,bash,grep,glob` on by default so it can run the build and the tests
-itself — its job is not to confirm the implementation works but to try to
-break it: contract compliance against `design.json` (auto-attached), concrete
-commands with observed output, and at least one adversarial probe (boundary,
-idempotency, orphan op, concurrency) before it may pass.
+The **reviewer** reviews a patch — the git diff plus the selected file
+context — and reports only discrete, actionable findings grouped by severity
+(`P0` must fix, `P1` should fix, `P2` consider). It runs with **no tools**: it
+reviews the diff/context and `design.json` (auto-attached) it is given, and
+names any missing artifact rather than searching for it.
 
 ```bash
 git diff > /tmp/changes.diff
 veda -S feat-42 sel add /tmp/changes.diff
-veda -S feat-42 -p verifier "Verify against the design and report VERDICT"
+veda -S feat-42 -p reviewer "Review the diff against the design; report P0/P1/P2 findings"
 ```
 
-Every verifier run ends with a machine-parseable `<verifier_report>` block
-whose `verdict` is exactly one of `PASS | FAIL | PARTIAL` (PARTIAL =
-environmental limits only). Branch on that verdict, not on prose.
+The reviewer ends with a verdict line the orchestrator branches on:
+`review: pass` (no P0/P1 findings) or `review: needs-fix` (P0/P1 present —
+route them back to the worker). This drives a **review → fix → re-review**
+loop: fix P0/P1 findings, regenerate the diff, and re-review until `pass`
+(P2 may stay open).
+
+## Architecture
 
 ## Architecture
 
@@ -452,7 +455,7 @@ veda deep [options] <prompt>
 
 Options:
   -S, --session <id>     Session ID (or VEDA_SESSION env)
-  -p, --persona <name>   navigator-plan|navigator-chat|verifier|worker
+  -p, --persona <name>   navigator-plan|navigator-chat|reviewer|worker
   -b, --backend <name>   codex|claude-code|droid|pi
   -m, --model <model>    Model or alias (opus|sonnet|haiku|gpt|glm-5.2|makora|pi/<provider>/<model-id>)
   -r, --reasoning <lvl>  minimal|low|medium|high|xhigh|max

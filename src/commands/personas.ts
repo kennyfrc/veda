@@ -46,8 +46,8 @@ function personaDescription(name: string): string {
       return 'Plan + structured program design';
     case 'navigator-chat':
       return 'Medium-reasoning in-flight discussion';
-    case 'verifier':
-      return 'Adversarial correctness check with [P0]-[P3] findings + VERDICT';
+    case 'reviewer':
+      return 'Code review — P0/P1/P2 findings against the diff + context';
     case 'worker':
       return 'Write-capable implementation worker (workspace-write)';
     default:

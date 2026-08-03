@@ -12,13 +12,13 @@ import { withSandboxModeNotice } from './sandbox';
 // (Mirrors the skills.ts embedding pattern: `import ... with { type: 'file' }`
 // resolves to a path that Bun embeds into the compiled binary.)
 import navigatorChatAgent from '../../personas/navigator-chat/AGENTS.md' with { type: 'file' };
-import verifierAgent from '../../personas/verifier/AGENTS.md' with { type: 'file' };
+import reviewerAgent from '../../personas/reviewer/AGENTS.md' with { type: 'file' };
 import navigatorPlanAgent from '../../personas/navigator-plan/AGENTS.md' with { type: 'file' };
 import workerAgent from '../../personas/worker/AGENTS.md' with { type: 'file' };
 
 const EMBEDDED_PERSONA_PATHS: Record<string, string> = {
   'navigator-chat': navigatorChatAgent,
-  'verifier': verifierAgent,
+  'reviewer': reviewerAgent,
   'navigator-plan': navigatorPlanAgent,
   'worker': workerAgent,
 };

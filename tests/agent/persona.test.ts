@@ -32,10 +32,10 @@ describe('persona', () => {
       '---\nreasoning: medium\n---\n# Navigator Chat\n\nYou are a chat assistant.'
     );
 
-    await mkdir(join(TEST_PERSONAS_DIR, 'verifier'));
+    await mkdir(join(TEST_PERSONAS_DIR, 'reviewer'));
     await writeFile(
-      join(TEST_PERSONAS_DIR, 'verifier', 'AGENTS.md'),
-      '---\nreasoning: medium\ntools: none\n---\n# Verifier\n\nYou are an adversarial verifier.'
+      join(TEST_PERSONAS_DIR, 'reviewer', 'AGENTS.md'),
+      '---\nreasoning: medium\ntools: none\n---\n# Reviewer\n\nYou are a code reviewer.'
     );
 
     await mkdir(join(TEST_PERSONAS_DIR, 'worker'));
@@ -73,14 +73,14 @@ describe('persona', () => {
     test('uses correct default reasoning per persona', async () => {
       const plan = await loadPersona('navigator-plan', TEST_BASE);
       const chat = await loadPersona('navigator-chat', TEST_BASE);
-      const verifier = await loadPersona('verifier', TEST_BASE);
+      const reviewer = await loadPersona('reviewer', TEST_BASE);
       
       expect(plan.defaultReasoning).toBe('high');
       expect(chat.defaultReasoning).toBe('medium');
-      expect(verifier.defaultReasoning).toBe('medium');
+      expect(reviewer.defaultReasoning).toBe('medium');
       expect(plan.tools).toEqual(['read', 'grep', 'glob']);
       expect(chat.tools).toBeUndefined();
-      expect(verifier.tools).toEqual([]);
+      expect(reviewer.tools).toEqual([]);
     });
   });
 
@@ -90,7 +90,7 @@ describe('persona', () => {
       
       expect(personas).toContain('navigator-plan');
       expect(personas).toContain('navigator-chat');
-      expect(personas).toContain('verifier');
+      expect(personas).toContain('reviewer');
       expect(personas).not.toContain('empty-dir');
     });
 
@@ -106,7 +106,7 @@ describe('persona', () => {
       const personas = await listPersonas('/nonexistent/path');
       expect(personas.length).toBeGreaterThan(0);
       expect(personas).toContain('navigator-plan');
-      expect(personas).toContain('verifier');
+      expect(personas).toContain('reviewer');
     });
   });
 
@@ -181,13 +181,13 @@ describe('persona', () => {
         { persona: 'navigator-plan', backend: 'pi', baseDir: TEST_BASE },
         defaults
       );
-      const verifier = await resolveAgentConfig(
-        { persona: 'verifier', backend: 'pi', baseDir: TEST_BASE },
+      const reviewer = await resolveAgentConfig(
+        { persona: 'reviewer', backend: 'pi', baseDir: TEST_BASE },
         defaults
       );
 
       expect(plan.tools).toEqual(['read', 'grep', 'glob']);
-      expect(verifier.tools).toEqual([]);
+      expect(reviewer.tools).toEqual([]);
     });
 
     test('defaults to no tools when neither persona nor CLI grants them', async () => {
@@ -625,49 +625,39 @@ describe('worker persona — write-capable defaults', () => {
   });
 });
 
-describe('verifier persona — adversarial correctness, tools on by default', () => {
-  test('embedded verifier loads with reasoning + read,bash,grep,glob tools', async () => {
-    const persona = await loadPersona('verifier', '/nonexistent/path');
+describe('reviewer persona — code review, no tools', () => {
+  test('embedded reviewer loads with reasoning medium + no tools', async () => {
+    const persona = await loadPersona('reviewer', '/nonexistent/path');
     expect(persona.defaultReasoning).toBe('medium');
-    expect(persona.tools).toEqual(['read', 'bash', 'grep', 'glob']);
+    expect(persona.tools).toEqual([]);
   });
 
-  test('resolveAgentConfig(verifier) resolves tools to read,bash,grep,glob (not the no-tools default)', async () => {
+  test('resolveAgentConfig(reviewer) resolves tools to empty (no-tools default)', async () => {
     const config = await resolveAgentConfig(
-      { persona: 'verifier', backend: 'pi', baseDir: TEST_BASE },
+      { persona: 'reviewer', backend: 'pi', baseDir: TEST_BASE },
       { persona: 'navigator-chat' }
     );
-    expect(config.tools).toEqual(['read', 'bash', 'grep', 'glob']);
-    // A granted allowlist gets no sandbox notice (matches advisory behavior).
-    expect(config.systemPrompt).not.toContain('no access to tools');
+    expect(config.tools).toEqual([]);
   });
 
-  test('--no-tools forces an empty allowlist on the verifier too', async () => {
+  test('--no-tools forces an empty allowlist on the reviewer too', async () => {
     const config = await resolveAgentConfig(
-      { persona: 'verifier', noTools: true, backend: 'pi', baseDir: TEST_BASE },
+      { persona: 'reviewer', noTools: true, backend: 'pi', baseDir: TEST_BASE },
       { persona: 'navigator-chat' }
     );
     expect(config.tools).toEqual([]);
     expect(config.systemPrompt).toContain('no access to tools');
   });
 
-  test('verifier prompt is adversarial and ends with a verifier_report/verdict protocol', async () => {
-    const persona = await loadPersona('verifier', '/nonexistent/path');
-    expect(persona.systemPrompt).toContain('try to break it');
-    expect(persona.systemPrompt).toContain('verifier_report');
-    expect(persona.systemPrompt).toContain('verdict');
-    expect(persona.systemPrompt).toContain('PASS | FAIL | PARTIAL');
-  });
-
-  test('verifier prompt is veda-tool-agnostic and lists affordances + tests them', async () => {
-    const persona = await loadPersona('verifier', '/nonexistent/path');
-    // veda tools, not Claude MCP references
-    expect(persona.systemPrompt).toContain('cdp');
-    expect(persona.systemPrompt).toContain('xtui');
-    expect(persona.systemPrompt).not.toContain('mcp__claude-in-chrome');
-    expect(persona.systemPrompt).not.toContain('mcp__playwright');
-    // affordance-testing discipline
-    expect(persona.systemPrompt).toContain('affordances');
-    expect(persona.systemPrompt).toContain('List the affordances');
+  test('reviewer prompt reports P0/P1/P2 findings and ends with review: pass / needs-fix', async () => {
+    const persona = await loadPersona('reviewer', '/nonexistent/path');
+    expect(persona.systemPrompt).toContain('P0');
+    expect(persona.systemPrompt).toContain('P1');
+    expect(persona.systemPrompt).toContain('P2');
+    expect(persona.systemPrompt).toContain('review: pass');
+    expect(persona.systemPrompt).toContain('review: needs-fix');
+    // It reviews the diff/context — it does not run the build or drive a UI.
+    expect(persona.systemPrompt).not.toContain('cdp');
+    expect(persona.systemPrompt).not.toContain('verifier_report');
   });
 });

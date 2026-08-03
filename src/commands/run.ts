@@ -63,12 +63,8 @@ export async function handleRun(
     context = context ? `${context}\n\n${adhocContext}` : adhocContext;
   }
   
-  // Program-design auto-attach: when the verifier or worker persona runs and a
-  // design.json exists for this session, append it as context. The verifier uses
-  // it to check implementation against the design's signatures/invariants; the
-  // worker uses it as the contract it implements. (The veda-worker skill relies
-  // on this — the worker must not guess the design contents or path.)
-  if (personaName === 'verifier' || personaName === 'worker') {
+  if (personaName === 'reviewer' || personaName === 'worker') {
+    // design auto-attach for the reviewer (reviews against the contract) and worker.
     const { getSessionDir } = await import('../util/paths');
     const { existsSync, readFileSync } = await import('fs');
     const designPath = `${getSessionDir(options.session)}/design.json`;
@@ -80,7 +76,7 @@ ${readFileSync(designPath, 'utf-8')}
 ${
   personaName === 'worker'
     ? 'This is the program design you must implement — read it and treat it as the contract (do not guess or approximate it).'
-    : 'Check the implementation against this design\'s signatures, call stacks, and invariants.'
+    : 'Review the change against this design — check intent, layout, signatures, and invariants, and report P0/P1/P2 findings.'
 }`;
       context = context ? `${context}\n\n${designContext}` : designContext;
     }
