@@ -68,7 +68,7 @@ design to one worker run, verify the result), the *worker* drives
 |---------|-------------------|------|
 | \`navigator-plan\` | high | none (default) |
 | \`navigator-chat\` | medium | none (default) |
-| \`reviewer\` | medium | none (default) |
+| \`reviewer\` | medium | read,bash,grep,glob (default) |
 | \`worker\` | high | all (workspace-write sandbox) |
 
 ---
@@ -230,7 +230,7 @@ Key commands:
 - \`veda -S impl-TASKNAME -p navigator-plan\` for initial planning (high reasoning)
 - \`veda -S impl-TASKNAME -p navigator-chat\` for follow-up discussion (medium reasoning)
 - \`veda -S impl-TASKNAME -p worker\` to delegate a bounded implementation task (writes report.yaml)
-- \`veda -S review-TASKNAME -p reviewer\` for the final code review (P0/P1/P2 findings, no tools)
+- \`veda -S review-TASKNAME -p reviewer\` for the final review + live verification (P0/P1/P2 findings; runs build/tests/cdp/xtui/curl)
 - \`veda -S impl-TASKNAME --no-tools\` to disable all tools (context-only response)
 - \`veda -S impl-TASKNAME --tools read,grep,glob\` to opt back in for a single run
 - \`veda -S impl-TASKNAME resume\` to continue a conversation (session-scoped)

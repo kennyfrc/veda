@@ -13,7 +13,7 @@ personas advise, implement (via the worker), and review (via the reviewer).
 |---|---|---|---|---|
 | `navigator-plan` | Architect: plan + `<program>` design in one call | high | none (read-only) | `<plan_report>`; `<program>` block → `design.json` in the session dir |
 | `navigator-chat` | In-flight advisor, short high-signal turns | medium | none (read-only) | `<chat_report>` |
-| `reviewer` | Code review — P0/P1/P2 findings against the diff + `design.json` | medium | none (default) | `review: pass` / `review: needs-fix` |
+| `reviewer` | Code review + live verification — P0/P1/P2 findings AND runs build/tests/cdp/xtui/curl against the running surface + `design.json` | medium | `read,bash,grep,glob` (default) | `review: pass` / `review: needs-fix` |
 | `worker` | Write-capable driver: edits files, runs tests, proves behavior against the live surface | high | `all` + `workspace-write` (both overridable) | mandatory `<worker_report>` → `report.yaml` |
 
 Shared discipline: every persona ends with a flat depth-1 XML report block;

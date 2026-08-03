@@ -35,7 +35,7 @@ describe('persona', () => {
     await mkdir(join(TEST_PERSONAS_DIR, 'reviewer'));
     await writeFile(
       join(TEST_PERSONAS_DIR, 'reviewer', 'AGENTS.md'),
-      '---\nreasoning: medium\ntools: none\n---\n# Reviewer\n\nYou are a code reviewer.'
+      '---\nreasoning: medium\ntools: read,bash,grep,glob\n---\n# Reviewer\n\nYou are a code reviewer.'
     );
 
     await mkdir(join(TEST_PERSONAS_DIR, 'worker'));
@@ -80,7 +80,7 @@ describe('persona', () => {
       expect(reviewer.defaultReasoning).toBe('medium');
       expect(plan.tools).toEqual(['read', 'grep', 'glob']);
       expect(chat.tools).toBeUndefined();
-      expect(reviewer.tools).toEqual([]);
+      expect(reviewer.tools).toEqual(['read', 'bash', 'grep', 'glob']);
     });
   });
 
@@ -187,7 +187,7 @@ describe('persona', () => {
       );
 
       expect(plan.tools).toEqual(['read', 'grep', 'glob']);
-      expect(reviewer.tools).toEqual([]);
+      expect(reviewer.tools).toEqual(['read', 'bash', 'grep', 'glob']);
     });
 
     test('defaults to no tools when neither persona nor CLI grants them', async () => {
@@ -625,19 +625,19 @@ describe('worker persona — write-capable defaults', () => {
   });
 });
 
-describe('reviewer persona — code review, no tools', () => {
-  test('embedded reviewer loads with reasoning medium + no tools', async () => {
+describe('reviewer persona — code review + live verification, tools on by default', () => {
+  test('embedded reviewer loads with reasoning medium + read,bash,grep,glob tools', async () => {
     const persona = await loadPersona('reviewer', '/nonexistent/path');
     expect(persona.defaultReasoning).toBe('medium');
-    expect(persona.tools).toEqual([]);
+    expect(persona.tools).toEqual(['read','bash','grep','glob']);
   });
 
-  test('resolveAgentConfig(reviewer) resolves tools to empty (no-tools default)', async () => {
+  test('resolveAgentConfig(reviewer) resolves tools to read,bash,grep,glob (not the no-tools default)', async () => {
     const config = await resolveAgentConfig(
       { persona: 'reviewer', backend: 'pi', baseDir: TEST_BASE },
       { persona: 'navigator-chat' }
     );
-    expect(config.tools).toEqual([]);
+    expect(config.tools).toEqual(['read','bash','grep','glob']);
   });
 
   test('--no-tools forces an empty allowlist on the reviewer too', async () => {
@@ -656,8 +656,9 @@ describe('reviewer persona — code review, no tools', () => {
     expect(persona.systemPrompt).toContain('P2');
     expect(persona.systemPrompt).toContain('review: pass');
     expect(persona.systemPrompt).toContain('review: needs-fix');
-    // It reviews the diff/context — it does not run the build or drive a UI.
-    expect(persona.systemPrompt).not.toContain('cdp');
-    expect(persona.systemPrompt).not.toContain('verifier_report');
+    // It verifies against the live surface with environment tools (cdp/xtui/curl).
+    expect(persona.systemPrompt).toContain('cdp');
+    expect(persona.systemPrompt).toContain('xtui');
+    expect(persona.systemPrompt).toContain('curl');
   });
 });
