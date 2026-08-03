@@ -59,7 +59,7 @@ veda init                          # first-time setup: installs agent skills for
 #      /veda:plan-and-implement the rate-limiter plan
 ```
 
-After `veda init`, your driver agent (pi, codex, or claude) auto-discovers the bundled skills (`veda-plan-implement`, `veda-plan-implement-verify`, `veda-deep-plan`, `veda-worker`) and can invoke veda on its own. Run `veda skills list` to verify they installed.
+After `veda init`, your driver agent (pi, codex, or claude) auto-discovers the bundled skills (`veda-plan`, `veda-plan-implement`, `veda-plan-implement-review`, `veda-deep-plan`, `veda-worker`) and can invoke veda on its own. Run `veda skills list` to verify they installed.
 
 <details>
 <summary>Build from source</summary>
@@ -75,10 +75,10 @@ cp dist/veda ~/.local/bin/
 
 ## Install Agent Skills
 
-Veda bundles four [Agent Skills](https://agentskills.io/specification) (`veda-plan-implement`,
-`veda-plan-implement-verify`, `veda-deep-plan`,
+Veda bundles five [Agent Skills](https://agentskills.io/specification) (`veda-plan`,
+`veda-plan-implement`, `veda-plan-implement-review`, `veda-deep-plan`,
 `veda-worker`) that teach coding agents how to collaborate
-with the Navigator / Verifier models. One command installs them into the directories
+with the Navigator / Reviewer models. One command installs them into the directories
 read by **Pi**, **OpenAI Codex CLI**, and **Claude Code**:
 
 ```bash
