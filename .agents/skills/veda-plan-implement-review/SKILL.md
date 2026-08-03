@@ -1,12 +1,12 @@
 ---
-name: veda-plan-implement-verify
-description: Plan AND implement with the Veda Navigator model. Align on an approach with Navigator, then carry it out. Use when you need to plan an approach and then execute it. Drives `veda -S impl-TASKNAME -m {{model}} -p navigator-plan` to align, then implements with native tools, checkpointing with Navigator. Navigator has read-only tools only.
+name: veda-plan-implement-review
+description: Plan AND implement with the Veda Navigator model, then review the result. Align on an approach with Navigator, carry it out, then close with a reviewer pass (fix P0/P1, re-review until pass). Use when you need to plan an approach, execute it, and review the outcome. Drives `veda -S impl-TASKNAME -m {{model}} -p navigator-plan` to align, implements with native tools, then `-p reviewer`. Navigator has read-only tools only.
 argument-hint: "[veda-flags]"
 ---
 
 ## Your Task
 
-Collaborate, discuss, align, and implement with the Navigator model using `veda -S impl-TASKNAME -m {{model}} -p navigator-plan`. First align on the plan with Navigator, then execute it. The Navigator has **read-only tools** (`Read`, `Grep`, `Glob`, `LS`, `git status/log/diff`) but cannot edit or run mutating commands — it advises, you implement. You still provide curated context via `veda sel add` so the Navigator can verify your claims against the actual code; selection focuses attention and controls token cost.
+Collaborate, discuss, align, implement, and review with the Navigator model using `veda -S impl-TASKNAME -m {{model}} -p navigator-plan`. First align on the plan with Navigator, then execute it, then close with a reviewer pass. The Navigator has **read-only tools** (`Read`, `Grep`, `Glob`, `LS`, `git status/log/diff`) but cannot edit or run mutating commands — it advises, you implement. You still provide curated context via `veda sel add` so the Navigator can verify your claims against the actual code; selection focuses attention and controls token cost.
 
 **Model:** `{{model}}` is auto-detected by `veda init` from your installed harnesses. If a `-m`/`-b` (or other veda flags) was passed when this skill was invoked, use those instead of `-m {{model}}` in every `veda` command below.
 
@@ -131,6 +131,33 @@ Before ending your turn, check your last paragraph. If it is a plan, a list of n
 
 When you write your final summary, write it for a reader who did not see any of the working thread. Lead with the outcome in one sentence, then the supporting detail. Drop the working shorthand: write complete sentences, spell out terms, and don't use arrow chains or labels you made up earlier. If you have to choose between short and clear, choose clear.
 
+## Review the Result (closing reviewer pass)
+
+After execution, close with a **review-fix loop** using the `-p reviewer`
+persona (no tools — it reviews the diff + selected context + the session's
+`design.json`, auto-attached). Capture the diff into selection, then review
+against the same design Navigator aligned on:
+
+```bash
+git diff -- . ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.woff*' > /tmp/impl.diff
+veda -S impl-auth-refactor sel add /tmp/impl.diff
+veda -S impl-auth-refactor sel ls      # verify the diff is in selection
+veda -S impl-auth-refactor -m {{model}} -p reviewer \
+  'Implementation complete. Review the diff against this session's design.json (auto-attached) and report P0/P1/P2 findings. End with review: pass or review: needs-fix.'
+```
+
+The reviewer reports **P0** (must fix), **P1** (should fix), **P2** (consider)
+findings and ends with `review: pass` (no P0/P1) or `review: needs-fix`
+(P0/P1 present).
+
+- **`review: needs-fix` with P0/P1 findings** → fix them yourself (you are the
+  implementer in this lane), regenerate the diff, and re-run the reviewer.
+- **Review errors on design grounds** → go back to Navigator to revise the
+  design, then re-implement.
+- Loop until `review: pass`. P2 findings stay open but do not block.
+- **Don't pipe veda with `2>&1`** — the response goes to stdout, progress to
+  stderr.
+
 ## Reminders
 
 Onboard yourself with veda at `~/.pi/agent/docs/veda.md` before acting.
@@ -141,4 +168,5 @@ Key commands:
 - `veda -S impl-TASKNAME -m {{model}} -p navigator-plan` for initial planning (high reasoning)
 - `veda -S impl-TASKNAME -m {{model}} -p navigator-chat` for follow-up discussion (medium reasoning)
 - `veda -S impl-TASKNAME -m {{model}} resume` to continue a conversation (session-scoped)
-- Output goes to stdout; use `-o file.md` to save response
+- `veda -S impl-TASKNAME -m {{model}} -p reviewer` for the closing review pass (P0/P1/P2, fix + re-review until `review: pass`)
+- Output goes to stdout; use `-o file.md` to save response; don't pipe `2>&1`

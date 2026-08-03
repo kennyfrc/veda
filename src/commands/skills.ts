@@ -1,7 +1,7 @@
 /**
  * veda skills — install/uninstall/list the bundled Veda agent skills.
  *
- * Veda ships four Agent Skills (veda-plan-implement, veda-plan-implement-verify,
+ * Veda ships four Agent Skills (veda-plan-implement, veda-plan-implement-review,
  * veda-worker, ...) that teach coding agents how to collaborate with the
  * Navigator / Verifier models via the `veda` CLI.
  *
@@ -28,21 +28,21 @@ import { pickDefaultModel } from '../agent/detect';
 // Skill registry
 // =============================================================================
 
-export const SKILL_NAMES = ['veda-plan-implement', 'veda-plan-implement-verify', 'veda-deep-plan', 'veda-worker'] as const;
+export const SKILL_NAMES = ['veda-plan-implement', 'veda-plan-implement-review', 'veda-deep-plan', 'veda-worker'] as const;
 export type SkillName = (typeof SKILL_NAMES)[number];
 
 // Embedded asset imports. Under `bun build --compile` these are baked into the
 // binary; under `bun run`/npm they resolve to the on-disk source files. Either
 // way Bun.file(...).text() yields the content at runtime.
 import vedaPlanImplSkill from '../../.agents/skills/veda-plan-implement/SKILL.md' with { type: 'file' };
-import vedaPlanImplVerifySkill from '../../.agents/skills/veda-plan-implement-verify/SKILL.md' with { type: 'file' };
+import vedaPlanImplReviewSkill from '../../.agents/skills/veda-plan-implement-review/SKILL.md' with { type: 'file' };
 import vedaDeepPlanSkill from '../../.agents/skills/veda-deep-plan/SKILL.md' with { type: 'file' };
 import vedaWorkerSkill from '../../.agents/skills/veda-worker/SKILL.md' with { type: 'file' };
 import vedaOnboardingDoc from '../../docs/veda.md' with { type: 'file' };
 
 const EMBEDDED_SKILL_PATHS: Record<SkillName, string> = {
 	'veda-plan-implement': vedaPlanImplSkill,
-	'veda-plan-implement-verify': vedaPlanImplVerifySkill,
+	'veda-plan-implement-review': vedaPlanImplReviewSkill,
 	'veda-deep-plan': vedaDeepPlanSkill,
 	'veda-worker': vedaWorkerSkill,
 };
