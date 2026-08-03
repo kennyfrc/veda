@@ -54,13 +54,15 @@ Target ~75k-125k tokens. Start with full files; slice only above budget
 2. **Reuse one `-S` session name across the whole loop** (plan, worker run,
    resumes, verify) so `design.json`, selection, and `report.yaml` stay together.
 
-3. **Send prompts that commit to a position** — goal, your understanding,
-   proposed approach, non-goals, and 1-2 real questions. Put observations in
-   the prompt (error output, causal timeline, data) — personas only see what
-   you select plus the session's artifacts.
+3. **Send prompts that commit to a position** — lead the planning prompt with the
+   user's request **verbatim** (quoted exactly as written), then goal, your
+   understanding, proposed approach, non-goals, and 1-2 real questions. The
+   persona plans against the ask as given — don't paraphrase it away. Put
+   observations in the prompt (error output, causal timeline, data) — personas
+   only see what you select plus the session's artifacts.
 
 ```bash
-veda -S task-NAME -p navigator-plan -m sol 'Goal: … My understanding: … What do you think?'
+veda -S task-NAME -p navigator-plan -m sol '<USER PROMPT, verbatim>\n\nMy understanding: … Proposed approach: … What do you think?'
 veda -S task-NAME resume 'What about edge case X?'        # continue, session-scoped
 veda -S task-NAME -p navigator-chat -m sol 'Quick question: …'
 ```

@@ -100,8 +100,14 @@ Example flow:
 veda -S plan-auth-refactor sel clear
 veda -S plan-auth-refactor sel add "src/auth/" "src/api/users.ts"
 
-# 2. Start planning conversation - commit to a position
-veda -S plan-auth-refactor -m {{model}} -p navigator-plan 'Goal: [what done looks like, and for whom]. My understanding: [situation + evidence]. Proposed approach: [details]. Non-goals: [scope limits]. Key question: [your real uncertainty]. What do you think?'
+# 2. Start planning conversation - commit to a position, carrying the ask VERBATIM
+#
+# Lead with the USER'S EXACT WORDS (quoted verbatim), then your framing —
+# Navigator plans against the ask as given, so don't paraphrase it away:
+veda -S plan-auth-refactor -m {{model}} -p navigator-plan \
+  '<USER PROMPT, verbatim, exactly as the user wrote it>
+
+My understanding: [situation + evidence]. Proposed approach: [details]. Non-goals: [scope limits]. Key question: [your real uncertainty]. What do you think?'
 
 # 3. Continue discussion (session-scoped resume)
 veda -S plan-auth-refactor -m {{model}} resume "What about edge case X?"

@@ -74,8 +74,20 @@ impact, Risks, Implementation order — **plus** the `<program>` design block.
 veda -S plan-auth-refactor sel clear
 veda -S plan-auth-refactor sel add "src/auth/" "src/api/users.ts"
 
-# 2. Plan — commit to a position
-veda -S plan-auth-refactor -m {{model}} -p navigator-plan 'Goal: [what done looks like, and for whom]. My understanding: [situation + evidence]. Proposed approach: [details]. Non-goals: [scope limits]. Key question: [your real uncertainty]. What do you think?'
+# 2. Plan — commit to a position, and carry the user's ASK VERBATIM
+#
+# Lead the driver->navigator prompt with the USER'S EXACT WORDS, quoted verbatim,
+# not a paraphrase — Navigator plans against the ask as given, and your
+# interpretation can drift from it. Put the original request first:
+veda -S plan-auth-refactor -m {{model}} -p navigator-plan \
+  '<USER PROMPT, verbatim, exactly as the user wrote it>
+
+My understanding: [situation + evidence]. Proposed approach: [details]. Non-goals: [scope limits]. Key question: [your real uncertainty]. What do you think?'
+
+Weave the verbatim user prompt in **even when you've restated it above** — the
+persona should see the original ask, not just your framing. If you were invoked
+with a user message, reproduce it exactly; don't "clean up" or summarize it into
+your own wording.
 
 # 3. Continue discussion (session-scoped resume), or pivot to chat
 veda -S plan-auth-refactor -m {{model}} resume "What about edge case X?"
