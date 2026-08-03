@@ -1,6 +1,6 @@
 {
   "name": "veda-ts-linux-x64",
-  "version": "0.75.2",
+  "version": "0.75.3",
   "description": "veda binary for linux-x64",
   "os": [
     "linux"
