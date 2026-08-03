@@ -23,14 +23,19 @@ the **you (the caller) or the worker** writes code.
 
 ## Skills (bundled, two lanes)
 
-Small-model lane — the model implements itself, delegates planning/verification up:
-- `veda-plan-implement` — align with navigator-plan, then implement yourself.
-- `veda-plan-implement-verify` — same, plus a final reviewer pass.
+Planning-only lane:
+- `veda-plan` — plan lane: navigator-plan (Architect) plan + program design
+  (design.json), then the driver completes a self-contained HTML design doc.
 
-Big-model lane — the model plans itself, delegates execution/verification:
+Small-model lane — the model implements itself, delegates planning/review up:
+- `veda-plan-implement` — align with navigator-plan, then implement yourself.
+- `veda-plan-implement-review` — same, then close with a reviewer pass (fix
+  P0/P1, re-review until `review: pass`).
+
+Big-model lane — the model plans itself, delegates execution/review:
 - `veda-worker` — orchestrate: plan/design → ONE worker run for the whole
-  design → read `report.yaml` → verification loop until `PASS`. You never
-  implement; every edit and fix is a `-p worker` delegation.
+  design → read `report.yaml` → reviewer review-fix loop until `review: pass`.
+  You never implement; every edit and fix is a `-p worker` delegation.
 - `veda-deep-plan` — hardest problems: parallel solvers + judge + verifier.
 
 ## Core workflow
