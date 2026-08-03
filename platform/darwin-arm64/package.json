@@ -1,6 +1,6 @@
 {
   "name": "veda-ts-darwin-arm64",
-  "version": "0.75.3",
+  "version": "0.75.4",
   "description": "veda binary for darwin-arm64 (Apple Silicon)",
   "os": [
     "darwin"
